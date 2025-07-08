@@ -1,0 +1,5 @@
+water_type,colour,turbidity,temperature,odour,tss,ph,bod,cod,nitrate,phosphate,ammonia,chloride
+Grey Water,Light grey to cloudy,30-200,20-35,Musty or soapy,50-300,6.0-9.0,100-300,250-600,May-30,Feb-15,0-5,0-10
+Black Water,Dark brown to black,50-300,25-40,"Strong, offensive",250-600,6.5-8.0,300-600,800-1500,40-100,Oct-30,Oct-50,50-200
+Brown Water,Brown to dark brown,200-500,25-40,Offensive,200-500,6.5-8.5,250-500,600-1200,30-80,Oct-20,Oct-50,50-200
+Yellow Water,Pale yellow to amber,<100,25-40,Strong ammonia,<100,6.0-9.0,600-2000,1000-4000,6000-12000,500-1000,Oct-50,50-200
