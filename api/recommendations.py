@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Query, Depends, HTTPException
 from sqlalchemy.orm import Session
-from app.db.database import SessionLocal
+from db.database import SessionLocal
 import pandas as pd
-from app.utils.recommendation_utils import get_recommendation_data
+from utils.recommendation_utils import get_recommendation_data
 from fastapi.responses import JSONResponse  # <-- ADD THIS LINE
 
 router = APIRouter()

@@ -1,10 +1,10 @@
 from fastapi import FastAPI
-from app.api import water_data
-from app.db.database import engine
-from app.db import models
-from app.api import location
-from app.api import recommendations
-from app.api import implementation
+from api import water_data
+from db.database import engine
+from db import models
+from api import location
+from api import recommendations
+from api import implementation
 
 
 app = FastAPI()
