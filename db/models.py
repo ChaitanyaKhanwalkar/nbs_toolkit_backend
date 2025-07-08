@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, Text, TIMESTAMP
-from app.db.database import Base
+from db.database import Base
 
 class WaterData(Base):
     __tablename__ = "water_data"
