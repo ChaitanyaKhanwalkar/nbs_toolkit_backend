@@ -6,7 +6,8 @@ import os
 print("ENV VARS:", os.environ)
 
 
-SQLALCHEMY_DATABASE_URL = os.environ.get("postgresql://nbs_database_user:olbzqH91si07EtEF7xXhYHxeHxOJM4s2@dpg-d1migujipnbc739lkivg-a/nbs_database")
+SQLALCHEMY_DATABASE_URL = os.environ.get("DATABASE_URL")
+
 
 
 print("DATABASE_URL:", SQLALCHEMY_DATABASE_URL)
