@@ -9,6 +9,6 @@ SQLALCHEMY_DATABASE_URL = os.environ.get("postgresql://nbs_database_user:olbzqH9
 
 print("DATABASE_URL:", SQLALCHEMY_DATABASE_URL)
 
-engine = create_engine(DATABASE_URL)
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
