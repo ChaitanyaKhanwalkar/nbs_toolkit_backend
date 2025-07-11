@@ -34,6 +34,4 @@ def get_recommendations(
             status_code=500,
             content={"error": str(e)}
         )
-e
-    }
 # Implementation plan endpoint
