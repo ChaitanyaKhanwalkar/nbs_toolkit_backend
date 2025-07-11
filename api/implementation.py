@@ -13,29 +13,27 @@ def get_db():
     finally:
         db.close()
 
-@router.get("/implementation")
-def get_implementation(
-    solution: str = Query(..., description="Name of the NbS/plant solution"),
+@router.get("/recommendations")
+def get_recommendations(
+    state_name: str = Query(..., description="User's selected state"),
+    water_type: str = Query(..., description="User's water type (classified or preset)"),
     db: Session = Depends(get_db)
 ):
-    # Load the nbs_implementation table (either via pandas or ORM)
-    df = pd.read_sql("SELECT * FROM nbs_implementation", db.bind)
-    record = df[df['solution'].str.lower() == solution.lower()]
-
-    if record.empty:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No implementation plan found for solution '{solution}'."
+    try:
+        data = get_recommendation_data(state_name, water_type, db)
+        if not data or not isinstance(data, dict):
+            return JSONResponse(content={"plants": [], "nbs_options": []})
+        data.setdefault("plants", [])
+        data.setdefault("nbs_options", [])
+        return JSONResponse(content=data)
+    except Exception as e:
+        import traceback
+        print("ERROR in /recommendations:", e)
+        traceback.print_exc()
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
         )
-
-    record = record.iloc[0]
-    # Split by comma and strip whitespace for clean UX
-    steps = [step.strip() for step in str(record['implementation_steps']).split(',')]
-    maintenance = [req.strip() for req in str(record['maintenance_requirements']).split(',')]
-
-    return {
-        "solution": record['solution'],
-        "implementation_steps": steps,
-        "maintenance_requirements": maintenance
+e
     }
 # Implementation plan endpoint
