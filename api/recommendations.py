@@ -22,6 +22,7 @@ def get_recommendations(
 ):
     try:
         data = get_recommendation_data(state_name, water_type, db)
+        print("QUERY INPUTS:", state_name, water_type)
         if not data or not isinstance(data, dict):
             return JSONResponse(content={"plants": [], "nbs_options": []})
         data.setdefault("plants", [])
