@@ -20,13 +20,21 @@ def get_recommendations(
     water_type: str = Query(..., description="User's water type (classified or preset)"),
     db: Session = Depends(get_db)
 ):
-    data = get_recommendation_data(state_name, water_type, db)
-    # Always return non-null dict with required keys
-    if not data or not isinstance(data, dict):
-        return JSONResponse(content={"plants": [], "nbs_options": []})
-    data.setdefault("plants", [])
-    data.setdefault("nbs_options", [])
-    return JSONResponse(content=data)
+    try:
+        data = get_recommendation_data(state_name, water_type, db)
+        if not data or not isinstance(data, dict):
+            return JSONResponse(content={"plants": [], "nbs_options": []})
+        data.setdefault("plants", [])
+        data.setdefault("nbs_options", [])
+        return JSONResponse(content=data)
+    except Exception as e:
+        import traceback
+        print("ERROR in /recommendations:", e)
+        traceback.print_exc()
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
 
 @router.get("/nbs_detail/{nbs_id}")
 def get_nbs_detail(nbs_id: int, db: Session = Depends(get_db)):
