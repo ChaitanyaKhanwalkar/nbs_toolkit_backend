@@ -1,6 +1,13 @@
 import pandas as pd
 from fuzzywuzzy import fuzz
 
+def remove_unnamed_columns(obj):
+    if isinstance(obj, dict):
+        return {k: v for k, v in obj.items() if not k.startswith("Unnamed")}
+    if isinstance(obj, list):
+        return [remove_unnamed_columns(x) for x in obj]
+    return obj
+
 def get_recommendation_data(state_name, water_type, db):
     # Get soil type for state
     merged_df = pd.read_sql("SELECT * FROM merged_district_data", db.bind)
@@ -88,3 +95,5 @@ def get_recommendation_data(state_name, water_type, db):
         "nbs_options": nbs,
         "nbs_implementation": nbs_impl_list   # <--- THIS KEY
     }
+    result = remove_unnamed_columns(result)
+    return result
