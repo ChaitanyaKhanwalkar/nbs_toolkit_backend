@@ -15,24 +15,20 @@ def get_recommendation_data(state_name, water_type, db):
     nbs_df = pd.read_sql("SELECT * FROM nbs_options", db.bind)
     nbs_impl_df = pd.read_sql("SELECT * FROM nbs_implementation", db.bind)
 
-    # Get soil type for state (safely)
+    # Safely fetch soil type
     merged = merged_df[merged_df['state_name'].str.lower() == state_name.lower()]
-    soil_type = merged.iloc[0]['soil_type'] if not merged.empty else None
+    soil_type = str(merged.iloc[0]['soil_type']) if not merged.empty and 'soil_type' in merged.columns else "Loamy"
 
     def get_matches(df, key):
-        # After collecting results in get_matches()
-        if 'id' in results.columns:
-            results = results.drop_duplicates(subset='id').head(5)
-        else:
-            print(f"[WARNING] 'id' column not found in results for {key}. Skipping de-duplication.")
-            results = results.head(5)
+        results = pd.DataFrame()
+        match_levels = []
 
         # 1. Perfect match
         if soil_type:
             perfect = df[
                 (df['state_name'].str.lower() == state_name.lower()) &
                 (df['optimal_water_type'].str.lower() == water_type.lower()) &
-                (df['soil_type'].str.lower() == str(soil_type).lower())
+                (df['soil_type'].str.lower() == soil_type.lower())
             ]
             results = pd.concat([results, perfect])
             match_levels.extend(['Perfect'] * len(perfect))
@@ -47,17 +43,17 @@ def get_recommendation_data(state_name, water_type, db):
             results = pd.concat([results, new_state_water])
             match_levels.extend(['State+Water'] * len(new_state_water))
 
-        # 3. Water only
+        # 3. Water Only
         if len(results) < 5:
             water = df[df['optimal_water_type'].str.lower() == water_type.lower()]
             new_water = water[~water.index.isin(results.index)]
             results = pd.concat([results, new_water])
             match_levels.extend(['Water Only'] * len(new_water))
 
-        # 4. Fuzzy soil match
+        # 4. Fuzzy (soil)
         if len(results) < 5 and soil_type:
             df['match_score'] = df.apply(
-                lambda row: fuzz.token_set_ratio(str(row.get('soil_type', '')).lower(), str(soil_type).lower()), axis=1
+                lambda row: fuzz.token_set_ratio(str(row.get('soil_type', '')).lower(), soil_type.lower()), axis=1
             )
             fuzzy = df[~df.index.isin(results.index)].sort_values('match_score', ascending=False)
             results = pd.concat([results, fuzzy])
@@ -69,24 +65,28 @@ def get_recommendation_data(state_name, water_type, db):
             results = pd.concat([results, others])
             match_levels.extend(['Any'] * len(others))
 
-        # Final cleanup: Remove duplicates and trim
-        results = results.drop_duplicates(subset='id').head(5)
+        # ✅ SAFELY deduplicate only if 'id' exists
+        if 'id' in results.columns:
+            results = results.drop_duplicates(subset='id').head(5)
+        else:
+            print(f"[WARNING] 'id' column not found in results for {key}. Skipping deduplication.")
+            results = results.head(5)
+
         match_levels = match_levels[:len(results)]
 
-        # Build response
         data = results.to_dict(orient='records')
         for i, item in enumerate(data):
             item['match_level'] = match_levels[i] if i < len(match_levels) else 'Any'
         return data, match_levels[0] if match_levels else 'None'
 
-    # Get plant and NbS matches
+    # Get plants and NbS matches
     plants, plant_level = get_matches(plant_df, 'plants')
     nbs, nbs_level = get_matches(nbs_df, 'nbs_options')
 
-    # Join NbS with implementation details
+    # Match NbS to implementation
     nbs_impl_list = []
     for nbs_option in nbs:
-        impl_row = nbs_impl_df[nbs_impl_df['id'] == nbs_option['id']]
+        impl_row = nbs_impl_df[nbs_impl_df['id'] == nbs_option.get('id')]
         if not impl_row.empty:
             impl_dict = impl_row.iloc[0].to_dict()
             nbs_impl_list.append(impl_dict)
