@@ -78,26 +78,30 @@ def get_recommendation_data(state_name, water_type, db):
             results = pd.concat([results, others])
             match_levels.extend(['Any'] * len(others))
 
-        # ✅ Deduplicate if 'id' exists
-        if 'id' in results.columns:
-            results = results.drop_duplicates(subset='id').head(5)
+        # Remove any unnamed columns
+        results = results.drop(columns=[col for col in results.columns if col.startswith("Unnamed")], errors='ignore')
+
+        # Deduplicate based on plant species or solution name
+        dedup_key = 'plant_species' if key == 'plants' else 'solution'
+        if dedup_key in results.columns:
+            results = results.drop_duplicates(subset=dedup_key).head(5)
         else:
-            print(f"[WARNING] 'id' column not found in results for {key}. Skipping deduplication.")
+            print(f"[WARNING] '{dedup_key}' column not found in results for {key}. Skipping deduplication.")
             results = results.head(5)
 
         match_levels = match_levels[:len(results)]
 
-        # Add match_level
+        # Add match_level to each record
         data = results.to_dict(orient='records')
         for i, item in enumerate(data):
             item['match_level'] = match_levels[i] if i < len(match_levels) else 'Any'
         return data, match_levels[0] if match_levels else 'None'
 
-    # Get matches
+    # Get plant and NbS matches
     plants, plant_level = get_matches(plant_df, 'plants')
     nbs, nbs_level = get_matches(nbs_df, 'nbs_options')
 
-    # Match NbS with implementation
+    # Match NbS to implementation
     nbs_impl_list = []
     for nbs_option in nbs:
         impl_row = nbs_impl_df[nbs_impl_df['id'] == nbs_option.get('id')]
@@ -107,7 +111,7 @@ def get_recommendation_data(state_name, water_type, db):
         else:
             nbs_impl_list.append({})
 
-    # Prepare result safely
+    # Compile result
     result = {
         "plant_match_level": plant_level,
         "nbs_match_level": nbs_level,
