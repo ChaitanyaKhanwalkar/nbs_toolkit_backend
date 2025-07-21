@@ -20,8 +20,12 @@ def get_recommendation_data(state_name, water_type, db):
     soil_type = merged.iloc[0]['soil_type'] if not merged.empty else None
 
     def get_matches(df, key):
-        results = pd.DataFrame()
-        match_levels = []
+        # After collecting results in get_matches()
+        if 'id' in results.columns:
+            results = results.drop_duplicates(subset='id').head(5)
+        else:
+            print(f"[WARNING] 'id' column not found in results for {key}. Skipping de-duplication.")
+            results = results.head(5)
 
         # 1. Perfect match
         if soil_type:
