@@ -1,6 +1,7 @@
 # db/database.py
 import os, time
 from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 DATABASE_URL = os.getenv("DATABASE_URL", "")
@@ -18,6 +19,8 @@ engine = create_engine(
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+Base = declarative_base()
 
 def wait_for_db(max_tries=15, delay_sec=2):
     """Retry DB connectivity on startup to survive DNS hiccups."""
