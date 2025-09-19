@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from db.database import SessionLocal
 from db import models
 
-# CSV paths (adjust if needed)
+# CSV file paths (these must exist in your deployed app directory)
 csv_files = {
     "plant_data": "plant_data_new.csv",
     "district_data": "district_data_new.csv",
@@ -16,17 +16,40 @@ csv_files = {
 def seed():
     db: Session = SessionLocal()
     try:
-        # Example: Seed plant_data
+        # 1️⃣ Seed plant_data
         plant_df = pd.read_csv(csv_files["plant_data"])
         for _, row in plant_df.iterrows():
-            plant = models.PlantData(**row.to_dict())
-            db.add(plant)
+            record = models.PlantData(**row.to_dict())
+            db.add(record)
 
-        # Do the same for other CSVs:
-        # district_data, nbs_options, nbs_implementation, water_data
+        # 2️⃣ Seed district_data
+        district_df = pd.read_csv(csv_files["district_data"])
+        for _, row in district_df.iterrows():
+            record = models.DistrictData(**row.to_dict())
+            db.add(record)
 
+        # 3️⃣ Seed nbs_options
+        nbs_options_df = pd.read_csv(csv_files["nbs_options"])
+        for _, row in nbs_options_df.iterrows():
+            record = models.NbsOption(**row.to_dict())
+            db.add(record)
+
+        # 4️⃣ Seed nbs_implementation
+        nbs_impl_df = pd.read_csv(csv_files["nbs_implementation"])
+        for _, row in nbs_impl_df.iterrows():
+            record = models.NbsImplementation(**row.to_dict())
+            db.add(record)
+
+        # 5️⃣ Seed water_data
+        water_df = pd.read_csv(csv_files["water_data"])
+        for _, row in water_df.iterrows():
+            record = models.WaterData(**row.to_dict())
+            db.add(record)
+
+        # Commit everything
         db.commit()
-        print("✅ Data seeded successfully!")
+        print("✅ All data seeded successfully!")
+
     except Exception as e:
         print("❌ Error seeding data:", e)
         db.rollback()
@@ -35,3 +58,4 @@ def seed():
 
 if __name__ == "__main__":
     seed()
+
