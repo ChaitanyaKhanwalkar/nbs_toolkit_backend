@@ -9,7 +9,7 @@ def seed():
     db = SessionLocal()
 
     try:
-        base_path = "nbs_toolkit_backend/utils/"
+        base_path = "nbs_toolkit_backend"
 
         # ---- Seed Plant Data ----
         df = pd.read_csv(base_path + "plant_data_new.csv")
