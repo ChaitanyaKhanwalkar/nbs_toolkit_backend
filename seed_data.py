@@ -9,18 +9,20 @@ def seed():
     db = SessionLocal()
 
     try:
+        base_path = "nbs_toolkit_backend/utils/"
+
         # ---- Seed Plant Data ----
-        df = pd.read_csv("utils/plant_data_new.csv")
+        df = pd.read_csv(base_path + "plant_data_new.csv")
         for _, row in df.iterrows():
             obj = models.PlantData(
                 id=row["id"],
                 name=row["name"],
                 description=row["description"]
             )
-            db.merge(obj)  # merge prevents duplicate key errors
+            db.merge(obj)
 
         # ---- Seed District Data ----
-        df = pd.read_csv("utils/district_data_new.csv")
+        df = pd.read_csv(base_path + "district_data_new.csv")
         for _, row in df.iterrows():
             obj = models.DistrictData(
                 id=row["id"],
@@ -30,7 +32,7 @@ def seed():
             db.merge(obj)
 
         # ---- Seed NBS Options ----
-        df = pd.read_csv("utils/nbs_options_new.csv")
+        df = pd.read_csv(base_path + "nbs_options_new.csv")
         for _, row in df.iterrows():
             obj = models.NBSOption(
                 id=row["id"],
@@ -40,7 +42,7 @@ def seed():
             db.merge(obj)
 
         # ---- Seed NBS Implementation ----
-        df = pd.read_csv("utils/nbs_implementation_new.csv")
+        df = pd.read_csv(base_path + "nbs_implementation_new.csv")
         for _, row in df.iterrows():
             obj = models.NBSImplementation(
                 id=row["id"],
@@ -50,7 +52,7 @@ def seed():
             db.merge(obj)
 
         # ---- Seed Water Data ----
-        df = pd.read_csv("utils/water_data_new.csv")
+        df = pd.read_csv(base_path + "water_data_new.csv")
         for _, row in df.iterrows():
             obj = models.WaterData(
                 id=row["id"],
