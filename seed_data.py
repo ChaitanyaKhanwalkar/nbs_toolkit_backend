@@ -1,76 +1,49 @@
-# seed_data.py
+import os
 import pandas as pd
-from db.database import SessionLocal, engine, Base
-from db import models
+from sqlalchemy.orm import Session
+from db import models, database
 
-def seed():
-    # Create tables
-    Base.metadata.create_all(bind=engine)
-    db = SessionLocal()
+# ✅ Base directory (nbs_toolkit_backend)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+def seed_data():
+    db: Session = database.SessionLocal()
 
     try:
-        base_path = "nbs_toolkit_backend/"
+        print("📌 Seeding database with CSV data...")
 
-        # ---- Seed Plant Data ----
-        df = pd.read_csv(base_path + "plant_data_new.csv")
-        for _, row in df.iterrows():
-            obj = models.PlantData(
-                id=row["id"],
-                name=row["name"],
-                description=row["description"]
-            )
-            db.merge(obj)
+        # 🌱 Load all CSVs
+        plant_data = pd.read_csv(os.path.join(BASE_DIR, "plant_data_new.csv"))
+        district_data = pd.read_csv(os.path.join(BASE_DIR, "district_data_new.csv"))
+        nbs_options = pd.read_csv(os.path.join(BASE_DIR, "nbs_options_new.csv"))
+        nbs_implementation = pd.read_csv(os.path.join(BASE_DIR, "nbs_implementation_new.csv"))
+        water_data = pd.read_csv(os.path.join(BASE_DIR, "water_data_new.csv"))
 
-        # ---- Seed District Data ----
-        df = pd.read_csv(base_path + "district_data_new.csv")
-        for _, row in df.iterrows():
-            obj = models.DistrictData(
-                id=row["id"],
-                state=row["state"],
-                district=row["district"]
-            )
-            db.merge(obj)
+        # 🟢 Seed Plant Data
+        for _, row in plant_data.iterrows():
+            db.add(models.PlantData(**row.to_dict()))
 
-        # ---- Seed NBS Options ----
-        df = pd.read_csv(base_path + "nbs_options_new.csv")
-        for _, row in df.iterrows():
-            obj = models.NBSOption(
-                id=row["id"],
-                name=row["name"],
-                category=row["category"]
-            )
-            db.merge(obj)
+        # 🟢 Seed District Data
+        for _, row in district_data.iterrows():
+            db.add(models.DistrictData(**row.to_dict()))
 
-        # ---- Seed NBS Implementation ----
-        df = pd.read_csv(base_path + "nbs_implementation_new.csv")
-        for _, row in df.iterrows():
-            obj = models.NBSImplementation(
-                id=row["id"],
-                nbs_id=row["nbs_id"],
-                details=row["details"]
-            )
-            db.merge(obj)
+        # 🟢 Seed NBS Options
+        for _, row in nbs_options.iterrows():
+            db.add(models.NBSOption(**row.to_dict()))
 
-        # ---- Seed Water Data ----
-        df = pd.read_csv(base_path + "water_data_new.csv")
-        for _, row in df.iterrows():
-            obj = models.WaterData(
-                id=row["id"],
-                state=row["state"],
-                water_type=row["water_type"]
-            )
-            db.merge(obj)
+        # 🟢 Seed NBS Implementation
+        for _, row in nbs_implementation.iterrows():
+            db.add(models.NBSImplementation(**row.to_dict()))
 
-        # Commit all inserts
+        # 🟢 Seed Water Data
+        for _, row in water_data.iterrows():
+            db.add(models.WaterData(**row.to_dict()))
+
         db.commit()
         print("✅ Database seeded successfully!")
 
     except Exception as e:
-        print("❌ Error seeding database:", e)
+        print(f"❌ Error seeding database: {e}")
         db.rollback()
     finally:
         db.close()
-
-
-if __name__ == "__main__":
-    seed()
