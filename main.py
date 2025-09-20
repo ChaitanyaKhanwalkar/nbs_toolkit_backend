@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from db import models, database
-from seed_data import seed_data
+
 import os
 
 app = FastAPI()
