@@ -1,15 +1,15 @@
 import os
 from pathlib import Path
-from typing import Optional, Dict
+from typing import Optional, Iterable, Set
 
 import pandas as pd
-from sqlalchemy import text
+from sqlalchemy import text, inspect
 from db.database import SessionLocal
 from db import models
 
 
 # ---------------------------
-# Paths & CSV helpers
+# File discovery & CSV helpers
 # ---------------------------
 
 HERE = Path(__file__).resolve().parent
@@ -20,33 +20,76 @@ SEARCH_DIRS = [
 ]
 SEARCH_DIRS = [p for p in SEARCH_DIRS if p and p.exists()]
 
-
 def find_csv(filename: str) -> Optional[Path]:
-    """Find a CSV in CSV_DIR, alongside this file, or in CWD."""
     for base in SEARCH_DIRS:
-        candidate = base / filename
-        if candidate.exists():
-            return candidate
+        p = base / filename
+        if p.exists():
+            return p
     return None
 
-
 def read_csv_clean(path: Path) -> pd.DataFrame:
-    """Read CSV, drop 'Unnamed:*' columns, trim headers, keep types loose."""
     df = pd.read_csv(path)
-    # Drop stray export columns
+    # drop stray "Unnamed:*" export columns
     df = df.loc[:, ~df.columns.astype(str).str.match(r"^Unnamed", na=False)]
-    # Normalize headers (lower + strip)
+    # normalize headers
     df.columns = [str(c).strip().lower() for c in df.columns]
-    # Trim whitespace in string cells
+    # trim strings
     for c in df.columns:
         if df[c].dtype == object:
             df[c] = df[c].astype(str).str.strip()
     return df
 
-
 def to_float(series: pd.Series) -> pd.Series:
-    """Coerce numeric columns safely."""
     return pd.to_numeric(series, errors="coerce")
+
+
+# ---------------------------
+# Schema helpers
+# ---------------------------
+
+def _ensure_table(
+    session,
+    table_obj,                      # SQLAlchemy Table, e.g., models.PlantData.__table__
+    required_cols: Iterable[str],   # column names expected on the table
+    hard_reset: bool = False
+) -> None:
+    """
+    Ensure the DB table has all required columns.
+    - If hard_reset=True: drop & recreate the table unconditionally.
+    - Else: inspect live columns; if any required missing -> drop & recreate.
+    """
+    engine = session.get_bind()
+    inspector = inspect(engine)
+    table_name = table_obj.name
+
+    recreate = False
+
+    if hard_reset:
+        recreate = True
+    else:
+        # Does table exist?
+        if table_name in inspector.get_table_names():
+            live_cols: Set[str] = {col["name"] for col in inspector.get_columns(table_name)}
+            missing = set(required_cols) - live_cols
+            if missing:
+                print(f"🧭 Schema drift detected on {table_name}: missing {sorted(missing)} -> will recreate")
+                recreate = True
+        else:
+            print(f"ℹ️  {table_name} does not exist -> will create")
+            recreate = True
+
+    if recreate:
+        # Drop and recreate only this table
+        try:
+            print(f"🧨 Dropping {table_name} ...")
+            models.Base.metadata.drop_all(bind=engine, tables=[table_obj])
+        except Exception as e:
+            # Ignore if it didn't exist / dependencies absent
+            print(f"   (drop note) {e}")
+
+        print(f"🏗️  Creating {table_name} ...")
+        models.Base.metadata.create_all(bind=engine, tables=[table_obj])
+        print(f"✅ {table_name} ready.")
 
 
 # ---------------------------
@@ -55,38 +98,81 @@ def to_float(series: pd.Series) -> pd.Series:
 
 def seed_data():
     """
-    Idempotent seeding for the NbS Toolkit database.
+    Schema-aware, idempotent seeding for NbS Toolkit.
 
-    Expects the following CSVs (headers in parentheses):
+    CSVs expected (headers in parentheses):
       - district_data_new.csv
-          (state_name, soil_type [, district_name - optional])
+          state_name, soil_type [, district_name]
       - plant_data_new.csv
-          (plant_species, locational_availability, climate_preference, soil_type,
-           water_needs, ecological_role, pollution_tolerance, state_name, optimal_water_type)
+          plant_species, locational_availability, climate_preference, soil_type,
+          water_needs, ecological_role, pollution_tolerance, state_name, optimal_water_type
       - nbs_options_new.csv
-          (solution, optimal_water_type, location_suitability, climate_suitability,
-           soil_type, resource_requirements, notes, state_name [, id - ignored])
+          solution, optimal_water_type, location_suitability, climate_suitability,
+          soil_type, resource_requirements, notes, state_name [, id ignored]
       - nbs_implementation_new.csv
-          (solution, implementation_steps, maintenance_requirements [, id - ignored])
+          solution, implementation_steps, maintenance_requirements [, id ignored]
       - water_data_new.csv
-          (water_type, colour, turbidity, temperature, odour, tss, ph, bod, cod,
-           nitrate, phosphate, ammonia, chloride)
+          water_type, colour, turbidity, temperature, odour, tss, ph, bod, cod,
+          nitrate, phosphate, ammonia, chloride
     """
     session = SessionLocal()
+    HARD_RESET = os.getenv("DB_HARD_RESET", "false").lower() == "true"
+
     try:
-        # 1) TRUNCATE tables (safe, repeatable)
-        #    Do individual TRUNCATEs so missing optional tables don't explode deploys
+        # 0) Ensure tables match the ORM schema (self-heal if drift is detected)
+        _ensure_table(
+            session,
+            models.MergedDistrictData.__table__,
+            required_cols=["id", "state_name", "district_name", "soil_type", "created_at", "updated_at"],
+            hard_reset=HARD_RESET
+        )
+        _ensure_table(
+            session,
+            models.PlantData.__table__,
+            required_cols=[
+                "id", "plant_species", "climate_preference", "water_needs", "ecological_role",
+                "soil_type", "locational_availability", "pollution_tolerance",
+                "state_name", "optimal_water_type", "created_at", "updated_at"
+            ],
+            hard_reset=HARD_RESET
+        )
+        _ensure_table(
+            session,
+            models.NbsOption.__table__,
+            required_cols=[
+                "id", "solution", "optimal_water_type", "location_suitability",
+                "climate_suitability", "soil_type", "resource_requirements", "notes",
+                "state_name", "created_at", "updated_at"
+            ],
+            hard_reset=HARD_RESET
+        )
+        _ensure_table(
+            session,
+            models.NbsImplementation.__table__,
+            required_cols=["id", "solution", "implementation_steps", "maintenance_requirements", "created_at", "updated_at"],
+            hard_reset=HARD_RESET
+        )
+        _ensure_table(
+            session,
+            models.WaterData.__table__,
+            required_cols=[
+                "id", "water_type", "colour", "odour", "turbidity", "temperature",
+                "tss", "ph", "bod", "cod", "nitrate", "phosphate", "ammonia", "chloride",
+                "created_at", "updated_at"
+            ],
+            hard_reset=HARD_RESET
+        )
+
+        # 1) TRUNCATE tables before fresh load (idempotent)
         def _truncate(table: str):
             try:
                 session.execute(text(f'TRUNCATE TABLE "{table}" RESTART IDENTITY CASCADE'))
                 session.commit()
                 print(f"🧹 Cleared {table}")
             except Exception as e:
-                # If table doesn't exist (e.g., WaterData not created), just log and continue
                 session.rollback()
                 print(f"ℹ️  Skip TRUNCATE {table}: {e}")
 
-        # Order doesn't really matter (no FKs), but this is tidy
         for table in [
             "nbs_implementation",
             "nbs_options",
@@ -100,36 +186,32 @@ def seed_data():
         dd_path = find_csv("district_data_new.csv")
         if dd_path:
             df = read_csv_clean(dd_path)
-            required = {"state_name"}
-            if not required.issubset(set(df.columns)):
-                raise ValueError(f"district_data_new.csv missing required columns: {required}")
-
             rows = []
             for _, r in df.iterrows():
                 rows.append(models.MergedDistrictData(
                     state_name=r.get("state_name") or None,
-                    # Optional; many rows may not have district_name in this CSV
-                    district_name=r.get("district_name") or None,
+                    district_name=r.get("district_name") or None,  # optional
                     soil_type=r.get("soil_type") or None,
                 ))
-            session.bulk_save_objects(rows)
-            session.commit()
+            if rows:
+                session.bulk_save_objects(rows)
+                session.commit()
             print(f"✅ MergedDistrictData seeded: {len(rows)} rows")
         else:
-            print("⚠️  district_data_new.csv not found — skipping MergedDistrictData")
+            print("⚠️  district_data_new.csv not found — skipping")
 
         # 3) Seed plant_data
         plant_path = find_csv("plant_data_new.csv")
         if plant_path:
             df = read_csv_clean(plant_path)
-            required = {"plant_species", "state_name", "optimal_water_type"}
-            missing = required - set(df.columns)
+            # Require these to build valid rows
+            needed = {"plant_species", "state_name", "optimal_water_type"}
+            missing = needed - set(df.columns)
             if missing:
-                raise ValueError(f"plant_data_new.csv missing required columns: {missing}")
+                raise ValueError(f"plant_data_new.csv missing columns: {sorted(missing)}")
 
             rows = []
             for _, r in df.iterrows():
-                # Skip rows missing hard-required fields
                 if not (r.get("plant_species") and r.get("state_name") and r.get("optimal_water_type")):
                     continue
                 rows.append(models.PlantData(
@@ -143,25 +225,24 @@ def seed_data():
                     state_name=r.get("state_name"),
                     optimal_water_type=r.get("optimal_water_type"),
                 ))
-            session.bulk_save_objects(rows)
-            session.commit()
+            if rows:
+                session.bulk_save_objects(rows)
+                session.commit()
             print(f"✅ PlantData seeded: {len(rows)} rows")
         else:
-            print("⚠️  plant_data_new.csv not found — skipping PlantData")
+            print("⚠️  plant_data_new.csv not found — skipping")
 
         # 4) Seed nbs_options
         nbs_opt_path = find_csv("nbs_options_new.csv")
         if nbs_opt_path:
             df = read_csv_clean(nbs_opt_path)
-            # Ignore 'id' if present; DB will set it
-            required = {"solution", "optimal_water_type", "state_name"}
-            missing = required - set(df.columns)
-            if missing:
-                raise ValueError(f"nbs_options_new.csv missing required columns: {missing}")
-
-            # Normalize key strings to avoid mismatches
             if "solution" in df.columns:
                 df["solution"] = df["solution"].astype(str).str.strip()
+
+            needed = {"solution", "optimal_water_type", "state_name"}
+            missing = needed - set(df.columns)
+            if missing:
+                raise ValueError(f"nbs_options_new.csv missing columns: {sorted(missing)}")
 
             rows = []
             for _, r in df.iterrows():
@@ -177,23 +258,24 @@ def seed_data():
                     notes=r.get("notes") or None,
                     state_name=r.get("state_name"),
                 ))
-            session.bulk_save_objects(rows)
-            session.commit()
+            if rows:
+                session.bulk_save_objects(rows)
+                session.commit()
             print(f"✅ NbsOption seeded: {len(rows)} rows")
         else:
-            print("⚠️  nbs_options_new.csv not found — skipping NbsOption")
+            print("⚠️  nbs_options_new.csv not found — skipping")
 
         # 5) Seed nbs_implementation
         nbs_impl_path = find_csv("nbs_implementation_new.csv")
         if nbs_impl_path:
             df = read_csv_clean(nbs_impl_path)
-            required = {"solution", "implementation_steps", "maintenance_requirements"}
-            missing = required - set(df.columns)
-            if missing:
-                raise ValueError(f"nbs_implementation_new.csv missing required columns: {missing}")
-
             if "solution" in df.columns:
                 df["solution"] = df["solution"].astype(str).str.strip()
+
+            needed = {"solution", "implementation_steps", "maintenance_requirements"}
+            missing = needed - set(df.columns)
+            if missing:
+                raise ValueError(f"nbs_implementation_new.csv missing columns: {sorted(missing)}")
 
             rows = []
             for _, r in df.iterrows():
@@ -204,27 +286,17 @@ def seed_data():
                     implementation_steps=r.get("implementation_steps") or None,
                     maintenance_requirements=r.get("maintenance_requirements") or None,
                 ))
-            session.bulk_save_objects(rows)
-            session.commit()
+            if rows:
+                session.bulk_save_objects(rows)
+                session.commit()
             print(f"✅ NbsImplementation seeded: {len(rows)} rows")
         else:
-            print("⚠️  nbs_implementation_new.csv not found — skipping NbsImplementation")
+            print("⚠️  nbs_implementation_new.csv not found — skipping")
 
-        # 6) Seed water_data (optional persistence)
+        # 6) Seed water_data (optional)
         water_path = find_csv("water_data_new.csv")
         if water_path:
             df = read_csv_clean(water_path)
-
-            # Make sure expected columns exist; some datasets may use lowercase keys (we normalized)
-            expected = {
-                "water_type", "colour", "turbidity", "temperature", "odour",
-                "tss", "ph", "bod", "cod", "nitrate", "phosphate", "ammonia", "chloride"
-            }
-            missing = expected - set(df.columns)
-            if missing:
-                print(f"ℹ️  water_data_new.csv missing some columns (will insert what’s available): {missing}")
-
-            # Coerce numerics safely
             for col in ["turbidity", "temperature", "tss", "ph", "bod", "cod",
                         "nitrate", "phosphate", "ammonia", "chloride"]:
                 if col in df.columns:
@@ -247,11 +319,12 @@ def seed_data():
                     ammonia=r.get("ammonia"),
                     chloride=r.get("chloride"),
                 ))
-            session.bulk_save_objects(rows)
-            session.commit()
+            if rows:
+                session.bulk_save_objects(rows)
+                session.commit()
             print(f"✅ WaterData seeded: {len(rows)} rows")
         else:
-            print("ℹ️  water_data_new.csv not found — skipping WaterData")
+            print("ℹ️  water_data_new.csv not found — skipping")
 
         print("🎉 Seeding complete.")
 
@@ -265,3 +338,4 @@ def seed_data():
 
 if __name__ == "__main__":
     seed_data()
+
