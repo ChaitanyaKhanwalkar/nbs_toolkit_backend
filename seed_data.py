@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Optional, Iterable, Set
+from typing import Optional, Iterable, Set, List
 
 import pandas as pd
 from sqlalchemy import text, inspect
@@ -41,6 +41,19 @@ def read_csv_clean(path: Path) -> pd.DataFrame:
 
 def to_float(series: pd.Series) -> pd.Series:
     return pd.to_numeric(series, errors="coerce")
+
+def _uniq_preserve(items: List[str]) -> str:
+    """Combine values, dropping empties and duplicates while preserving order."""
+    seen = set()
+    out: List[str] = []
+    for val in items:
+        v = (val or "").strip()
+        if not v:
+            continue
+        if v not in seen:
+            seen.add(v)
+            out.append(v)
+    return "; ".join(out) if out else None
 
 
 # ---------------------------
@@ -84,7 +97,6 @@ def _ensure_table(
             print(f"🧨 Dropping {table_name} ...")
             models.Base.metadata.drop_all(bind=engine, tables=[table_obj])
         except Exception as e:
-            # Ignore if it didn't exist / dependencies absent
             print(f"   (drop note) {e}")
 
         print(f"🏗️  Creating {table_name} ...")
@@ -111,6 +123,7 @@ def seed_data():
           soil_type, resource_requirements, notes, state_name [, id ignored]
       - nbs_implementation_new.csv
           solution, implementation_steps, maintenance_requirements [, id ignored]
+          (may contain duplicates -> we dedupe by solution)
       - water_data_new.csv
           water_type, colour, turbidity, temperature, odour, tss, ph, bod, cod,
           nitrate, phosphate, ammonia, chloride
@@ -204,7 +217,6 @@ def seed_data():
         plant_path = find_csv("plant_data_new.csv")
         if plant_path:
             df = read_csv_clean(plant_path)
-            # Require these to build valid rows
             needed = {"plant_species", "state_name", "optimal_water_type"}
             missing = needed - set(df.columns)
             if missing:
@@ -232,7 +244,7 @@ def seed_data():
         else:
             print("⚠️  plant_data_new.csv not found — skipping")
 
-        # 4) Seed nbs_options
+        # 4) Seed nbs_options (optional light dedupe on exact row duplicates)
         nbs_opt_path = find_csv("nbs_options_new.csv")
         if nbs_opt_path:
             df = read_csv_clean(nbs_opt_path)
@@ -243,6 +255,13 @@ def seed_data():
             missing = needed - set(df.columns)
             if missing:
                 raise ValueError(f"nbs_options_new.csv missing columns: {sorted(missing)}")
+
+            # Drop exact duplicate rows to avoid bloat
+            df = df.drop_duplicates(
+                subset=["solution", "optimal_water_type", "state_name", "soil_type",
+                        "location_suitability", "climate_suitability", "resource_requirements", "notes"],
+                keep="first"
+            )
 
             rows = []
             for _, r in df.iterrows():
@@ -265,24 +284,43 @@ def seed_data():
         else:
             print("⚠️  nbs_options_new.csv not found — skipping")
 
-        # 5) Seed nbs_implementation
+        # 5) Seed nbs_implementation (DEDUP BY SOLUTION to satisfy unique constraint)
         nbs_impl_path = find_csv("nbs_implementation_new.csv")
         if nbs_impl_path:
             df = read_csv_clean(nbs_impl_path)
-            if "solution" in df.columns:
-                df["solution"] = df["solution"].astype(str).str.strip()
 
             needed = {"solution", "implementation_steps", "maintenance_requirements"}
             missing = needed - set(df.columns)
             if missing:
                 raise ValueError(f"nbs_implementation_new.csv missing columns: {sorted(missing)}")
 
+            # Normalize solution string and build a case-insensitive key
+            df["solution"] = df["solution"].astype(str).str.strip()
+            df["solution_key"] = df["solution"].str.casefold()
+
+            # DEDUPE: combine rows with same solution (case-insensitive)
+            grouped = (
+                df.groupby("solution_key", sort=False)
+                  .agg({
+                      "solution": "first",  # keep representative casing
+                      "implementation_steps": lambda s: _uniq_preserve(list(s)),
+                      "maintenance_requirements": lambda s: _uniq_preserve(list(s)),
+                  })
+                  .reset_index(drop=True)
+            )
+
+            # Warn if we collapsed duplicates
+            collapsed = len(df) - len(grouped)
+            if collapsed > 0:
+                print(f"ℹ️  nbs_implementation: collapsed {collapsed} duplicate rows by solution")
+
             rows = []
-            for _, r in df.iterrows():
-                if not r.get("solution"):
+            for _, r in grouped.iterrows():
+                sol = r.get("solution")
+                if not sol:
                     continue
                 rows.append(models.NbsImplementation(
-                    solution=r.get("solution"),
+                    solution=sol,
                     implementation_steps=r.get("implementation_steps") or None,
                     maintenance_requirements=r.get("maintenance_requirements") or None,
                 ))
@@ -338,4 +376,5 @@ def seed_data():
 
 if __name__ == "__main__":
     seed_data()
+
 
