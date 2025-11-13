@@ -19,9 +19,7 @@ def health():
 
 @app.on_event("startup")
 def on_startup():
-    print("📌 Creating tables in the database...")
-    init_db()  # make sure this creates tables but is safe to call multiple times
-    print("✅ Tables created successfully.")
+    print("Startup: tables already created, skipping init_db()")
 
     # Only seed if the symbol exists AND the flag is on
     if SEED_ON_STARTUP and seed_data:
