@@ -1,4 +1,4 @@
-name: Build and deploy Python app to Azure Web App - nbsapi
+name: Deploy FastAPI to Azure Web App - nbsapi
 
 on:
   push:
@@ -11,12 +11,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Set up Python version
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install dependencies
         run: |
@@ -24,10 +25,10 @@ jobs:
           source antenv/bin/activate
           pip install -r requirements.txt
 
-      - name: Upload artifact
+      - name: Upload artifact (app folder + requirements)
         uses: actions/upload-artifact@v4
         with:
-          name: python-app
+          name: fastapi-app
           path: |
             app/
             requirements.txt
@@ -37,10 +38,10 @@ jobs:
     needs: build
 
     steps:
-      - name: Download artifact
+      - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
-          name: python-app
+          name: fastapi-app
 
       - name: Login to Azure
         uses: azure/login@v2
@@ -48,10 +49,11 @@ jobs:
           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID }}
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID }}
+          client-secret: ${{ secrets.AZUREAPPSERVICE_SECRET }}
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
-          app-name: 'nbsapi'
-          slot-name: 'Production'
-          package: '.'
+          app-name: "nbsapi"
+          slot-name: "Production"
+          package: .
