@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+<<<<<<< HEAD
 from app.db import models
 from app.db.database import engine
 from app.api import location, implementation, water_data, recommendations
@@ -30,3 +31,38 @@ def startup_event():
 def health():
     """Health check endpoint for Azure."""
     return {"status": "ok"}
+=======
+from db import models, database
+
+import os
+
+try:
+    from seed_data import seed_data  # must match function name in seed_data.py
+except Exception:
+    seed_data = None  # handle missing import gracefully
+
+SEED_ON_STARTUP = os.getenv("SEED_ON_STARTUP", "true").lower() == "true"
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+app = FastAPI()
+
+@app.get("/health")
+def health():
+    return {"ok": True}
+
+@app.on_event("startup")
+def on_startup():
+    print("Startup: tables already created, skipping init_db()")
+
+    # Only seed if the symbol exists AND the flag is on
+    if SEED_ON_STARTUP and seed_data:
+        try:
+            print("📦 Seeding database from CSVs...")
+            seed_data(DATABASE_URL)  # pass what your seeder expects
+            print("✅ Seeding complete.")
+        except Exception as e:
+            # Keep the server booting, but log the reason clearly
+            print(f"❌ Error seeding database: {e}")
+
+
+>>>>>>> 97c2960d5dd99bc4f764f12fca88e35ed0149109
