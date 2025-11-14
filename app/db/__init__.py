@@ -1,7 +1,8 @@
-# init_db.py
-from app.db.database import Base, engine
-from db import models  # make sure all your models are imported here
+# app/db/__init__.py
+"""
+Database package initialization.
+Ensures models and database engine are imported cleanly.
+"""
 
-print("📌 Creating tables in the database...")
-Base.metadata.create_all(bind=engine)
-print("✅ Tables created successfully.")
+from app.db.database import engine, SessionLocal, get_db, init_db
+from app.db.models import Base

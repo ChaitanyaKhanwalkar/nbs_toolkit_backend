@@ -1,58 +1,70 @@
-from fastapi import APIRouter, HTTPException, Depends, Form
+"""
+Location endpoints for the NbS Toolkit.
+Provides:
+- List of states
+- List of districts in a state
+"""
+
+from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy.orm import Session
-from app.db.database import SessionLocal
-from db import models
-from schemas.models import UserLocationSchema
-import pandas as pd
-from datetime import datetime
+
+from app.db.database import get_db
+from app.db import models
 
 router = APIRouter()
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
-# Endpoint to get the list of valid states for drop-down
+# ----------------------------------------
+# GET ALL STATES
+# ----------------------------------------
+
 @router.get("/states")
-def get_states():
-    df = pd.read_csv("data/district_data_new.csv")  # Or query from DB if preferred
-    states = sorted(df['state_name'].unique())
-    return {"states": states}
+def get_states(db: Session = Depends(get_db)):
+    """
+    Returns a sorted list of all unique states from merged_district_data.
+    """
 
-# Endpoint to record user location selection
-@router.post("/location")
-def submit_location(
-    state_name: str = Form(...),
-    state_raw_input: str = Form(None),
-    location_source: str = Form("user_selected"),
-    notes: str = Form(None),
+    states = (
+        db.query(models.MergedDistrictData.state_name)
+        .distinct()
+        .order_by(models.MergedDistrictData.state_name.asc())
+        .all()
+    )
+
+    state_list = [s[0] for s in states]
+
+    return {"states": state_list}
+
+
+# ----------------------------------------
+# GET DISTRICTS FOR A STATE
+# ----------------------------------------
+
+@router.get("/districts")
+def get_districts(
+    state_name: str = Query(..., description="State name"),
     db: Session = Depends(get_db)
 ):
-    # Validate state
-    df = pd.read_csv("data/district_data_new.csv")  # Or query DB for production
-    valid_states = set(df['state_name'].unique())
-    if state_name not in valid_states:
-        raise HTTPException(status_code=400, detail="Invalid state selected")
+    """
+    Returns all districts for a given state.
+    """
 
-    user_loc = models.UserLocation(
-        state_name=state_name,
-        state_raw_input=state_raw_input,
-        location_source=location_source,
-        timestamp=datetime.now(),
-        notes=notes
+    rows = (
+        db.query(models.MergedDistrictData.district_name)
+        .filter(models.MergedDistrictData.state_name.ilike(state_name))
+        .distinct()
+        .all()
     )
-    db.add(user_loc)
-    db.commit()
-    return {
-        "status": "State saved",
-        "data": UserLocationSchema(
-            state_name=state_name,
-            state_raw_input=state_raw_input,
-            location_source=location_source,
-            notes=notes
+
+    if not rows:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No districts found for state '{state_name}'."
         )
+
+    districts = [r[0] for r in rows if r[0] is not None]
+
+    return {
+        "state": state_name,
+        "districts": districts
     }
-# Location endpoint

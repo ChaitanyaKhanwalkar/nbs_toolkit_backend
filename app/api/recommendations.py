@@ -1,53 +1,126 @@
+"""
+Recommendation endpoints for the NbS Toolkit.
+Provides:
+- Top recommended plants + NbS options
+- Detailed views for specific plants or NbS options
+"""
+
 from fastapi import APIRouter, Query, Depends, HTTPException
 from sqlalchemy.orm import Session
-from app.db.database import SessionLocal
-import pandas as pd
-from utils.recommendation_utils import get_recommendation_data
-from fastapi.responses import JSONResponse  # <-- ADD THIS LINE
+
+from app.db.database import get_db
+from app.db import models
+from app.utils.recommendation_utils import get_recommendation_data
+
 
 router = APIRouter()
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+
+# ------------------------------------------------------
+# MAIN RECOMMENDATION ENDPOINT
+# ------------------------------------------------------
 
 @router.get("/recommendations")
 def get_recommendations(
-    state_name: str = Query(..., description="User's selected state"),
-    water_type: str = Query(..., description="User's water type (classified or preset)"),
+    state_name: str = Query(..., description="User-selected state"),
+    water_type: str = Query(..., description="Classified water type"),
     db: Session = Depends(get_db)
 ):
-    data = get_recommendation_data(state_name, water_type, db)
-    if not data or not isinstance(data, dict):
-        return JSONResponse(content={"plants": [], "nbs_options": []})
-    data.setdefault("plants", [])
-    data.setdefault("nbs_options", [])
-    return JSONResponse(content=data)
+    """
+    Returns a list of best-fitting plants and NbS options for the given state/water type.
+    Uses the new ORM-based recommendation engine.
+    """
 
-@router.get("/nbs_detail/{nbs_id}")
-def get_nbs_detail(nbs_id: int, db: Session = Depends(get_db)):
-    nbs_df = pd.read_sql("SELECT * FROM nbs_options", db.bind)
-    impl_df = pd.read_sql("SELECT * FROM nbs_implementation", db.bind)
-    nbs_row = nbs_df[nbs_df['id'] == nbs_id]
-    if nbs_row.empty:
+    result = get_recommendation_data(state_name, water_type, db)
+
+    # Always return safe empty structure
+    if not result or not isinstance(result, dict):
+        return {
+            "soil_type": None,
+            "plant_match_level": "None",
+            "nbs_match_level": "None",
+            "plants": [],
+            "nbs_options": [],
+            "nbs_implementation": []
+        }
+
+    # Guarantee keys exist
+    result.setdefault("plants", [])
+    result.setdefault("nbs_options", [])
+    result.setdefault("nbs_implementation", [])
+
+    return result
+
+
+
+# ------------------------------------------------------
+# GET DETAILED VIEW FOR A SINGLE NBS OPTION
+# ------------------------------------------------------
+
+@router.get("/nbs/{nbs_id}")
+def get_nbs_detail(
+    nbs_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Return detailed information about a specific NbS option,
+    including its implementation steps.
+    """
+
+    nbs = db.query(models.NbsOption).filter(models.NbsOption.id == nbs_id).first()
+
+    if not nbs:
         raise HTTPException(status_code=404, detail="NBS option not found.")
-    nbs_data = nbs_row.iloc[0].to_dict()
-    impl_row = impl_df[impl_df['solution'] == nbs_data['solution']]
-    if not impl_row.empty:
-        nbs_data['implementation_steps'] = impl_row.iloc[0]['implementation_steps']
-        nbs_data['maintenance_requirements'] = impl_row.iloc[0]['maintenance_requirements']
-    else:
-        nbs_data['implementation_steps'] = None
-        nbs_data['maintenance_requirements'] = None
-    return nbs_data
 
-@router.get("/plant_detail/{plant_id}")
-def get_plant_detail(plant_id: int, db: Session = Depends(get_db)):
-    plant_df = pd.read_sql("SELECT * FROM plant_data", db.bind)
-    plant_row = plant_df[plant_df['id'] == plant_id]
-    if plant_row.empty:
+    impl = (
+        db.query(models.NbsImplementation)
+        .filter(models.NbsImplementation.solution.ilike(nbs.solution))
+        .first()
+    )
+
+    return {
+        "id": nbs.id,
+        "solution": nbs.solution,
+        "optimal_water_type": nbs.optimal_water_type,
+        "location_suitability": nbs.location_suitability,
+        "climate_suitability": nbs.climate_suitability,
+        "soil_type": nbs.soil_type,
+        "resource_requirements": nbs.resource_requirements,
+        "notes": nbs.notes,
+        "state_name": nbs.state_name,
+        "implementation_steps": (impl.implementation_steps.split(",") if impl else []),
+        "maintenance_requirements": (impl.maintenance_requirements.split(",") if impl else [])
+    }
+
+
+
+# ------------------------------------------------------
+# GET DETAILED VIEW FOR A SINGLE PLANT OPTION
+# ------------------------------------------------------
+
+@router.get("/plant/{plant_id}")
+def get_plant_detail(
+    plant_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Return full details about a plant by ID.
+    """
+
+    plant = db.query(models.PlantData).filter(models.PlantData.id == plant_id).first()
+
+    if not plant:
         raise HTTPException(status_code=404, detail="Plant not found.")
-    return plant_row.iloc[0].to_dict()
+
+    return {
+        "id": plant.id,
+        "plant_species": plant.plant_species,
+        "climate_preference": plant.climate_preference,
+        "water_needs": plant.water_needs,
+        "ecological_role": plant.ecological_role,
+        "soil_type": plant.soil_type,
+        "locational_availability": plant.locational_availability,
+        "pollution_tolerance": plant.pollution_tolerance,
+        "state_name": plant.state_name,
+        "optimal_water_type": plant.optimal_water_type,
+    }

@@ -1,50 +1,65 @@
-# app/db/database.py
+"""
+Database engine + session factory for the NbS Toolkit.
+Production-ready: connection pooling, clean dependency injection,
+no unnecessary prints, fully modular.
+"""
 
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.db.models import Base
 
-# -------------------------------------------------------
-# DATABASE URL
-# -------------------------------------------------------
+
+# --------------------------------------------
+# DATABASE URL (ENV VARIABLE)
+# --------------------------------------------
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Fix old URLs (Heroku-style)
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+    # Convert old-style format
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# -------------------------------------------------------
-# ENGINE & SESSION
-# -------------------------------------------------------
+
+# --------------------------------------------
+# ENGINE
+# --------------------------------------------
 
 engine = create_engine(
     DATABASE_URL,
-    pool_pre_ping=True,     # auto-reconnect dead connections
-    pool_recycle=1800,      # recycle every 30 min (cloud best practice)
+    pool_pre_ping=True,        # Automatically reconnect dropped connections
+    pool_recycle=1800,         # Recycle connections every 30 min
+    future=True,               # Modern SQLAlchemy API
 )
+
+
+# --------------------------------------------
+# SESSION FACTORY
+# --------------------------------------------
 
 SessionLocal = sessionmaker(
+    bind=engine,
     autocommit=False,
     autoflush=False,
-    bind=engine
+    future=True
 )
 
-# -------------------------------------------------------
-# INIT DB
-# -------------------------------------------------------
+
+# --------------------------------------------
+# DB INITIALIZATION
+# --------------------------------------------
 
 def init_db():
-    """Create tables if they don’t exist. Safe to call multiple times."""
+    """Create all tables safely. Runs only when called."""
     Base.metadata.create_all(bind=engine)
 
-# -------------------------------------------------------
-# SESSION DEPENDENCY FOR ROUTES
-# -------------------------------------------------------
+
+# --------------------------------------------
+# SESSION DEPENDENCY FOR FASTAPI
+# --------------------------------------------
 
 def get_db():
-    """FastAPI dependency to provide DB sessions."""
+    """FastAPI dependency: open DB session per request."""
     db = SessionLocal()
     try:
         yield db
