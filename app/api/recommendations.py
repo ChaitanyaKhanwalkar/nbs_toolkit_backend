@@ -58,23 +58,16 @@ def get_recommendations(
 # ------------------------------------------------------
 
 @router.get("/nbs/{nbs_id}")
-def get_nbs_detail(
-    nbs_id: int,
-    db: Session = Depends(get_db)
-):
-    """
-    Return detailed information about a specific NbS option,
-    including its implementation steps.
-    """
-
+def get_nbs_detail(nbs_id: int, db: Session = Depends(get_db)):
     nbs = db.query(models.NbsOption).filter(models.NbsOption.id == nbs_id).first()
 
     if not nbs:
         raise HTTPException(status_code=404, detail="NBS option not found.")
 
+    # Join with implementation
     impl = (
         db.query(models.NbsImplementation)
-        .filter(models.NbsImplementation.solution.ilike(nbs.solution))
+        .filter(models.NbsImplementation.solution == nbs.solution)
         .first()
     )
 
@@ -88,9 +81,12 @@ def get_nbs_detail(
         "resource_requirements": nbs.resource_requirements,
         "notes": nbs.notes,
         "state_name": nbs.state_name,
-        "implementation_steps": (impl.implementation_steps.split(",") if impl else []),
-        "maintenance_requirements": (impl.maintenance_requirements.split(",") if impl else [])
+        "implementation": {
+            "implementation_steps": impl.implementation_steps if impl else None,
+            "maintenance_requirements": impl.maintenance_requirements if impl else None
+        }
     }
+
 
 
 
@@ -99,14 +95,7 @@ def get_nbs_detail(
 # ------------------------------------------------------
 
 @router.get("/plant/{plant_id}")
-def get_plant_detail(
-    plant_id: int,
-    db: Session = Depends(get_db)
-):
-    """
-    Return full details about a plant by ID.
-    """
-
+def get_plant_detail(plant_id: int, db: Session = Depends(get_db)):
     plant = db.query(models.PlantData).filter(models.PlantData.id == plant_id).first()
 
     if not plant:
