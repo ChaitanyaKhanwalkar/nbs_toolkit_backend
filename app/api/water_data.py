@@ -2,7 +2,7 @@ from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Form
 from typing import Optional
 from sqlalchemy.orm import Session
 import pandas as pd
-from db.database import SessionLocal
+from app.db.database import SessionLocal
 from db import models
 from core.logic import classify_water_type
 from utils.recommendation_utils import get_recommendation_data

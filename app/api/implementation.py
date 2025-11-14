@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Query, HTTPException, Depends
 from sqlalchemy.orm import Session
-from db.database import SessionLocal
+from app.db.database import SessionLocal
 from db import models
 import pandas as pd
 

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, Form
 from sqlalchemy.orm import Session
-from db.database import SessionLocal
+from app.db.database import SessionLocal
 from db import models
 from schemas.models import UserLocationSchema
 import pandas as pd

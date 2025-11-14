@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from app.db.database import init_db
+from app.db import models
 from app.api import recommendations, location, water_data, implementation
 import os
 

@@ -1,6 +1,6 @@
 # seed_data.py
 import pandas as pd
-from db.database import SessionLocal, engine, Base
+from app.db.database import SessionLocal, engine, Base
 from db import models
 
 def seed():

@@ -4,7 +4,7 @@ from typing import Optional, Iterable, Set, List
 
 import pandas as pd
 from sqlalchemy import text, inspect
-from db.database import SessionLocal
+from app.db.database import SessionLocal
 from db import models
 
 

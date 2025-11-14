@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Query, Depends, HTTPException
 from sqlalchemy.orm import Session
-from db.database import SessionLocal
+from app.db.database import SessionLocal
 import pandas as pd
 from utils.recommendation_utils import get_recommendation_data
 from fastapi.responses import JSONResponse  # <-- ADD THIS LINE
