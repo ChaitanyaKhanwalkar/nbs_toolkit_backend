@@ -1,13 +1,19 @@
 """
-Recommendation engine for NbS Toolkit.
-Provides plant and NbS matching based on:
-- state
-- water type
-- soil type
-- fuzzy soil similarity
-- fallback ranking
+Production-grade Recommendation Engine for NbS Toolkit
+------------------------------------------------------
+Rewritten using deterministic weighted scoring:
 
-This is a pure-Python, database-agnostic module.
+Score Weights:
+- State match:              +50
+- Water type match:         +50
+- Soil exact match:         +25
+- Soil fuzzy similarity:    +0–20 (RapidFuzz)
+- Fallback penalty:         -10
+
+Always returns:
+- top 5 plants
+- top 5 NbS options
+- clean JSON-safe output
 """
 
 import pandas as pd
@@ -15,21 +21,21 @@ from rapidfuzz.fuzz import ratio as fuzz_ratio
 
 
 # ---------------------------------------------------------
-# UTILS
+# Helpers
 # ---------------------------------------------------------
 
-def _clean_dict(obj):
-    """Remove Unnamed columns and sanitize NaN → None for JSON."""
+def _clean(obj):
+    """Remove NaN, NaT, unnamed columns, keep JSON-safe values."""
     if isinstance(obj, dict):
         cleaned = {}
         for k, v in obj.items():
-            if k.lower().startswith("unnamed"):
+            if str(k).lower().startswith("unnamed"):
                 continue
-            cleaned[k] = _clean_dict(v)
+            cleaned[k] = _clean(v)
         return cleaned
 
     if isinstance(obj, list):
-        return [_clean_dict(x) for x in obj]
+        return [_clean(v) for v in obj]
 
     if isinstance(obj, float) and pd.isna(obj):
         return None
@@ -40,142 +46,143 @@ def _clean_dict(obj):
     return obj
 
 
-def _lower(s):
-    return str(s).strip().lower() if s is not None else ""
+def _lower(x):
+    return str(x).strip().lower() if x is not None else ""
 
 
 # ---------------------------------------------------------
-# CORE MATCHING ENGINE
+# Retrieve Soil Type
 # ---------------------------------------------------------
 
-def _retrieve_soil_type(merged_df, state_name):
-    """Get soil type for the given state (fallback = Loamy)."""
+def _get_soil_type(merged_df, state_name):
+    """Return soil type for state (fallback = Loamy)."""
     try:
         row = merged_df[merged_df["state_name"].str.lower() == state_name.lower()]
         if not row.empty:
             soil = row.iloc[0].get("soil_type")
             if soil:
                 return str(soil)
-    except Exception:
+    except:
         pass
-    return "Loamy"  # fallback
-
-
-def _fuzzy_score(a, b):
-    """Case-insensitive fuzzy score for soils."""
-    return fuzz_ratio(str(a).lower(), str(b).lower())
-
-
-def _rank_matches(df, state_name, water_type, soil_type):
-    """
-    Ranking logic:
-    1. Perfect Match = state + water + soil
-    2. State + Water
-    3. Water only
-    4. Fuzzy soil scoring
-    5. Any (fallback)
-    """
-
-    results = []
-
-    # Pre-normalize columns
-    df["_state"] = df["state_name"].apply(_lower)
-    df["_water"] = df["optimal_water_type"].apply(_lower)
-    df["_soil"] = df.get("soil_type", "").apply(_lower)
-
-    target_state = state_name.lower()
-    target_water = water_type.lower()
-    target_soil = soil_type.lower()
-
-    # Perfect
-    perfect = df[
-        (df["_state"] == target_state) &
-        (df["_water"] == target_water) &
-        (df["_soil"] == target_soil)
-    ]
-    for _, row in perfect.iterrows():
-        results.append((row, "Perfect"))
-
-    # State + Water
-    state_water = df[
-        (df["_state"] == target_state) &
-        (df["_water"] == target_water)
-    ]
-    for _, row in state_water.iterrows():
-        if row not in [r[0] for r in results]:
-            results.append((row, "State+Water"))
-
-    # Water only
-    water_only = df[df["_water"] == target_water]
-    for _, row in water_only.iterrows():
-        if row not in [r[0] for r in results]:
-            results.append((row, "Water Only"))
-
-    # Fuzzy soil
-    fuzzy_candidates = df[~df.index.isin([r[0].name for r in results])]
-    fuzzy_candidates["fuzzy_score"] = fuzzy_candidates["_soil"].apply(
-        lambda x: _fuzzy_score(x, target_soil)
-    )
-    fuzzy_sorted = fuzzy_candidates.sort_values("fuzzy_score", ascending=False)
-
-    for _, row in fuzzy_sorted.iterrows():
-        results.append((row, "Fuzzy"))
-
-    # Any fallback
-    for _, row in df.iterrows():
-        if row not in [r[0] for r in results]:
-            results.append((row, "Any"))
-
-    # Convert to list of dicts and keep top 5
-    final = []
-    for row, level in results[:5]:
-        d = row.to_dict()
-        d["match_level"] = level
-        final.append(d)
-
-    return final
+    return "Loamy"
 
 
 # ---------------------------------------------------------
-# PUBLIC API
+# Scoring Function
+# ---------------------------------------------------------
+
+def _score_row(row, state_name, water_type, soil_type):
+    """Compute weighted score for a plant or NbS option."""
+    score = 0
+
+    # Normalize values
+    r_state = _lower(row.get("state_name"))
+    r_water = _lower(row.get("optimal_water_type"))
+    r_soil = _lower(row.get("soil_type"))
+    t_state = _lower(state_name)
+    t_water = _lower(water_type)
+    t_soil  = _lower(soil_type)
+
+    # State match
+    if r_state == t_state:
+        score += 50
+
+    # Water match
+    if r_water == t_water:
+        score += 50
+
+    # Soil exact match
+    if r_soil == t_soil:
+        score += 25
+
+    # Fuzzy soil similarity (0–20)
+    if r_soil:
+        score += int(fuzz_ratio(r_soil, t_soil) * 0.2)
+
+    # Apply fallback penalty for missing fundamentals
+    if r_water != t_water and r_state != t_state:
+        score -= 10
+
+    return score
+
+
+# ---------------------------------------------------------
+# Generic Matcher
+# ---------------------------------------------------------
+
+def _match(df, state_name, water_type, soil_type):
+    """Score and return top 5 matches sorted by score desc."""
+    df = df.copy()
+
+    scores = []
+    for _, row in df.iterrows():
+        s = _score_row(row, state_name, water_type, soil_type)
+        scores.append(s)
+
+    df["score"] = scores
+    df = df.sort_values("score", ascending=False)
+
+    # Keep top 5 only
+    top = df.head(5)
+
+    # Convert to list of dicts
+    results = []
+    for _, row in top.iterrows():
+        d = row.to_dict()
+        d["match_level"] = _interpret_match_level(d["score"])
+        results.append(d)
+
+    return results
+
+
+def _interpret_match_level(score):
+    """Human-friendly match label based on score."""
+    if score >= 110:
+        return "Perfect"
+    if score >= 90:
+        return "Strong"
+    if score >= 70:
+        return "Good"
+    if score >= 40:
+        return "Fair"
+    return "Weak"
+
+
+# ---------------------------------------------------------
+# Main API – Called by FastAPI endpoints
 # ---------------------------------------------------------
 
 def get_recommendation_data(state_name: str, water_type: str, db):
-    """
-    Main entry point used by API endpoints.
-    Loads DB → pandas → computes recommendations → returns safe JSON dict.
-    """
+    """Main entry point to compute recommendations."""
 
-    # --------- Load database tables ----------
+    # ---- Load DB tables ----
     merged_df = pd.read_sql("SELECT * FROM merged_district_data", db.bind)
     plant_df = pd.read_sql("SELECT * FROM plant_data", db.bind)
-    nbs_df = pd.read_sql("SELECT * FROM nbs_options", db.bind)
-    impl_df = pd.read_sql("SELECT * FROM nbs_implementation", db.bind)
+    nbs_df   = pd.read_sql("SELECT * FROM nbs_options", db.bind)
+    impl_df  = pd.read_sql("SELECT * FROM nbs_implementation", db.bind)
 
-    # --------- Soil type for state ----------
-    soil_type = _retrieve_soil_type(merged_df, state_name)
+    # ---- Resolve soil type ----
+    soil_type = _get_soil_type(merged_df, state_name)
 
-    # --------- Match plants ----------
-    plant_matches = _rank_matches(plant_df, state_name, water_type, soil_type)
+    # ---- Compute matches ----
+    plants = _match(plant_df, state_name, water_type, soil_type)
+    nbs    = _match(nbs_df, state_name, water_type, soil_type)
 
-    # --------- Match NBS ----------
-    nbs_matches = _rank_matches(nbs_df, state_name, water_type, soil_type)
-
-    # --------- Attach implementation ----------
-    impl_dict = {
-        int(row["id"]): row.to_dict()
-        for _, row in impl_df.iterrows()
+    # ---- Attach implementation ----
+    impl_map = {
+        int(r["id"]): r.to_dict()
+        for _, r in impl_df.iterrows()
     }
 
-    for item in nbs_matches:
-        impl = impl_dict.get(item.get("id"))
+    for item in nbs:
+        impl = impl_map.get(item.get("id"))
         item["implementation"] = impl or {}
 
-    # --------- Final structure ----------
+    # ---- Final Output ----
     result = {
         "soil_type": soil_type,
-        "plants": plant_matches,
-        "nbs_options": nbs_matches,
+        "plants": plants,
+        "nbs_options": nbs,
     }
 
-    return _clean_dict(result)
+    return _clean(result)
