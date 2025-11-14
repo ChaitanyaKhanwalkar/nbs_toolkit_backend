@@ -1,80 +1,47 @@
 # app/main.py
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.db.database import init_db
-from app.api import (
-    recommendations,
-    water_data,
-    implementation,
-    location,
-)
-
-# ---------------------------------------------------------
-# APPLICATION SETUP
-# ---------------------------------------------------------
+from app.api import implementation, location, recommendations, water_data
 
 app = FastAPI(
     title="NBS Toolkit API",
-    description="Backend API for the Nature-based Solutions Toolkit",
-    version="1.0.0",
+    description="Nature-based Solutions Recommendation Backend",
+    version="1.0.0"
 )
 
-# ---------------------------------------------------------
-# CORS SETTINGS (Front-end compatibility)
-# ---------------------------------------------------------
-
+# -----------------------------
+# CORS (allow frontend)
+# -----------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Change later to frontend domain
+    allow_origins=["*"],   # change to frontend domain later
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ---------------------------------------------------------
-# STARTUP EVENT — CREATE TABLES
-# ---------------------------------------------------------
-
+# -----------------------------
+# Startup: init tables
+# -----------------------------
 @app.on_event("startup")
 def startup_event():
-    """
-    Runs once when the server boots.
-    Ensures database tables exist.
-    """
-    print("📌 Initializing database...")
+    print("🚀 Starting NBS API backend...")
     init_db()
-    print("✅ Database ready.")
+    print("✅ Database tables ready.")
 
-
-# ---------------------------------------------------------
-# ROUTES REGISTRATION
-# ---------------------------------------------------------
-
-app.include_router(recommendations.router, prefix="/api", tags=["Recommendations"])
-app.include_router(water_data.router, prefix="/api", tags=["Water Data"])
-app.include_router(implementation.router, prefix="/api", tags=["Implementation"])
-app.include_router(location.router, prefix="/api", tags=["Location"])
-
-
-# ---------------------------------------------------------
-# HEALTH CHECK ENDPOINT
-# ---------------------------------------------------------
-
+# -----------------------------
+# Health check
+# -----------------------------
 @app.get("/api/health")
-def health_check():
+def health():
     return {"status": "ok", "message": "NBS Toolkit API is running!"}
 
-
-# ---------------------------------------------------------
-# ROOT ENDPOINT
-# ---------------------------------------------------------
-
-@app.get("/")
-def root():
-    return {
-        "message": "Welcome to the NBS Toolkit API",
-        "docs": "/docs",
-        "health": "/api/health",
-    }
+# -----------------------------
+# ROUTER REGISTRATION
+# -----------------------------
+app.include_router(implementation.router, prefix="/api", tags=["Implementation"])
+app.include_router(location.router, prefix="/api", tags=["Location"])
+app.include_router(recommendations.router, prefix="/api", tags=["Recommendations"])
+app.include_router(water_data.router, prefix="/api", tags=["Water Data"])
