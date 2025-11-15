@@ -1,33 +1,93 @@
 import pandas as pd
-from sqlalchemy import text
-from app.db.database import engine
+from sqlalchemy.orm import Session
+
+from app.db.database import SessionLocal
+from app.db.models import PlantData, NBSOption, NBSImplementation, DistrictMerged
+
+
+def load_csv(path):
+    df = pd.read_csv(path)
+    df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
+    df = df.fillna(None)  # SQL safe
+    return df
+
+
+def seed_plants(db: Session):
+    df = load_csv("app/data/csv/plants.csv")
+
+    for _, row in df.iterrows():
+        obj = PlantData(
+            plant_species=row.get("plant_species"),
+            state_name=row.get("state_name"),
+            soil_type=row.get("soil_type"),
+            optimal_water_type=row.get("optimal_water_type"),
+            description=row.get("description"),
+        )
+        db.add(obj)
+
+    db.commit()
+    print(f"Seeded {len(df)} plant records")
+
+
+def seed_nbs_options(db: Session):
+    df = load_csv("app/data/csv/nbs_options.csv")
+
+    for _, row in df.iterrows():
+        obj = NBSOption(
+            solution=row.get("solution"),
+            state_name=row.get("state_name"),
+            soil_type=row.get("soil_type"),
+            optimal_water_type=row.get("optimal_water_type"),
+            benefits=row.get("benefits"),
+        )
+        db.add(obj)
+
+    db.commit()
+    print(f"Seeded {len(df)} NBS options")
+
+
+def seed_nbs_implementation(db: Session):
+    df = load_csv("app/data/csv/nbs_implementation.csv")
+
+    for _, row in df.iterrows():
+        obj = NBSImplementation(
+            id=int(row.get("id")),
+            steps=row.get("steps"),
+            cost=row.get("cost"),
+            timeline=row.get("timeline"),
+        )
+        db.add(obj)
+
+    db.commit()
+    print(f"Seeded {len(df)} implementation records")
+
+
+def seed_merged_data(db: Session):
+    df = load_csv("app/data/csv/merged_district_data.csv")
+
+    for _, row in df.iterrows():
+        obj = DistrictMerged(
+            state_name=row.get("state_name"),
+            district=row.get("district"),
+            soil_type=row.get("soil_type"),
+            population=row.get("population"),
+        )
+        db.add(obj)
+
+    db.commit()
+    print(f"Seeded {len(df)} district merged rows")
+
 
 def seed_database():
-    print("🌱 Seeding database...")
+    print("🌱 Seeding Azure PostgreSQL...")
 
-    conn = engine.connect()
+    db = SessionLocal()
 
-    # Load CSVs
-    plant_df = pd.read_csv("data/plant_data_new.csv")
-    nbs_df = pd.read_csv("data/nbs_options_new.csv")
-    impl_df = pd.read_csv("data/nbs_implementation_new.csv")
+    seed_plants(db)
+    seed_nbs_options(db)
+    seed_nbs_implementation(db)
+    seed_merged_data(db)
 
-    # Clear tables
-    conn.execute(text("DELETE FROM plant_data"))
-    conn.execute(text("DELETE FROM nbs_options"))
-    conn.execute(text("DELETE FROM nbs_implementation"))
-    conn.commit()
+    db.close()
 
-    # Insert plant data
-    plant_df.to_sql("plant_data", conn, if_exists="append", index=False)
-
-    # Insert NBS
-    nbs_df.to_sql("nbs_options", conn, if_exists="append", index=False)
-
-    # Insert Implementation
-    impl_df.to_sql("nbs_implementation", conn, if_exists="append", index=False)
-
-    conn.commit()
-    conn.close()
-
-    print("✅ Seeding completed successfully!")
+    print("✅ Seeding completed.")

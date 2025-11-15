@@ -20,7 +20,7 @@ numpy==2.2.6
 # ---------------------------
 # FUZZY MATCHING (FASTER THAN FUZZYWUZZY)
 # ---------------------------
-rapidfuzz==3.13.0
+rapidfuzz==3.6.1
 
 # ---------------------------
 # UTILITIES
@@ -29,3 +29,4 @@ python-dotenv==1.1.0
 python-multipart==0.0.20
 requests==2.32.3
 typing_extensions==4.14.0
+--include app/data/*
