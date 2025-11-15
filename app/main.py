@@ -2,6 +2,7 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.db.db_connection import get_connection
 
 from app.db.database import Base, engine
 from app.api import implementation, location, recommendations, water_data
@@ -10,6 +11,32 @@ app = FastAPI(
     title="NBS Toolkit API",
     description="Nature-based Solutions Recommendation Backend",
     version="1.0.0"
+)
+
+@app.get("/api/test-db")
+def test_db():
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT NOW();")
+        result = cursor.fetchone()
+
+        cursor.close()
+        conn.close()
+
+        return {"status": "success", "timestamp": result}
+    except Exception as e:
+        return {"status": "failed", "error": str(e)}
+
+# -----------------------------
+# CORS (allow frontend)
+# -----------------------------
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],   # change to frontend domain later
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # -----------------------------
