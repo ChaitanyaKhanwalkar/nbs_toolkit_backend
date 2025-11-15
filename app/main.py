@@ -33,18 +33,7 @@ def test_db():
 # -----------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # change to frontend domain later
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# -----------------------------
-# CORS (allow frontend)
-# -----------------------------
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],   # change to frontend domain later
+    allow_origins=["*"],   # In production, you should restrict this to your frontend's domain
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -55,11 +44,10 @@ app.add_middleware(
 # -----------------------------
 @app.on_event("startup")
 def startup_event():
+    # This ensures that all tables defined in your SQLAlchemy models are created
+    # in the database when the application starts.
     Base.metadata.create_all(bind=engine)
 
-    if os.getenv("ENABLE_DB_SEEDING", "false").lower() == "true":
-        from app.db.seed_data import seed_database
-        seed_database()
 # -----------------------------
 # Health check
 # -----------------------------

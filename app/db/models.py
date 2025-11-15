@@ -1,74 +1,107 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime
-from sqlalchemy.ext.declarative import declarative_base
+"""
+SQLAlchemy ORM models for the NbS Toolkit, aligned with the current schema.
+"""
+
 from datetime import datetime
+from sqlalchemy import (
+    Column, Integer, Text, DateTime, func
+)
+from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
 
+# ============================
+#      DISTRICT DATA
+# ============================
+
 class District(Base):
     __tablename__ = "district_data"
-    id = Column(Integer, primary_key=True, index=True)
-    state_name = Column(String, index=True)
-    district_name = Column(String)
-    soil_type = Column(String)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    state_name = Column(Text)
+    soil_type = Column(Text)
+
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+# ============================
+#        PLANT DATA
+# ============================
 
 class Plant(Base):
     __tablename__ = "plant_data"
-    id = Column(Integer, primary_key=True, index=True)
-    plant_species = Column(String)
-    locational_availability = Column(String)
-    climate_preference = Column(String)
-    soil_type = Column(String)
-    water_needs = Column(String)
-    ecological_role = Column(String)
-    pollution_tolerance = Column(String)
-    state_name = Column(String, index=True)
-    optimal_water_type = Column(String, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-class NBS(Base):
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    plant_species = Column(Text)
+    locational_availability = Column(Text)
+    climate_preference = Column(Text)
+    soil_type = Column(Text)
+    water_needs = Column(Text)
+    ecological_role = Column(Text)
+    pollution_tolerance = Column(Text)
+    state_name = Column(Text)
+    optimal_water_type = Column(Text)
+
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+# ============================
+#        NBS OPTIONS
+# ============================
+
+class NbsOption(Base):
     __tablename__ = "nbs_options"
-    id = Column(Integer, primary_key=True, index=True)
-    solution = Column(String)
-    optimal_water_type = Column(String, index=True)
-    location_suitability = Column(String)
-    climate_suitability = Column(String)
-    soil_type = Column(String)
-    resource_requirements = Column(String)
-    notes = Column(String)
-    state_name = Column(String, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-class NBSImplementation(Base):
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    solution = Column(Text)
+    optimal_water_type = Column(Text)
+    location_suitability = Column(Text)
+    climate_suitability = Column(Text)
+    soil_type = Column(Text)
+    resource_requirements = Column(Text)
+    notes = Column(Text)
+    state_name = Column(Text)
+
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+# ============================
+#    NBS IMPLEMENTATION
+# ============================
+
+class NbsImplementation(Base):
     __tablename__ = "nbs_implementation"
-    id = Column(Integer, primary_key=True, index=True)
-    solution = Column(String)
-    implementation_steps = Column(String)
-    maintenance_requirements = Column(String)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    id = Column(Integer, primary_key=True)
+    solution = Column(Text)
+    implementation_steps = Column(Text)
+    maintenance_requirements = Column(Text)
+
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+# ============================
+#         WATER DATA
+# ============================
 
 class WaterData(Base):
     __tablename__ = "water_data"
-    id = Column(Integer, primary_key=True, index=True)
-    water_type = Column(String)
-    colour = Column(String)
-    odour = Column(String)
-    turbidity = Column(Float)
-    temperature = Column(Float)
-    tss = Column(Float)
-    ph = Column(Float)
-    bod = Column(Float)
-    cod = Column(Float)
-    nitrate = Column(Float)
-    phosphate = Column(Float)
-    ammonia = Column(Float)
-    chloride = Column(Float)
-    sample_source = Column(String)
-    sample_timestamp = Column(DateTime)
-    raw_data = Column(String)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    water_type = Column(Text)
+    colour = Column(Text)
+    # These fields are TEXT to preserve original ranges (e.g., "30-200").
+    turbidity = Column(Text)
+    temperature = Column(Text)
+    odour = Column(Text)
+    tss = Column(Text)
+    ph = Column(Text)
+    bod = Column(Text)
+    cod = Column(Text)
+    nitrate = Column(Text)
+    phosphate = Column(Text)
+    ammonia = Column(Text)
+    chloride = Column(Text)
+
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

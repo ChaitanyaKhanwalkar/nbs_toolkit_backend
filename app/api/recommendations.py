@@ -96,7 +96,7 @@ def get_nbs_detail(nbs_id: int, db: Session = Depends(get_db)):
 
 @router.get("/plant/{plant_id}")
 def get_plant_detail(plant_id: int, db: Session = Depends(get_db)):
-    plant = db.query(models.PlantData).filter(models.PlantData.id == plant_id).first()
+    plant = db.query(models.Plant).filter(models.Plant.id == plant_id).first()
 
     if not plant:
         raise HTTPException(status_code=404, detail="Plant not found.")

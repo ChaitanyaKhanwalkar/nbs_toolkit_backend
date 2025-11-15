@@ -25,7 +25,6 @@ CREATE TABLE IF NOT EXISTS district_data (
 );
 
 -- Table for plant_data_new.csv
--- Note: An unnamed column in the CSV header is ignored.
 CREATE TABLE IF NOT EXISTS plant_data (
   id                       SERIAL PRIMARY KEY,
   plant_species            TEXT,
@@ -57,7 +56,6 @@ CREATE TABLE IF NOT EXISTS nbs_options (
 );
 
 -- Table for nbs_implementation_new.csv
--- The 'id' is an INTEGER PRIMARY KEY to be provided from the CSV.
 CREATE TABLE IF NOT EXISTS nbs_implementation (
   id                         INTEGER PRIMARY KEY,
   solution                   TEXT,
@@ -68,22 +66,22 @@ CREATE TABLE IF NOT EXISTS nbs_implementation (
 );
 
 -- Table for water_data_new.csv
--- Columns with numeric ranges are set to DOUBLE PRECISION.
+-- Columns are stored as TEXT to preserve original ranges (e.g., "30-200").
 CREATE TABLE IF NOT EXISTS water_data (
   id           SERIAL PRIMARY KEY,
   water_type   TEXT,
   colour       TEXT,
-  turbidity    TEXT, -- Kept as TEXT due to ranges like '30-200'
-  temperature  TEXT, -- Kept as TEXT due to ranges like '20-35'
+  turbidity    TEXT,
+  temperature  TEXT,
   odour        TEXT,
-  tss          TEXT, -- Kept as TEXT due to ranges like '50-300'
-  ph           TEXT, -- Kept as TEXT due to ranges like '6.0-9.0'
-  bod          TEXT, -- Kept as TEXT due to ranges like '100-300'
-  cod          TEXT, -- Kept as TEXT due to ranges like '250-600'
-  nitrate      TEXT, -- Kept as TEXT due to ranges like '5-30'
-  phosphate    TEXT, -- Kept as TEXT due to ranges like '2-15'
-  ammonia      TEXT, -- Kept as TEXT due to ranges like '0-5'
-  chloride     TEXT, -- Kept as TEXT due to ranges like '0-10'
+  tss          TEXT,
+  ph           TEXT,
+  bod          TEXT,
+  cod          TEXT,
+  nitrate      TEXT,
+  phosphate    TEXT,
+  ammonia      TEXT,
+  chloride     TEXT,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );

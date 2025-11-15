@@ -39,13 +39,9 @@ def load_specific_data():
         
         df = pd.read_csv(file_path)
 
-        id_col_to_drop = None
-        for col in df.columns:
-            if col.strip().lower() == 'id':
-                id_col_to_drop = col
-                break
-        if id_col_to_drop:
-            df.drop(columns=[id_col_to_drop], inplace=True)
+        # Drop 'id' column if it exists, as the database will generate it.
+        if 'id' in df.columns:
+            df.drop(columns=['id'], inplace=True)
 
         sql_columns = [col.strip() for col in df.columns]
         sql_columns_str = f"({', '.join(sql_columns)})"
