@@ -160,5 +160,5 @@ def get_recommendation_data(state_name: str, water_type: str, db):
     return _clean_dict({
         "soil_type": soil_type,
         "plants": plants,
-        "nbs_options": nbs,
+        "nbs_options": nbs,     
     })

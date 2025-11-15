@@ -1,65 +1,30 @@
-"""
-Database engine + session factory for the NbS Toolkit.
-Production-ready: connection pooling, clean dependency injection,
-no unnecessary prints, fully modular.
-"""
-
 import os
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from app.db.models import Base
+from sqlalchemy.orm import sessionmaker, declarative_base
+from dotenv import load_dotenv
 
-
-# --------------------------------------------
-# DATABASE URL (ENV VARIABLE)
-# --------------------------------------------
+# Load environment variables
+load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError("❌ DATABASE_URL not found in environment variables.")
 
-if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
-    # Convert old-style format
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-
-
-# --------------------------------------------
-# ENGINE
-# --------------------------------------------
-
+# Azure Postgres requires SSL
 engine = create_engine(
     DATABASE_URL,
-    pool_pre_ping=True,        # Automatically reconnect dropped connections
-    pool_recycle=1800,         # Recycle connections every 30 min
-    future=True,               # Modern SQLAlchemy API
+    pool_pre_ping=True,
+    pool_size=10,
+    max_overflow=20
 )
 
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# --------------------------------------------
-# SESSION FACTORY
-# --------------------------------------------
+Base = declarative_base()
 
-SessionLocal = sessionmaker(
-    bind=engine,
-    autocommit=False,
-    autoflush=False,
-    future=True
-)
-
-
-# --------------------------------------------
-# DB INITIALIZATION
-# --------------------------------------------
-
-def init_db():
-    """Create all tables safely. Runs only when called."""
-    Base.metadata.create_all(bind=engine)
-
-
-# --------------------------------------------
-# SESSION DEPENDENCY FOR FASTAPI
-# --------------------------------------------
 
 def get_db():
-    """FastAPI dependency: open DB session per request."""
+    """FastAPI DB dependency"""
     db = SessionLocal()
     try:
         yield db

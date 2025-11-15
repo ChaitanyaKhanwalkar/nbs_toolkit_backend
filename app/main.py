@@ -2,7 +2,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.db.database import init_db
+from app.db.database import Base, engine
 from app.api import implementation, location, recommendations, water_data
 
 app = FastAPI(
@@ -27,10 +27,11 @@ app.add_middleware(
 # -----------------------------
 @app.on_event("startup")
 def startup_event():
-    print("🚀 Starting NBS API backend...")
-    init_db()
-    print("✅ Database tables ready.")
+    Base.metadata.create_all(bind=engine)
 
+    if os.getenv("ENABLE_DB_SEEDING", "false").lower() == "true":
+        from app.db.seed_data import seed_database
+        seed_database()
 # -----------------------------
 # Health check
 # -----------------------------
