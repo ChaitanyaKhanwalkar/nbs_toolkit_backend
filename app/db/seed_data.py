@@ -1,93 +1,54 @@
 import pandas as pd
 from sqlalchemy.orm import Session
+from app.db.models import District, Plant, NBS, NBSImplementation, WaterData
+from app.db.database import SessionLocal, engine
+import os
 
-from app.db.database import SessionLocal
-from app.db.models import PlantData, NBSOption, NBSImplementation, DistrictMerged
+def load_csv(file_path):
+    if not os.path.exists(file_path):
+        print(f"File not found: {file_path}")
+        return None
+    return pd.read_csv(file_path)
 
+def seed_data():
+    db: Session = SessionLocal()
+    
+    # Seed District Data
+    if db.query(District).count() == 0:
+        df = load_csv("app/data/district_data_new.csv")
+        if df is not None:
+            df.to_sql('district_data', con=engine, if_exists='append', index=False)
+            print("Seeded District data")
 
-def load_csv(path):
-    df = pd.read_csv(path)
-    df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
-    df = df.fillna(None)  # SQL safe
-    return df
+    # Seed Plant Data
+    if db.query(Plant).count() == 0:
+        df = load_csv("app/data/plant_data_new.csv")
+        if df is not None:
+            df.to_sql('plant_data', con=engine, if_exists='append', index=False)
+            print("Seeded Plant data")
 
+    # Seed NBS Options
+    if db.query(NBS).count() == 0:
+        df = load_csv("app/data/nbs_options_new.csv")
+        if df is not None:
+            df.to_sql('nbs_options', con=engine, if_exists='append', index=False)
+            print("Seeded NBS Options data")
 
-def seed_plants(db: Session):
-    df = load_csv("app/data/csv/plants.csv")
+    # Seed NBS Implementation
+    if db.query(NBSImplementation).count() == 0:
+        df = load_csv("app/data/nbs_implementation_new.csv")
+        if df is not None:
+            df.to_sql('nbs_implementation', con=engine, if_exists='append', index=False)
+            print("Seeded NBS Implementation data")
 
-    for _, row in df.iterrows():
-        obj = PlantData(
-            plant_species=row.get("plant_species"),
-            state_name=row.get("state_name"),
-            soil_type=row.get("soil_type"),
-            optimal_water_type=row.get("optimal_water_type"),
-            description=row.get("description"),
-        )
-        db.add(obj)
-
-    db.commit()
-    print(f"Seeded {len(df)} plant records")
-
-
-def seed_nbs_options(db: Session):
-    df = load_csv("app/data/csv/nbs_options.csv")
-
-    for _, row in df.iterrows():
-        obj = NBSOption(
-            solution=row.get("solution"),
-            state_name=row.get("state_name"),
-            soil_type=row.get("soil_type"),
-            optimal_water_type=row.get("optimal_water_type"),
-            benefits=row.get("benefits"),
-        )
-        db.add(obj)
-
-    db.commit()
-    print(f"Seeded {len(df)} NBS options")
-
-
-def seed_nbs_implementation(db: Session):
-    df = load_csv("app/data/csv/nbs_implementation.csv")
-
-    for _, row in df.iterrows():
-        obj = NBSImplementation(
-            id=int(row.get("id")),
-            steps=row.get("steps"),
-            cost=row.get("cost"),
-            timeline=row.get("timeline"),
-        )
-        db.add(obj)
-
-    db.commit()
-    print(f"Seeded {len(df)} implementation records")
-
-
-def seed_merged_data(db: Session):
-    df = load_csv("app/data/csv/merged_district_data.csv")
-
-    for _, row in df.iterrows():
-        obj = DistrictMerged(
-            state_name=row.get("state_name"),
-            district=row.get("district"),
-            soil_type=row.get("soil_type"),
-            population=row.get("population"),
-        )
-        db.add(obj)
-
-    db.commit()
-    print(f"Seeded {len(df)} district merged rows")
-
-
-def seed_database():
-    print("🌱 Seeding Azure PostgreSQL...")
-
-    db = SessionLocal()
-
-    seed_plants(db)
-    seed_nbs_options(db)
-    seed_nbs_implementation(db)
-    seed_merged_data(db)
+    # Seed Water Data
+    if db.query(WaterData).count() == 0:
+        df = load_csv("app/data/water_data_new.csv")
+        if df is not None:
+            df.to_sql('water_data', con=engine, if_exists='append', index=False)
+            print("Seeded Water data")
 
     db.close()
 
-    print("✅ Seeding completed.")
+if __name__ == "__main__":
+    seed_data()
