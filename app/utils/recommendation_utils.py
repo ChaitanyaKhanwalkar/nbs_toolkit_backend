@@ -13,7 +13,8 @@ Key features:
 """
 
 import pandas as pd
-from rapidfuzz.fuzz import ratio as fuzz_ratio
+from rapidfuzz import fuzz
+
 
 
 # ---------------------------------------------------------
@@ -64,7 +65,7 @@ def _retrieve_soil_type(merged_df, state_name):
 
 
 def _fuzzy_score(a, b):
-    return fuzz_ratio(str(a).lower(), str(b).lower())
+    return fuzz.ratio(str(a).lower(), str(b).lower())
 
 
 # ---------------------------------------------------------
