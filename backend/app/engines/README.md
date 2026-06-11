@@ -7,7 +7,7 @@ step is ready and documented. The API layer should not calculate science, and
 repositories should not calculate science. Engines should receive clean inputs
 from services and return clear, explainable results.
 
-## Current Status: Steps A and B Only
+## Current Status: Steps A, B, and C Only
 
 The current files implement Step A:
 
@@ -25,11 +25,18 @@ They also implement Step B:
 - preserve `source_id` values where raw observations provide them
 - document that `water_type_profiles` remains a future fallback and is not used yet
 
-Steps A and B do not recommend anything.
+They also implement Step C:
+
+- fetch standards for one explicit use case through the service layer
+- match observation parameters to standard parameters with transparent normalization
+- calculate max-limit, min-limit, and range-limit pollutant gaps
+- report missing standards, invalid values, and unit mismatches safely
+- preserve source IDs where raw observations provide them
+
+Steps A, B, and C do not recommend anything.
 
 They do not:
 
-- calculate pollutant exceedance
 - classify treatment need
 - filter NbS candidates
 - rank with MCDA or TOPSIS
@@ -42,12 +49,11 @@ They do not:
 
 Future engine modules may be added in this order:
 
-1. pollutant gap / exceedance calculation
-2. treatment-need classification
-3. candidate NbS filtering
-4. MCDA/TOPSIS ranking
-5. confidence scoring
-6. plant matching after technology ranking
+1. treatment-need classification
+2. candidate NbS filtering
+3. MCDA/TOPSIS ranking
+4. confidence scoring
+5. plant matching after technology ranking
 
 Do not skip ahead. Follow `backend/docs/SCIENTIFIC_RECOMMENDATION_ENGINE.md`.
 
