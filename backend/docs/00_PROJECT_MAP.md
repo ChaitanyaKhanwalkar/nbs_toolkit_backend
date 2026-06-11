@@ -142,6 +142,11 @@ repository outputs into dictionaries and lists for future API schemas. They do
 not calculate exceedance, health risk, AHP weights, TOPSIS rankings, or
 recommendations.
 
+`scientific_workflow_service.py` is an internal coordinator for Scientific
+Engine Steps A-E. It runs the staged engines in order and returns their
+intermediate bundles only; it does not expose an endpoint or create final
+recommendations.
+
 ## backend/app/engines/
 
 Future scientific logic and recommendation calculations will live here.

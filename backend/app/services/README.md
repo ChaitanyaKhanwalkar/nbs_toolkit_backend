@@ -16,5 +16,15 @@ Current rules:
 - Services do not mutate database records.
 - Services do not calculate pollutant exceedance, health risk, AHP weights, TOPSIS rankings, or recommendations.
 - Services should preserve `source_id` fields where the data includes them.
+- `scientific_workflow_service.py` coordinates existing Scientific Engine Steps A-E and returns staged bundles only.
 
 Do not create a `recommendation_service.py` until the project is ready for real recommendation logic.
+
+The scientific workflow service is internal backend orchestration. It does not expose an endpoint, create final recommendations, rank candidates, choose plants, classify health risk, or add TOPSIS/AHP outputs.
+
+To smoke test the internal workflow service from `backend/`:
+
+```cmd
+set PYTHONPATH=%CD%
+python tests\scientific_workflow_service_test.py
+```
