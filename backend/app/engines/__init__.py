@@ -7,6 +7,11 @@ from app.engines.input_normalization import (
     normalize_match_key,
     normalize_text,
 )
+from app.engines.candidate_filtering import (
+    CandidateFilterBundle,
+    CandidateFilteringEngine,
+    CandidateFilterResult,
+)
 from app.engines.pollutant_gap import (
     ParameterGapResult,
     PollutantGapBundle,
@@ -26,6 +31,9 @@ from app.engines.water_input_assembly import (
 
 __all__ = [
     "DATA_PRIORITY_NOTE",
+    "CandidateFilterBundle",
+    "CandidateFilteringEngine",
+    "CandidateFilterResult",
     "InputContext",
     "InputNormalizationEngine",
     "ParameterGapResult",

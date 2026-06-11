@@ -7,7 +7,7 @@ step is ready and documented. The API layer should not calculate science, and
 repositories should not calculate science. Engines should receive clean inputs
 from services and return clear, explainable results.
 
-## Current Status: Steps A, B, C, and D Only
+## Current Status: Steps A, B, C, D, and E Only
 
 The current files implement Step A:
 
@@ -41,11 +41,19 @@ They also implement Step D:
 - turn missing standards, unit mismatches, and invalid values into warnings
 - keep unknown exceeded parameters visible as unclassified
 
-Steps A, B, C, and D do not recommend anything.
+They also implement Step E:
+
+- evaluate NbS catalogue candidates against Step D treatment need groups
+- use explicit removal-efficiency rows or explicit catalogue support only
+- return `eligible`, `ineligible`, or `data_pending` statuses
+- report unsupported treatment needs, data gaps, cautions, and source IDs
+- add safety cautions for pathogens, metals, infiltration, soil/slope, and
+  drinking/domestic use cases when source fields support those checks
+
+Steps A, B, C, D, and E do not recommend anything.
 
 They do not:
 
-- filter NbS candidates
 - rank with MCDA or TOPSIS
 - use AHP weights
 - calculate confidence labels
@@ -56,10 +64,9 @@ They do not:
 
 Future engine modules may be added in this order:
 
-1. candidate NbS filtering
-2. MCDA/TOPSIS ranking
-3. confidence scoring
-4. plant matching after technology ranking
+1. MCDA/TOPSIS ranking
+2. confidence scoring
+3. plant matching after technology ranking
 
 Do not skip ahead. Follow `backend/docs/SCIENTIFIC_RECOMMENDATION_ENGINE.md`.
 
