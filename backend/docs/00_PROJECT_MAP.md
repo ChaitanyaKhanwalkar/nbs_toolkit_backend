@@ -94,6 +94,11 @@ plants, pollution context, river context, and data availability checks. They
 match the service layer where possible and keep fields optional because some
 research data may be incomplete.
 
+`backend/app/schemas/engine.py` describes safe JSON shapes for existing
+internal scientific engine bundles from Steps A-E. It is for future
+serialization and testing only; it does not create workflow routes or final
+recommendation responses.
+
 Schemas are especially important for future recommendation responses because every output should include explanations, cautions, confidence, and provenance.
 
 Do not add recommendation response fields, TOPSIS rankings, AHP weights,

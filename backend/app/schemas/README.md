@@ -17,12 +17,18 @@ Use schemas here for:
 - pollution context responses
 - river context responses
 - data availability responses
+- internal scientific engine bundle responses from Steps A-E
 
 Do not put database queries here. Repositories query the database.
 
 Do not put scientific scoring here. Future engine modules will calculate
 approved scientific outputs only after the repository, service, engine, and
 schema layers are ready.
+
+`engine.py` contains read-only response shapes for existing internal engine
+bundles. These schemas are for safe future serialization and tests only. They
+do not create routes, run workflow logic, rank candidates, calculate confidence,
+or create final recommendations.
 
 Do not add recommendation fields, TOPSIS ranks, AHP weights, exceedance labels,
 or health-risk classifications until that logic is explicitly implemented from
