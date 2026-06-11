@@ -126,6 +126,7 @@ python tests\treatment_need_test.py
 python tests\candidate_filtering_test.py
 python tests\scientific_engine_ad_integration_test.py
 python tests\scientific_engine_ae_integration_test.py
+python tests\scientific_engine_af_integration_test.py
 python tests\engine_schema_smoke_test.py
 python tests\engine_schema_conversion_test.py
 python tests\scientific_workflow_service_test.py
