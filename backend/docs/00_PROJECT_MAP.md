@@ -169,6 +169,14 @@ Routes should be thin. Their job is to:
 
 Routes should not directly query database tables and should not contain scientific ranking logic.
 
+The current API routes are read-only raw data endpoints mounted under
+`/api/v1`. They expose reference data, site profiles, water observations,
+standards, NbS catalogue records, plants, pollution context, river context, and
+data availability checks.
+
+There is intentionally no `/recommend` endpoint yet. Do not add recommendation
+routes until the approved scientific engine work begins.
+
 ## backend/app/data_ingestion/
 
 Controlled data import helpers belong here.

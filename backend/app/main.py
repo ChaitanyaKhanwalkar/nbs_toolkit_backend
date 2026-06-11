@@ -1,12 +1,14 @@
-"""FastAPI application entry point for backend health checks.
+"""FastAPI application entry point for backend health checks and raw data routes.
 
-This file creates the application and exposes only foundation health routes.
+This file creates the application, exposes foundation health routes, and mounts
+read-only raw data API routes under `/api/v1`.
 It intentionally does not implement recommendation logic, scoring engines,
 or production deployment wiring.
 """
 
 from fastapi import FastAPI, Response, status
 
+from app.api import api_router
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.db.health import check_database_connection
@@ -18,6 +20,7 @@ app = FastAPI(
     title=settings.app_name,
     version="0.1.0",
 )
+app.include_router(api_router, prefix="/api/v1")
 
 
 @app.get("/health")
