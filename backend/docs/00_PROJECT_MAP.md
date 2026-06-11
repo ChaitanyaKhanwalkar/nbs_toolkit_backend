@@ -82,13 +82,23 @@ the schema yet, such as `criteria_weights` and `health_risk`, are documented in
 
 API request and response schemas belong here.
 
-Use this folder later to define:
+Use this folder to define:
 
 - what inputs an endpoint accepts
 - what outputs an endpoint returns
 - validation-friendly response shapes
 
+The current schema files describe raw read-only response shapes for reference
+data, site profiles, water observations, standards, NbS catalogue records,
+plants, pollution context, river context, and data availability checks. They
+match the service layer where possible and keep fields optional because some
+research data may be incomplete.
+
 Schemas are especially important for future recommendation responses because every output should include explanations, cautions, confidence, and provenance.
+
+Do not add recommendation response fields, TOPSIS rankings, AHP weights,
+exceedance labels, or health-risk classifications until the scientific engine
+readiness gate is satisfied.
 
 ## backend/app/repositories/
 
