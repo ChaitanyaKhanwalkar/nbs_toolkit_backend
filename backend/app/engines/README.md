@@ -7,7 +7,7 @@ step is ready and documented. The API layer should not calculate science, and
 repositories should not calculate science. Engines should receive clean inputs
 from services and return clear, explainable results.
 
-## Current Status: Step A Only
+## Current Status: Steps A and B Only
 
 The current files implement Step A:
 
@@ -16,9 +16,18 @@ The current files implement Step A:
 - check that the selected `use_case` exists in stored standards use cases
 - validate user measured observations enough to know whether they are usable
 
-Step A does not recommend anything.
+They also implement Step B:
 
-It does not:
+- assemble water observations from the highest-priority available source
+- prefer user measured observations over stored station observations
+- prefer station observations over basin observations
+- return a safe missing-data bundle when no water data is available
+- preserve `source_id` values where raw observations provide them
+- document that `water_type_profiles` remains a future fallback and is not used yet
+
+Steps A and B do not recommend anything.
+
+They do not:
 
 - calculate pollutant exceedance
 - classify treatment need

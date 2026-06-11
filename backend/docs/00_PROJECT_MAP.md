@@ -143,10 +143,12 @@ Future scientific logic and recommendation calculations will live here.
 
 Change scientific logic in this folder later, but only after the repository, service, engine, and schema layers are ready.
 
-The current engine files implement Step A only: input normalization and target
-use-case validation. They prepare clean inputs for later workflow steps, but do
-not calculate exceedance, treatment need, rankings, confidence labels, health
-risk, or plant recommendations.
+The current engine files implement Step A and Step B only. Step A handles input
+normalization and target use-case validation. Step B assembles raw water
+observations by priority: user measured data, then station observations, then
+basin observations, then a safe missing-data bundle. These steps prepare clean
+inputs for later workflow steps, but do not calculate exceedance, treatment
+need, rankings, confidence labels, health risk, or plant recommendations.
 
 Future engine modules may handle:
 
