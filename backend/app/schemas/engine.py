@@ -137,6 +137,34 @@ class CandidateFilterBundleResponse(RawResponseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+class McdaMatrixRowResponse(RawResponseModel):
+    """Serialized output for one Step F raw MCDA matrix row."""
+
+    nbs_id: int | None = None
+    nbs_name: str | None = None
+    eligibility_status: str
+    supported_treatment_needs: list[str] = Field(default_factory=list)
+    criteria_values: dict[str, Any] = Field(default_factory=dict)
+    missing_criteria: list[str] = Field(default_factory=list)
+    caution_flags: list[str] = Field(default_factory=list)
+    source_ids: list[int] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
+class McdaMatrixBundleResponse(RawResponseModel):
+    """Serialized output from Step F raw MCDA matrix preparation."""
+
+    use_case: str
+    treatment_need_groups: list[str] = Field(default_factory=list)
+    row_count: int = 0
+    excluded_ineligible_count: int = 0
+    criteria_names: list[str] = Field(default_factory=list)
+    rows: list[McdaMatrixRowResponse] = Field(default_factory=list)
+    missing_criteria_summary: dict[str, int] = Field(default_factory=dict)
+    warnings: list[str] = Field(default_factory=list)
+    weights_status: str = "not_applied"
+
+
 class ScientificWorkflowResultResponse(RawResponseModel):
     """Serialized output from the internal Scientific Workflow service.
 
