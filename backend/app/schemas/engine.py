@@ -135,3 +135,23 @@ class CandidateFilterBundleResponse(RawResponseModel):
     data_pending_count: int = 0
     results: list[CandidateFilterResultResponse] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+
+
+class ScientificWorkflowResultResponse(RawResponseModel):
+    """Serialized output from the internal Scientific Workflow service.
+
+    Bundle fields are optional because the workflow can stop safely after Step A
+    validation or Step B water-input assembly. This schema only mirrors staged
+    outputs and does not add final recommendation, ranking, TOPSIS, AHP,
+    confidence-score, or plant-selection fields.
+    """
+
+    workflow_status: str
+    step_completed: str | None = None
+    input_context: InputContextResponse | None = None
+    water_input_bundle: WaterInputBundleResponse | None = None
+    pollutant_gap_bundle: PollutantGapBundleResponse | None = None
+    treatment_need_bundle: TreatmentNeedBundleResponse | None = None
+    candidate_filter_bundle: CandidateFilterBundleResponse | None = None
+    errors: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
