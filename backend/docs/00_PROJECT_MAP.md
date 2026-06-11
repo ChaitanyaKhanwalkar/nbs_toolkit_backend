@@ -1,0 +1,232 @@
+# Project Map
+
+This document explains the backend folder layout in beginner-friendly language.
+
+The backend is organized in layers. Each folder has one main job, so future code is easier to read, test, and review.
+
+## Quick Start For Beginners
+
+Read these files first:
+
+1. `AGENTS.md` - project rules and non-negotiable safety boundaries.
+2. `backend/docs/01_EXISTING_BACKEND_AUDIT.md` - explains old MVP logic versus the future research logic.
+3. `backend/docs/02_TARGET_BACKEND_STRUCTURE.md` - explains the target layered backend.
+4. `backend/docs/SCIENTIFIC_RECOMMENDATION_ENGINE.md` - defines the future scientific recommendation logic.
+5. `backend/docs/03_DEVELOPMENT_WORKFLOW.md` - explains how to work safely without touching production.
+
+## backend/
+
+The root folder for the production backend skeleton.
+
+It contains application code, tests, documentation, and database migration scaffolding.
+
+## backend/app/
+
+The Python application package.
+
+Most backend code will eventually live here, split into smaller folders by responsibility.
+
+## backend/app/main.py
+
+The future entry point for the API server.
+
+At this stage it is only a placeholder. It does not create production routes, connect to Azure, or implement recommendation logic.
+
+## backend/app/core/
+
+Shared application setup belongs here.
+
+Use this folder later for:
+
+- environment-based settings
+- logging setup
+- app startup and shutdown helpers
+- safe configuration loading
+
+Do not put secrets, hard-coded Azure settings, scientific scores, or recommendation formulas here.
+
+## backend/app/db/
+
+Database connection code belongs here.
+
+Change database connection/session code in this folder later.
+
+Use this folder for:
+
+- local database connection setup
+- session helpers
+- transaction helpers
+- migration integration
+
+Do not write recommendation logic here. This folder should explain how the app connects to the database, not how scientific decisions are made.
+
+## backend/app/models/
+
+Database table models belong here.
+
+Change database model definitions in this folder later.
+
+Models should match the approved schema files:
+
+- `schema.sql`
+- `schema_river_network_patch.sql`
+
+Models describe table shape and relationships. They should not query the database directly and should not rank NbS options.
+
+The current model files are grouped one table per file, such as `source.py`,
+`water_observation.py`, and `river_network.py`. Pending tables that are not in
+the schema yet, such as `criteria_weights` and `health_risk`, are documented in
+`backend/docs/04_PENDING_TABLES.md` instead of being created as active models.
+
+## backend/app/schemas/
+
+API request and response schemas belong here.
+
+Use this folder later to define:
+
+- what inputs an endpoint accepts
+- what outputs an endpoint returns
+- validation-friendly response shapes
+
+Schemas are especially important for future recommendation responses because every output should include explanations, cautions, confidence, and provenance.
+
+## backend/app/repositories/
+
+Database query code belongs here.
+
+Change database query behavior in this folder later.
+
+Repositories should be the only backend layer that directly queries tables. For example:
+
+- `water_repository` can fetch water observations.
+- `standards_repository` can fetch standards for a use case.
+- `sources_repository` can fetch citations and provenance.
+
+API routes should not query raw tables directly.
+
+## backend/app/services/
+
+Scientific workflow orchestration belongs here.
+
+Services connect steps together. A future recommendation service may:
+
+- resolve a site
+- load measured water-quality data
+- select the correct standard
+- call engine modules in the approved order
+- attach implementation guidance and provenance
+
+Services should call repositories for data and engines for calculations.
+
+## backend/app/engines/
+
+Future scientific logic and recommendation calculations will live here.
+
+Change scientific logic in this folder later, but only after the repository, service, engine, and schema layers are ready.
+
+Future engine modules may handle:
+
+- exceedance calculation
+- treatment need mapping
+- hard filters and caps
+- TOPSIS ranking
+- confidence labels
+- plant selection after technology ranking
+
+Do not implement recommendation code yet. The rules are defined in `backend/docs/SCIENTIFIC_RECOMMENDATION_ENGINE.md`.
+
+## backend/app/api/
+
+API route definitions belong here.
+
+Change API routes in this folder later.
+
+Routes should be thin. Their job is to:
+
+- receive requests
+- validate input through schemas
+- call services
+- return responses
+
+Routes should not directly query database tables and should not contain scientific ranking logic.
+
+## backend/app/data_ingestion/
+
+Controlled data import helpers belong here.
+
+Use this folder later for scripts or modules that load approved datasets, check file formats, or prepare migration inputs.
+
+Because this project is provenance-first, ingestion code must preserve source IDs and must not silently change scientific values.
+
+## backend/app/validators/
+
+Validation helpers belong here.
+
+Use this folder later for checks such as:
+
+- whether a region ID exists
+- whether a requested use case is valid
+- whether required provenance fields are present
+- whether uploaded data has the needed columns
+
+Validators should report problems clearly instead of hiding missing data.
+
+## backend/app/utils/
+
+Small shared helper functions belong here.
+
+Only use this folder for simple reusable helpers that do not fit a clearer domain folder. Do not use it as a dumping ground for database access or recommendation logic.
+
+## backend/tests/
+
+Automated tests belong here.
+
+Future tests should cover repositories, services, validators, and engines. Tests should also verify that recommendations do not contain invented or unsourced values.
+
+## backend/docs/
+
+Backend documentation belongs here.
+
+Use this folder for architecture notes, development workflow, scientific rules, audits, and beginner-friendly guides.
+
+## backend/alembic/
+
+Database migration scaffolding belongs here.
+
+Alembic is commonly used to track database schema changes over time. Future migration files should describe structural schema changes only. They should not invent or silently alter scientific data.
+
+## Where To Change Things Later
+
+Change database connection code in `backend/app/db/`.
+
+Change database table models in `backend/app/models/`.
+
+Change database queries in `backend/app/repositories/`.
+
+Change API routes in `backend/app/api/`.
+
+Change request and response shapes in `backend/app/schemas/`.
+
+Change scientific workflow orchestration in `backend/app/services/`.
+
+Change scientific calculations and recommendation logic in `backend/app/engines/`, but only after the readiness gate in `backend/docs/02_TARGET_BACKEND_STRUCTURE.md` is satisfied.
+
+## Conflict Note
+
+This scaffold does not move or delete older backend folders such as `nbs_toolkit_backend-main` or `nbs_toolkit_backend-reborn`.
+
+No old code was found inside `backend/app/` during this documentation pass. If old code is later copied into `backend/app/`, document the conflict before rewriting or moving it.
+
+## Data Context Read For This Scaffold
+
+This scaffold and documentation were aligned after reading:
+
+- `AGENTS.md`
+- `backend/docs/01_EXISTING_BACKEND_AUDIT.md`
+- `backend/docs/02_TARGET_BACKEND_STRUCTURE.md`
+- `backend/docs/SCIENTIFIC_RECOMMENDATION_ENGINE.md`
+- `research/main_v2/files/DATA_DICTIONARY.md`
+- `research/main_v2/files/schema.sql`
+- `research/gpt given stuff/schema_river_network_patch.sql`
+
+No scientific data files were changed.
