@@ -112,6 +112,30 @@ python tests\api_smoke_test.py
 This test uses an in-memory SQLite database for route checks. It does not need
 Azure and does not write scientific records.
 
+## Scientific Workflow Test Commands
+
+Run these commands from `backend/` when checking the staged scientific workflow
+and schema serialization layers:
+
+```cmd
+set PYTHONPATH=%CD%
+python tests\input_normalization_test.py
+python tests\water_input_assembly_test.py
+python tests\pollutant_gap_test.py
+python tests\treatment_need_test.py
+python tests\candidate_filtering_test.py
+python tests\scientific_engine_ad_integration_test.py
+python tests\scientific_engine_ae_integration_test.py
+python tests\engine_schema_smoke_test.py
+python tests\engine_schema_conversion_test.py
+python tests\scientific_workflow_service_test.py
+python tests\workflow_schema_test.py
+python tests\workflow_schema_conversion_test.py
+```
+
+These tests validate staged scientific workflow behavior only. They do not
+create final recommendations, run TOPSIS/AHP, or expose `/recommend`.
+
 ## 4. Add Future Modules Step By Step
 
 Build the backend in layers.
