@@ -122,6 +122,11 @@ Services connect steps together. A future recommendation service may:
 
 Services should call repositories for data and engines for calculations.
 
+The current service files prepare raw data packets only. They combine
+repository outputs into dictionaries and lists for future API schemas. They do
+not calculate exceedance, health risk, AHP weights, TOPSIS rankings, or
+recommendations.
+
 ## backend/app/engines/
 
 Future scientific logic and recommendation calculations will live here.

@@ -5,7 +5,7 @@ It excludes invasive plants by default for recommendation-support queries, but
 does not select or rank plants.
 """
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import Plant, PlantSolutionMap
@@ -49,3 +49,11 @@ class PlantRepository(BaseRepository):
             statement = statement.where((Plant.invasive == 0) | (Plant.invasive.is_(None)))
         statement = statement.order_by(Plant.plant_species)
         return list(self.session.scalars(statement).all())
+
+    def count_plant_mappings(self, nbs_id: int | None = None) -> int:
+        """Return a raw count of plant-solution mapping rows."""
+
+        statement = select(func.count(PlantSolutionMap.id))
+        if nbs_id is not None:
+            statement = statement.where(PlantSolutionMap.nbs_id == nbs_id)
+        return int(self.session.scalar(statement) or 0)

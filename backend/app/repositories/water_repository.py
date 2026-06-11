@@ -4,7 +4,7 @@ Use this repository to fetch raw observations and parameter names. It does not
 calculate exceedances or compare observations against standards.
 """
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import WaterObservation
@@ -64,3 +64,17 @@ class WaterRepository(BaseRepository):
             .order_by(WaterObservation.parameter)
         )
         return list(self.session.scalars(statement).all())
+
+    def list_parameter_counts(self) -> list[dict[str, int | str]]:
+        """Return distinct parameter names with raw observation counts."""
+
+        statement = (
+            select(WaterObservation.parameter, func.count(WaterObservation.id))
+            .where(WaterObservation.parameter.is_not(None))
+            .group_by(WaterObservation.parameter)
+            .order_by(WaterObservation.parameter)
+        )
+        return [
+            {"parameter": parameter, "count": count}
+            for parameter, count in self.session.execute(statement).all()
+        ]
