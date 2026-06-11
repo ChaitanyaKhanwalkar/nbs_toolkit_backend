@@ -104,6 +104,10 @@ Repositories should be the only backend layer that directly queries tables. For 
 
 API routes should not query raw tables directly.
 
+The current repository files are read-only. They return ORM objects, lists,
+simple dictionaries, `None`, or empty lists. They do not write to the database
+and do not contain recommendation scoring, ranking, or exceedance calculations.
+
 ## backend/app/services/
 
 Scientific workflow orchestration belongs here.

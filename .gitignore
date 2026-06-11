@@ -3,3 +3,14 @@ __pycache__/
 .env
 .DS_Store
 *.sqlite3
+
+# Local Python environment
+backend/.venv/
+backend/.env
+
+# Local SQLite data files
+backend/data/*.db
+
+# Python cache files
+__pycache__/
+*.pyc
