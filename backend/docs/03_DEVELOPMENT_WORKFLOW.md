@@ -95,6 +95,23 @@ The `/health` endpoint checks that the app is running. The `/health/db` endpoint
 
 Do not point local development at production Azure resources. Use local or approved development data.
 
+Run the read-only API route smoke test:
+
+```powershell
+set PYTHONPATH=%CD%
+python tests\api_smoke_test.py
+```
+
+If you are already inside PowerShell, use:
+
+```powershell
+$env:PYTHONPATH = (Get-Location).Path
+python tests\api_smoke_test.py
+```
+
+This test uses an in-memory SQLite database for route checks. It does not need
+Azure and does not write scientific records.
+
 ## 4. Add Future Modules Step By Step
 
 Build the backend in layers.
