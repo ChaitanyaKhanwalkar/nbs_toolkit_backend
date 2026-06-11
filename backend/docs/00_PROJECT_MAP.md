@@ -143,14 +143,15 @@ Future scientific logic and recommendation calculations will live here.
 
 Change scientific logic in this folder later, but only after the repository, service, engine, and schema layers are ready.
 
-The current engine files implement Step A, Step B, and Step C only. Step A
-handles input normalization and target use-case validation. Step B assembles raw
-water observations by priority: user measured data, then station observations,
-then basin observations, then a safe missing-data bundle. Step C calculates
-pollutant gaps against explicit standards for a selected use case. These steps
-prepare clean inputs for later workflow steps, but do not classify treatment
-need, filter candidates, rank options, calculate confidence labels, classify
-health risk, or recommend plants.
+The current engine files implement Step A, Step B, Step C, and Step D only.
+Step A handles input normalization and target use-case validation. Step B
+assembles raw water observations by priority: user measured data, then station
+observations, then basin observations, then a safe missing-data bundle. Step C
+calculates pollutant gaps against explicit standards for a selected use case.
+Step D classifies broad treatment-need groups from those gap results using
+explicit parameter mappings. These steps prepare clean inputs for later workflow
+steps, but do not filter candidates, rank options, calculate confidence labels,
+classify health risk, or recommend plants.
 
 Future engine modules may handle:
 

@@ -13,6 +13,11 @@ from app.engines.pollutant_gap import (
     PollutantGapEngine,
 )
 from app.engines.target_validation import TargetUseCaseValidator
+from app.engines.treatment_need import (
+    TreatmentNeedBundle,
+    TreatmentNeedClassifier,
+    TreatmentNeedResult,
+)
 from app.engines.water_input_assembly import (
     SOURCE_PRIORITY,
     WaterInputAssemblyEngine,
@@ -27,6 +32,9 @@ __all__ = [
     "PollutantGapBundle",
     "PollutantGapEngine",
     "TargetUseCaseValidator",
+    "TreatmentNeedBundle",
+    "TreatmentNeedClassifier",
+    "TreatmentNeedResult",
     "SOURCE_PRIORITY",
     "WaterInputAssemblyEngine",
     "WaterInputBundle",
