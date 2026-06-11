@@ -25,3 +25,4 @@ data duplicated across states (15 species / 10 solutions); soil vocab mismatch; 
 optimal_water_type values; junk Unnamed:7 column. All flagged in PLAN.md section 2.
 **Blockers / next:** confirm Claude Code API connectivity; then Phase 0 data hygiene
 (PLAN.md section 10).
+Scientific workflow staged tests were run locally from backend/. Steps A-E, workflow service, engine schemas, and workflow schema conversion checks passed. No /recommend endpoint, TOPSIS/AHP ranking, match_score, confidence_score, plant recommendation, or health-risk logic has been introduced yet.
