@@ -12,6 +12,11 @@ from app.engines.candidate_filtering import (
     CandidateFilteringEngine,
     CandidateFilterResult,
 )
+from app.engines.mcda_matrix import (
+    McdaMatrixBuilder,
+    McdaMatrixBundle,
+    McdaMatrixRow,
+)
 from app.engines.pollutant_gap import (
     ParameterGapResult,
     PollutantGapBundle,
@@ -36,6 +41,9 @@ __all__ = [
     "CandidateFilterResult",
     "InputContext",
     "InputNormalizationEngine",
+    "McdaMatrixBuilder",
+    "McdaMatrixBundle",
+    "McdaMatrixRow",
     "ParameterGapResult",
     "PollutantGapBundle",
     "PollutantGapEngine",
