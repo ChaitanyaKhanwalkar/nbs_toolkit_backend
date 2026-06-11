@@ -143,6 +143,11 @@ Future scientific logic and recommendation calculations will live here.
 
 Change scientific logic in this folder later, but only after the repository, service, engine, and schema layers are ready.
 
+The current engine files implement Step A only: input normalization and target
+use-case validation. They prepare clean inputs for later workflow steps, but do
+not calculate exceedance, treatment need, rankings, confidence labels, health
+risk, or plant recommendations.
+
 Future engine modules may handle:
 
 - exceedance calculation
