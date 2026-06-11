@@ -17,6 +17,12 @@ from app.engines.mcda_matrix import (
     McdaMatrixBundle,
     McdaMatrixRow,
 )
+from app.engines.mcda_normalization import (
+    McdaNormalizationEngine,
+    NormalizedMcdaCriterion,
+    NormalizedMcdaMatrixBundle,
+    NormalizedMcdaMatrixRow,
+)
 from app.engines.pollutant_gap import (
     ParameterGapResult,
     PollutantGapBundle,
@@ -44,6 +50,10 @@ __all__ = [
     "McdaMatrixBuilder",
     "McdaMatrixBundle",
     "McdaMatrixRow",
+    "McdaNormalizationEngine",
+    "NormalizedMcdaCriterion",
+    "NormalizedMcdaMatrixBundle",
+    "NormalizedMcdaMatrixRow",
     "ParameterGapResult",
     "PollutantGapBundle",
     "PollutantGapEngine",

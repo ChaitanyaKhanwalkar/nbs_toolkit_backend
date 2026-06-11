@@ -7,7 +7,7 @@ step is ready and documented. The API layer should not calculate science, and
 repositories should not calculate science. Engines should receive clean inputs
 from services and return clear, explainable results.
 
-## Current Status: Steps A, B, C, D, E, and F Only
+## Current Status: Steps A, B, C, D, E, F, and G Only
 
 The current files implement Step A:
 
@@ -59,12 +59,18 @@ They also implement Step F:
 - keep missing raw criteria visible in each row and in a summary
 - mark `weights_status` as `not_applied`
 
-Steps A, B, C, D, E, and F do not recommend anything.
+They also implement Step G:
+
+- normalize numeric MCDA criteria values with unweighted min-max normalization
+- use only explicit criterion direction rules
+- mark missing, non-numeric, direction-unknown, and no-variation criteria clearly
+- keep `weights_status` as `not_applied`
+
+Steps A, B, C, D, E, F, and G do not recommend anything.
 
 They do not:
 
 - rank with MCDA or TOPSIS
-- normalize or weight MCDA matrix values
 - use AHP weights
 - calculate confidence labels
 - recommend plants
@@ -74,9 +80,10 @@ They do not:
 
 Future engine modules may be added in this order:
 
-1. MCDA normalization and TOPSIS ranking
-2. confidence scoring
-3. plant matching after technology ranking
+1. AHP weight application after expert weights are available
+2. TOPSIS ranking
+3. confidence scoring
+4. plant matching after technology ranking
 
 Do not skip ahead. Follow `backend/docs/SCIENTIFIC_RECOMMENDATION_ENGINE.md`.
 
