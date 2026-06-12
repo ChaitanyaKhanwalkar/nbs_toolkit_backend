@@ -12,6 +12,12 @@ from app.engines.candidate_filtering import (
     CandidateFilteringEngine,
     CandidateFilterResult,
 )
+from app.engines.confidence_scoring import (
+    CandidateConfidenceResult,
+    ConfidenceFactor,
+    ConfidenceScoringBundle,
+    ConfidenceScoringEngine,
+)
 from app.engines.mcda_matrix import (
     McdaMatrixBuilder,
     McdaMatrixBundle,
@@ -55,6 +61,10 @@ __all__ = [
     "CandidateFilterBundle",
     "CandidateFilteringEngine",
     "CandidateFilterResult",
+    "CandidateConfidenceResult",
+    "ConfidenceFactor",
+    "ConfidenceScoringBundle",
+    "ConfidenceScoringEngine",
     "InputContext",
     "InputNormalizationEngine",
     "McdaMatrixBuilder",

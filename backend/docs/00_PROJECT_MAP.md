@@ -153,7 +153,7 @@ Future scientific logic and recommendation calculations will live here.
 
 Change scientific logic in this folder later, but only after the repository, service, engine, and schema layers are ready.
 
-The current engine files implement Step A, Step B, Step C, Step D, Step E, Step F, Step G, Step H, and Step I
+The current engine files implement Step A, Step B, Step C, Step D, Step E, Step F, Step G, Step H, Step I, and Step J
 only. Step A handles input normalization and target use-case validation. Step B
 assembles raw water observations by priority: user measured data, then station
 observations, then basin observations, then a safe missing-data bundle. Step C
@@ -168,14 +168,15 @@ ranking. Step H validates optional supplied MCDA criteria weights, reports
 missing or extra weights, and clearly marks temporary weights as not expert
 validated. Step I applies the Step H weights to Step G normalized criteria and
 calculates TOPSIS closeness/rank order for eligible and data-pending candidates.
-These steps prepare and rank candidate technologies, but do not create final
-recommendations, calculate confidence labels, classify health risk, or
-recommend plants.
+Step J calculates rule-based confidence scores separately from TOPSIS closeness,
+preserves rank, and labels confidence as high, medium, or low. These steps
+prepare, rank, and confidence-label candidate technologies, but do not create
+final recommendations, classify health risk, or recommend plants.
 
 Later engine modules may handle:
 
-- confidence labels
-- plant selection after technology ranking
+- plant selection after technology ranking and confidence scoring
+- final recommendation assembly after plant and confidence layers are ready
 
 Do not implement recommendation code yet. The rules are defined in `backend/docs/SCIENTIFIC_RECOMMENDATION_ENGINE.md`.
 
