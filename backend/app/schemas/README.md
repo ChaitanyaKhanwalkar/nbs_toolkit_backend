@@ -17,7 +17,7 @@ Use schemas here for:
 - pollution context responses
 - river context responses
 - data availability responses
-- internal scientific engine bundle responses from Steps A-G
+- internal scientific engine bundle responses from Steps A-H
 - internal scientific workflow result responses that wrap staged A-E bundles
 
 Do not put database queries here. Repositories query the database.

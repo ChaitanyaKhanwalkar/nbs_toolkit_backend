@@ -1,12 +1,12 @@
 """Pydantic schemas for internal scientific engine bundle outputs.
 
-These response shapes mirror the current Step A-G engine dataclasses so future
+These response shapes mirror the current Step A-H engine dataclasses so future
 code can serialize them safely. They do not add scientific behavior, routes,
 final recommendations, rankings, TOPSIS/AHP fields, confidence scores, or plant
 recommendations.
 """
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import Field
 
@@ -205,6 +205,25 @@ class NormalizedMcdaMatrixBundleResponse(RawResponseModel):
     normalized_criteria_count: int = 0
     skipped_criteria_count: int = 0
     warnings: list[str] = Field(default_factory=list)
+
+
+class McdaWeightsBundleResponse(RawResponseModel):
+    """Serialized output from Step H MCDA criteria weight handling."""
+
+    criteria_names: list[str] = Field(default_factory=list)
+    weights: dict[str, float] = Field(default_factory=dict)
+    weights_status: Literal[
+        "weights_missing",
+        "temporary_not_expert_validated",
+        "expert_validated",
+        "invalid_weights",
+    ] = "weights_missing"
+    weights_source: str | None = None
+    expert_validated: bool = False
+    missing_weight_criteria: list[str] = Field(default_factory=list)
+    extra_weight_criteria: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
 
 
 class ScientificWorkflowResultResponse(RawResponseModel):
