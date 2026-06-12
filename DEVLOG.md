@@ -15,6 +15,15 @@ Template:
 
 ---
 
+## 2026-06-12 - A-K workflow service support
+**Done:** A-K workflow-service support was added. `ScientificWorkflowService.run(...)` still defaults to the safe A-E path. `max_step="J"` still runs A-J without plant matching. `max_step="K"` now runs A-J plus Step K plant matching.
+**Why:** The internal workflow needed an explicit opt-in path for plant matching after ranked NbS options while preserving the safe default and the A-J behavior.
+**Sources added:** none.
+**Gaps / NULLs logged:** Step K attaches plants after ranked NbS options, but plant matching does not change rank, `topsis_closeness`, or `confidence_score`. Missing plant mappings return empty plant lists plus warnings, not guessed plants. Still no final recommendation, still no `match_score`, and still no `/recommend` endpoint.
+**Blockers / next:** Keep Step K internal and read-only until a future task explicitly approves final recommendation assembly and any endpoint work.
+
+---
+
 ## 2026-06-12 - Internal workflow service documentation alignment
 **Done:** Internal workflow service documentation was aligned. `ScientificWorkflowService.run(...)` defaults to the safe A-E path. `max_step="J"` explicitly runs the staged A-J path.
 **Why:** The workflow guide needed to make the safe default and explicit extended path clear for future developers before any endpoint or final recommendation work begins.
