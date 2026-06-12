@@ -384,9 +384,9 @@ class ScientificWorkflowResultResponse(RawResponseModel):
 
     Bundle fields are optional because the workflow can stop safely at early
     stages or can be requested to stop at Step E for backward-compatible raw
-    orchestration. This schema mirrors staged outputs through Step J and does
-    not add final recommendation, match-score, AHP pairwise, plant-selection, or
-    health-risk fields.
+    orchestration. This schema mirrors staged outputs through Step K and does
+    not add final recommendation, match-score, AHP pairwise, plant-driven
+    ranking, or health-risk fields.
     """
 
     workflow_status: str
@@ -401,5 +401,6 @@ class ScientificWorkflowResultResponse(RawResponseModel):
     mcda_weights_bundle: McdaWeightsBundleResponse | None = None
     topsis_ranking_bundle: TopsisRankingBundleResponse | None = None
     confidence_scoring_bundle: ConfidenceScoringBundleResponse | None = None
+    plant_matching_bundle: PlantMatchingBundleResponse | None = None
     errors: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)

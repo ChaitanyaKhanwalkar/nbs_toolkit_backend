@@ -156,6 +156,9 @@ python tests\workflow_schema_conversion_test.py
 python tests\scientific_workflow_service_aj_test.py
 python tests\workflow_aj_schema_test.py
 python tests\workflow_aj_schema_conversion_test.py
+python tests\scientific_workflow_service_ak_test.py
+python tests\workflow_ak_schema_test.py
+python tests\workflow_ak_schema_conversion_test.py
 ```
 
 These tests validate staged scientific workflow behavior only. Some tests now
@@ -174,6 +177,12 @@ Use `max_step="J"` only when you intentionally want the staged A-J internal
 workflow. The A-J path adds MCDA matrix preparation, MCDA normalization, criteria
 weights handling, TOPSIS ranking, and confidence scoring. It still does not
 create final recommendations and does not create or expose `/recommend`.
+
+Use `max_step="K"` only when you intentionally want the staged A-K internal
+workflow. The A-K path runs A-J first, then attaches explicitly mapped plants
+through Step K. Plant matching preserves rank, TOPSIS closeness,
+`confidence_score`, and `confidence_label`; missing plant mappings produce empty
+plant match lists with warnings instead of guessed plant records.
 
 Keep TOPSIS closeness separate from `confidence_score`. Temporary weights must
 remain visibly marked as `temporary_not_expert_validated`; do not present them

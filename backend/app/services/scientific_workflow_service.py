@@ -1,10 +1,10 @@
-"""Run Scientific Engine Steps A-E or A-J as one internal workflow.
+"""Run Scientific Engine Steps A-E, A-J, or A-K as one internal workflow.
 
 This service is a backend-only coordinator. It calls the existing staged
 engines in order and returns their intermediate bundles so future code can see
 what happened at each step. It does not create final recommendations, API
-routes, match-score fields, AHP pairwise weights, plant choices, or health-risk
-labels.
+routes, match-score fields, AHP pairwise weights, plant-driven ranking, or
+health-risk labels.
 """
 
 from __future__ import annotations
@@ -25,6 +25,8 @@ from app.engines import (
     McdaWeightsBundle,
     McdaWeightsHandler,
     NormalizedMcdaMatrixBundle,
+    PlantMatchingBundle,
+    PlantMatchingEngine,
     PollutantGapBundle,
     PollutantGapEngine,
     TreatmentNeedBundle,
@@ -35,6 +37,7 @@ from app.engines import (
     WaterInputBundle,
 )
 from app.engines.candidate_filtering import NbsCandidateProvider
+from app.engines.plant_matching import PlantMappingProvider
 from app.engines.pollutant_gap import StandardsProvider
 from app.engines.water_input_assembly import WaterObservationProvider
 
@@ -44,7 +47,7 @@ WORKFLOW_VALIDATION_FAILED = "validation_failed"
 WORKFLOW_DATA_MISSING = "data_missing"
 WORKFLOW_FAILED = "failed"
 
-VALID_WORKFLOW_STEPS = {"A", "B", "C", "D", "E", "F", "G", "H", "I", "J"}
+VALID_WORKFLOW_STEPS = {"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K"}
 DEFAULT_WORKFLOW_END_STEP = "E"
 
 MatrixTransform = Callable[[McdaMatrixBundle], McdaMatrixBundle]
@@ -90,6 +93,7 @@ class ScientificWorkflowResult:
     mcda_weights_bundle: McdaWeightsBundle | None = None
     topsis_ranking_bundle: TopsisRankingBundle | None = None
     confidence_scoring_bundle: ConfidenceScoringBundle | None = None
+    plant_matching_bundle: PlantMatchingBundle | None = None
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
@@ -109,6 +113,7 @@ class ScientificWorkflowResult:
             "mcda_weights_bundle": _to_plain_value(self.mcda_weights_bundle),
             "topsis_ranking_bundle": _to_plain_value(self.topsis_ranking_bundle),
             "confidence_scoring_bundle": _to_plain_value(self.confidence_scoring_bundle),
+            "plant_matching_bundle": _to_plain_value(self.plant_matching_bundle),
             "errors": list(self.errors),
             "warnings": list(self.warnings),
         }
@@ -127,12 +132,14 @@ class ScientificWorkflowService:
         water_service: WaterObservationProvider | None = None,
         standards_service: StandardsProvider | None = None,
         nbs_provider: NbsCandidateProvider | None = None,
+        plant_provider: PlantMappingProvider | None = None,
         input_engine: InputNormalizationEngine | None = None,
         treatment_classifier: TreatmentNeedClassifier | None = None,
     ) -> None:
         self.water_service = water_service
         self.standards_service = standards_service
         self.nbs_provider = nbs_provider
+        self.plant_provider = plant_provider
         self.input_engine = input_engine or InputNormalizationEngine()
         self.treatment_classifier = treatment_classifier or TreatmentNeedClassifier()
 
@@ -141,6 +148,7 @@ class ScientificWorkflowService:
         """Build the workflow with existing read-only services for one session."""
 
         from app.services.nbs_catalog_service import NbsCatalogService
+        from app.services.plant_catalog_service import PlantCatalogService
         from app.services.standards_service import StandardsService
         from app.services.water_data_service import WaterDataService
 
@@ -148,6 +156,7 @@ class ScientificWorkflowService:
             water_service=WaterDataService(session),
             standards_service=StandardsService(session),
             nbs_provider=NbsCatalogService(session),
+            plant_provider=PlantCatalogService(session),
         )
 
     def run(
@@ -164,7 +173,8 @@ class ScientificWorkflowService:
         """Run staged workflow bundles through the requested step.
 
         The default `max_step="E"` preserves the original A-E workflow behavior.
-        Use `max_step="J"` to run the internal A-J staged workflow. Supplied
+        Use `max_step="J"` to run the internal A-J staged workflow. Use
+        `max_step="K"` to add explicit plant matching after A-J. Supplied
         weights remain transparent; temporary weights are never treated as
         expert validated unless the explicit flag is true.
         """
@@ -182,6 +192,7 @@ class ScientificWorkflowService:
         mcda_weights_bundle: McdaWeightsBundle | None = None
         topsis_ranking_bundle: TopsisRankingBundle | None = None
         confidence_scoring_bundle: ConfidenceScoringBundle | None = None
+        plant_matching_bundle: PlantMatchingBundle | None = None
 
         try:
             max_step = _normalize_max_step(max_step)
@@ -413,6 +424,52 @@ class ScientificWorkflowService:
             step_completed = "J"
             _extend_unique(warnings, confidence_scoring_bundle.warnings)
 
+            if max_step == "J":
+                return ScientificWorkflowResult(
+                    workflow_status=WORKFLOW_COMPLETED,
+                    step_completed=step_completed,
+                    input_context=input_context,
+                    water_input_bundle=water_input_bundle,
+                    pollutant_gap_bundle=pollutant_gap_bundle,
+                    treatment_need_bundle=treatment_need_bundle,
+                    candidate_filter_bundle=candidate_filter_bundle,
+                    mcda_matrix_bundle=mcda_matrix_bundle,
+                    normalized_mcda_matrix_bundle=normalized_mcda_matrix_bundle,
+                    mcda_weights_bundle=mcda_weights_bundle,
+                    topsis_ranking_bundle=topsis_ranking_bundle,
+                    confidence_scoring_bundle=confidence_scoring_bundle,
+                    errors=errors,
+                    warnings=warnings,
+            )
+
+            if self.plant_provider is None:
+                _append_unique(
+                    errors,
+                    "A plant mapping provider is required before Step K can run.",
+                )
+                return ScientificWorkflowResult(
+                    workflow_status=WORKFLOW_FAILED,
+                    step_completed=step_completed,
+                    input_context=input_context,
+                    water_input_bundle=water_input_bundle,
+                    pollutant_gap_bundle=pollutant_gap_bundle,
+                    treatment_need_bundle=treatment_need_bundle,
+                    candidate_filter_bundle=candidate_filter_bundle,
+                    mcda_matrix_bundle=mcda_matrix_bundle,
+                    normalized_mcda_matrix_bundle=normalized_mcda_matrix_bundle,
+                    mcda_weights_bundle=mcda_weights_bundle,
+                    topsis_ranking_bundle=topsis_ranking_bundle,
+                    confidence_scoring_bundle=confidence_scoring_bundle,
+                    errors=errors,
+                    warnings=warnings,
+                )
+
+            plant_matching_bundle = PlantMatchingEngine(
+                self.plant_provider,
+            ).match_plants(topsis_ranking_bundle, confidence_scoring_bundle)
+            step_completed = "K"
+            _extend_unique(warnings, plant_matching_bundle.warnings)
+
             return ScientificWorkflowResult(
                 workflow_status=WORKFLOW_COMPLETED,
                 step_completed=step_completed,
@@ -426,6 +483,7 @@ class ScientificWorkflowService:
                 mcda_weights_bundle=mcda_weights_bundle,
                 topsis_ranking_bundle=topsis_ranking_bundle,
                 confidence_scoring_bundle=confidence_scoring_bundle,
+                plant_matching_bundle=plant_matching_bundle,
                 errors=errors,
                 warnings=warnings,
             )
@@ -444,6 +502,7 @@ class ScientificWorkflowService:
                 mcda_weights_bundle=mcda_weights_bundle,
                 topsis_ranking_bundle=topsis_ranking_bundle,
                 confidence_scoring_bundle=confidence_scoring_bundle,
+                plant_matching_bundle=plant_matching_bundle,
                 errors=errors,
                 warnings=warnings,
             )
