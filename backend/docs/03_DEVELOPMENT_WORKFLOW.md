@@ -138,6 +138,9 @@ python tests\mcda_normalization_schema_conversion_test.py
 python tests\mcda_weights_test.py
 python tests\mcda_weights_schema_test.py
 python tests\mcda_weights_schema_conversion_test.py
+python tests\topsis_ranking_test.py
+python tests\topsis_ranking_schema_test.py
+python tests\topsis_ranking_schema_conversion_test.py
 python tests\scientific_workflow_service_test.py
 python tests\workflow_schema_test.py
 python tests\workflow_schema_conversion_test.py
