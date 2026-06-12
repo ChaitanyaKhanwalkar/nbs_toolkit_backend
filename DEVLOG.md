@@ -15,6 +15,15 @@ Template:
 
 ---
 
+## 2026-06-13 - Step M.2 real-data recommendation API smoke test
+**Done:** Added a local FastAPI TestClient smoke test for `POST /api/v1/recommend` using live standards vocabulary and the Step M.1 projected `removal_evidence_score`.
+**Why:** The recommendation endpoint needed a repeatable real-data check that proves the staged Step L path can produce ranked recommendations without requiring a live Uvicorn server or Azure services.
+**Sources added:** none.
+**Gaps / NULLs logged:** The smoke test confirms `match_score` mirrors `topsis_closeness`, `confidence_score` remains separate, temporary weights remain `temporary_not_expert_validated`, and ranked Step L recommendations are returned. No DB mutation, no Azure/deployment change, no AHP expert weights, and no health-risk logic were added.
+**Blockers / next:** Keep this as a local readiness test before any deployment work; production deployment still needs a separate database and Azure review.
+
+---
+
 ## 2026-06-13 - Step M.1 production numeric MCDA projection
 **Done:** Added a conservative numeric projection layer between raw MCDA matrix preparation and normalization.
 **Why:** Live Step F produces rich raw MCDA criteria objects, while Step G only normalizes numeric values with explicit direction rules. The projection layer derives numeric proxy criteria only from already-present Step F raw data so TOPSIS can receive normalizable criteria without weakening Step G safety.
