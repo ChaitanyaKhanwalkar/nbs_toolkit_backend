@@ -153,7 +153,7 @@ Future scientific logic and recommendation calculations will live here.
 
 Change scientific logic in this folder later, but only after the repository, service, engine, and schema layers are ready.
 
-The current engine files implement Step A, Step B, Step C, Step D, Step E, Step F, and Step G
+The current engine files implement Step A, Step B, Step C, Step D, Step E, Step F, Step G, and Step H
 only. Step A handles input normalization and target use-case validation. Step B
 assembles raw water observations by priority: user measured data, then station
 observations, then basin observations, then a safe missing-data bundle. Step C
@@ -164,7 +164,9 @@ eligible, ineligible, or data-pending for those treatment needs. Step F prepares
 raw MCDA matrix rows for eligible and data-pending candidates without
 normalizing, weighting, or ranking them. Step G normalizes numeric MCDA criteria
 with explicit min-max rules only and still does not apply weights, TOPSIS, or
-ranking. These steps prepare clean inputs for
+ranking. Step H validates optional supplied MCDA criteria weights, reports
+missing or extra weights, and clearly marks temporary weights as not expert
+validated. These steps prepare clean inputs for
 later workflow steps, but do not rank options, calculate confidence labels,
 classify health risk, or recommend plants.
 

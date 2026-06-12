@@ -23,6 +23,10 @@ from app.engines.mcda_normalization import (
     NormalizedMcdaMatrixBundle,
     NormalizedMcdaMatrixRow,
 )
+from app.engines.mcda_weights import (
+    McdaWeightsBundle,
+    McdaWeightsHandler,
+)
 from app.engines.pollutant_gap import (
     ParameterGapResult,
     PollutantGapBundle,
@@ -51,6 +55,8 @@ __all__ = [
     "McdaMatrixBundle",
     "McdaMatrixRow",
     "McdaNormalizationEngine",
+    "McdaWeightsBundle",
+    "McdaWeightsHandler",
     "NormalizedMcdaCriterion",
     "NormalizedMcdaMatrixBundle",
     "NormalizedMcdaMatrixRow",
