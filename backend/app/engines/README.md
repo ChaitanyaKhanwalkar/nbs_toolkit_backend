@@ -7,7 +7,7 @@ step is ready and documented. The API layer should not calculate science, and
 repositories should not calculate science. Engines should receive clean inputs
 from services and return clear, explainable results.
 
-## Current Status: Steps A, B, C, D, E, F, G, H, I, J, and K Only
+## Current Status: Steps A through K, plus Step L-A Only
 
 The current files implement Step A:
 
@@ -99,7 +99,15 @@ They also implement Step K:
 - preserve confidence score and label without changing them
 - return empty plant match lists with warnings when mappings are missing
 
-Steps A, B, C, D, E, F, G, H, I, J, and K do not create final recommendations.
+They also implement Step L-A:
+
+- assemble internal recommendation-shaped objects from TOPSIS ranking,
+  confidence scoring, and optional plant matching
+- copy `match_score` directly from `topsis_closeness`
+- keep `confidence_score` separate from `match_score`
+- preserve rank, weight status, methods, warnings, source IDs, and caution flags
+
+Steps A through K and Step L-A do not create API routes or `/recommend`.
 
 They do not:
 
@@ -111,7 +119,8 @@ They do not:
 
 Future engine modules may be added in this order:
 
-1. final recommendation assembly after confidence and plant layers exist
+1. implementation-plan attachment after internal recommendation assembly
+2. endpoint design only after the internal assembly outputs are reviewed
 
 Do not skip ahead. Follow `backend/docs/SCIENTIFIC_RECOMMENDATION_ENGINE.md`.
 

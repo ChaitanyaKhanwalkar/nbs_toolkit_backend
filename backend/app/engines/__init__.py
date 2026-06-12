@@ -44,6 +44,12 @@ from app.engines.pollutant_gap import (
     PollutantGapBundle,
     PollutantGapEngine,
 )
+from app.engines.recommendation_assembly import (
+    AssembledRecommendation,
+    RecommendationAssemblyBundle,
+    RecommendationAssemblyEngine,
+    RecommendationEvidenceSummary,
+)
 from app.engines.target_validation import TargetUseCaseValidator
 from app.engines.treatment_need import (
     TreatmentNeedBundle,
@@ -89,6 +95,10 @@ __all__ = [
     "PlantMatchingEngine",
     "PollutantGapBundle",
     "PollutantGapEngine",
+    "AssembledRecommendation",
+    "RecommendationAssemblyBundle",
+    "RecommendationAssemblyEngine",
+    "RecommendationEvidenceSummary",
     "TargetUseCaseValidator",
     "TreatmentNeedBundle",
     "TreatmentNeedClassifier",

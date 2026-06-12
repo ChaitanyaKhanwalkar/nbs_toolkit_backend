@@ -1,11 +1,12 @@
 """Pydantic schemas for internal scientific engine bundle outputs.
 
-These response shapes mirror the current Step A-K engine dataclasses so future
+These response shapes mirror the current Step A-L-A engine dataclasses so future
 code can serialize them safely. They do not add scientific behavior, routes,
-final recommendations, AHP pairwise weights, or plant recommendations. Step I
+API endpoints, AHP pairwise weights, or plant recommendations. Step I
 schemas keep TOPSIS closeness separate from match-score fields. Step J schemas
 serialize confidence scores separately from TOPSIS closeness and rank. Step K
 schemas serialize explicit plant mappings without changing ranks or confidence.
+Step L-A schemas serialize internal recommendation assembly objects only.
 """
 
 from typing import Any, Literal
@@ -375,6 +376,73 @@ class PlantMatchingBundleResponse(RawResponseModel):
     candidate_matches: list[CandidatePlantMatchesResponse] = Field(
         default_factory=list
     )
+    warnings: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
+class RecommendationEvidenceSummaryResponse(RawResponseModel):
+    """Serialized evidence summary for one Step L-A recommendation."""
+
+    source_ids: list[int] = Field(default_factory=list)
+    caution_flags: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
+class AssembledRecommendationResponse(RawResponseModel):
+    """Serialized internal assembled recommendation from Step L-A."""
+
+    nbs_id: int | None = None
+    nbs_name: str | None = None
+    rank: int
+    match_score: float | None = None
+    topsis_closeness: float | None = None
+    confidence_score: float | None = None
+    confidence_label: Literal["high", "medium", "low"] | None = None
+    weights_status: Literal[
+        "weights_missing",
+        "temporary_not_expert_validated",
+        "expert_validated",
+        "invalid_weights",
+    ] = "weights_missing"
+    expert_validated: bool = False
+    ranking_method: Literal["topsis"] = "topsis"
+    confidence_method: Literal["rule_based_v1"] | None = None
+    plant_matches: list[PlantMatchResponse] = Field(default_factory=list)
+    evidence_summary: RecommendationEvidenceSummaryResponse = Field(
+        default_factory=RecommendationEvidenceSummaryResponse
+    )
+    explanation: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
+class RecommendationAssemblyBundleResponse(RawResponseModel):
+    """Serialized output from Step L-A internal recommendation assembly.
+
+    This schema may expose `match_score`, but only as the internal copy of
+    `topsis_closeness`. It does not create API route fields, health-risk fields,
+    or AHP fields.
+    """
+
+    use_case: str
+    assembly_method: Literal["rank_confidence_plants_v1"] = (
+        "rank_confidence_plants_v1"
+    )
+    recommendation_count: int = 0
+    recommendations: list[AssembledRecommendationResponse] = Field(
+        default_factory=list
+    )
+    weights_status: Literal[
+        "weights_missing",
+        "temporary_not_expert_validated",
+        "expert_validated",
+        "invalid_weights",
+    ] = "weights_missing"
+    expert_validated: bool = False
+    ranking_method: Literal["topsis"] = "topsis"
+    confidence_method: Literal["rule_based_v1"] | None = None
+    plant_matching_method: Literal["explicit_mapping_v1"] | None = None
     warnings: list[str] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
 

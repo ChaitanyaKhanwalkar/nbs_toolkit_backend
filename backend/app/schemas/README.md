@@ -17,7 +17,7 @@ Use schemas here for:
 - pollution context responses
 - river context responses
 - data availability responses
-- internal scientific engine bundle responses from Steps A-K
+- internal scientific engine bundle responses from Steps A-K and Step L-A
 - internal scientific workflow result responses that wrap staged A-J or A-K bundles
 
 Do not put database queries here. Repositories query the database.
@@ -35,9 +35,12 @@ serialize confidence scores separately from TOPSIS closeness and preserve rank.
 Step K schemas serialize explicitly mapped plants after ranking/confidence. The
 workflow result schema can include an optional Step K bundle when
 `max_step="K"` is requested, but it does not let plants affect rank,
-confidence, health risk, or final recommendations.
+confidence, health risk, or final recommendations. Step L-A schemas serialize
+internal assembled recommendation objects and may include `match_score` only as
+a direct copy of `topsis_closeness`; they still do not create API route fields
+or `/recommend`.
 
-Do not add final recommendation fields, AHP pairwise logic, plant
+Do not add endpoint-facing recommendation fields, AHP pairwise logic, plant
 recommendation fields, or health-risk classifications until that logic is
 explicitly implemented from
 `backend/docs/SCIENTIFIC_RECOMMENDATION_ENGINE.md`.

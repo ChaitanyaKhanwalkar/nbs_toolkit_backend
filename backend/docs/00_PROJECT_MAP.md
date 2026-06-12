@@ -95,15 +95,16 @@ match the service layer where possible and keep fields optional because some
 research data may be incomplete.
 
 `backend/app/schemas/engine.py` describes safe JSON shapes for existing
-internal scientific engine bundles from Steps A-K. It is for future
+internal scientific engine bundles from Steps A-K and Step L-A. It is for future
 serialization and testing only; it does not create workflow routes or final
 recommendation responses.
 
 Schemas are especially important for future recommendation responses because every output should include explanations, cautions, confidence, and provenance.
 
-Do not add final recommendation response fields, AHP pairwise weights,
-match-score aliases, or health-risk classifications until the scientific engine
-readiness gate is satisfied.
+Do not add endpoint-facing recommendation response fields, AHP pairwise
+weights, or health-risk classifications until the scientific engine readiness
+gate is satisfied. Step L-A may expose internal `match_score` only as a direct
+copy of TOPSIS closeness.
 
 ## backend/app/repositories/
 
@@ -153,7 +154,7 @@ Future scientific logic and recommendation calculations will live here.
 
 Change scientific logic in this folder later, but only after the repository, service, engine, and schema layers are ready.
 
-The current engine files implement Step A, Step B, Step C, Step D, Step E, Step F, Step G, Step H, Step I, Step J, and Step K
+The current engine files implement Step A, Step B, Step C, Step D, Step E, Step F, Step G, Step H, Step I, Step J, Step K, and Step L-A
 only. Step A handles input normalization and target use-case validation. Step B
 assembles raw water observations by priority: user measured data, then station
 observations, then basin observations, then a safe missing-data bundle. Step C
@@ -171,13 +172,15 @@ calculates TOPSIS closeness/rank order for eligible and data-pending candidates.
 Step J calculates rule-based confidence scores separately from TOPSIS closeness,
 preserves rank, and labels confidence as high, medium, or low. Step K attaches
 only explicitly mapped plant options after ranking/confidence and does not let
-plants change rank, TOPSIS closeness, or confidence. These steps prepare, rank,
-confidence-label, and attach mapped plants to candidate technologies, but do
-not create final recommendations or classify health risk.
+plants change rank, TOPSIS closeness, or confidence. Step L-A assembles
+internal recommendation-shaped objects and copies `match_score` from
+`topsis_closeness`. These steps prepare, rank, confidence-label, attach mapped
+plants, and assemble internal outputs, but do not create API routes or classify
+health risk.
 
 Later engine modules may handle:
 
-- final recommendation assembly after plant and confidence layers are ready
+- implementation-plan attachment after internal recommendation assembly
 
 Do not implement recommendation code yet. The rules are defined in `backend/docs/SCIENTIFIC_RECOMMENDATION_ENGINE.md`.
 

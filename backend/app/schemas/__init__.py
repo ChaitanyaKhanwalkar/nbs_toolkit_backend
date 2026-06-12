@@ -13,6 +13,7 @@ from app.schemas.common import (
     SourceRef,
 )
 from app.schemas.engine import (
+    AssembledRecommendationResponse,
     CandidateConfidenceResultResponse,
     CandidateFilterBundleResponse,
     CandidateFilterResultResponse,
@@ -30,6 +31,8 @@ from app.schemas.engine import (
     PlantMatchResponse,
     PlantMatchingBundleResponse,
     PollutantGapBundleResponse,
+    RecommendationAssemblyBundleResponse,
+    RecommendationEvidenceSummaryResponse,
     ScientificWorkflowResultResponse,
     TreatmentNeedBundleResponse,
     TreatmentNeedResultResponse,
@@ -79,6 +82,7 @@ from app.schemas.water import (
 
 __all__ = [
     "BasinResponse",
+    "AssembledRecommendationResponse",
     "CandidateConfidenceResultResponse",
     "CandidateFilterBundleResponse",
     "CandidateFilterResultResponse",
@@ -111,6 +115,8 @@ __all__ = [
     "PollutionContextResponse",
     "PollutionSourceResponse",
     "PollutantGapBundleResponse",
+    "RecommendationAssemblyBundleResponse",
+    "RecommendationEvidenceSummaryResponse",
     "RawDictResponse",
     "RawResponseModel",
     "ReferenceDataResponse",
