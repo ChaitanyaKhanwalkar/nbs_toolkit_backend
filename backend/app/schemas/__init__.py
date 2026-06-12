@@ -59,6 +59,7 @@ from app.schemas.reference import (
     UseCaseResponse,
     WaterStationResponse,
 )
+from app.schemas.recommendation import RecommendationRequest, RecommendationResponse
 from app.schemas.river import (
     RiverContextResponse,
     RiverSegmentResponse,
@@ -117,6 +118,8 @@ __all__ = [
     "PollutantGapBundleResponse",
     "RecommendationAssemblyBundleResponse",
     "RecommendationEvidenceSummaryResponse",
+    "RecommendationRequest",
+    "RecommendationResponse",
     "RawDictResponse",
     "RawResponseModel",
     "ReferenceDataResponse",

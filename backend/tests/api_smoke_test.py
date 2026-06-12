@@ -2,7 +2,8 @@
 
 This test uses an in-memory SQLite database so it never connects to production
 and never needs real scientific data. It checks route wiring, route order,
-missing-resource responses, OpenAPI output, and the read-only route guarantee.
+missing-resource responses, OpenAPI output, the raw-data read-only route
+guarantee, and the local recommendation POST route exception.
 """
 
 from collections.abc import Generator
@@ -150,7 +151,7 @@ def check_missing_resources(client: TestClient) -> None:
 
 
 def check_read_only_guarantee() -> None:
-    """Confirm the current versioned API exposes only GET routes."""
+    """Confirm raw-data API routes stay GET-only."""
 
     versioned_routes = [
         route
@@ -159,21 +160,22 @@ def check_read_only_guarantee() -> None:
     ]
     assert versioned_routes, "No /api/v1 routes are registered."
     for route in versioned_routes:
+        path = getattr(route, "path", "")
         methods = getattr(route, "methods", set())
-        assert methods == {"GET"}, f"{route.path} exposes non-GET methods: {methods}"
-    assert all(
-        getattr(route, "path", "") != "/api/v1/recommend" for route in versioned_routes
-    )
+        if path == "/api/v1/recommend":
+            assert methods == {"POST"}, f"{path} exposes unexpected methods: {methods}"
+        else:
+            assert methods == {"GET"}, f"{path} exposes non-GET methods: {methods}"
 
 
 def check_openapi(client: TestClient) -> None:
-    """Confirm OpenAPI exposes raw routes and no recommendation route."""
+    """Confirm OpenAPI exposes raw routes and the local recommendation route."""
 
     payload = assert_status(client, "/openapi.json")
     paths = payload["paths"]
     assert "/api/v1/reference" in paths
-    assert "/api/v1/recommend" not in paths
-    assert all("/api/v1/recommend" not in path for path in paths)
+    assert "/api/v1/recommend" in paths
+    assert "post" in paths["/api/v1/recommend"]
 
 
 def main() -> None:

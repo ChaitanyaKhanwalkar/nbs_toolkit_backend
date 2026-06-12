@@ -1,9 +1,9 @@
-"""FastAPI application entry point for backend health checks and raw data routes.
+"""FastAPI application entry point for backend health checks and API routes.
 
 This file creates the application, exposes foundation health routes, and mounts
-read-only raw data API routes under `/api/v1`.
-It intentionally does not implement recommendation logic, scoring engines,
-or production deployment wiring.
+versioned API routes under `/api/v1`. Scientific workflow logic lives in
+services/engines; this file does not contain scoring logic or production
+deployment wiring.
 """
 
 from fastapi import FastAPI, Response, status

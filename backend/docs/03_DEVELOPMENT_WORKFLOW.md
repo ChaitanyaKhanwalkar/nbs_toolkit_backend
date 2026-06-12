@@ -162,12 +162,15 @@ python tests\workflow_ak_schema_conversion_test.py
 python tests\scientific_workflow_service_al_test.py
 python tests\workflow_al_schema_test.py
 python tests\workflow_al_schema_conversion_test.py
+python tests\recommendation_api_test.py
+python tests\recommendation_api_route_safety_test.py
 ```
 
 These tests validate staged scientific workflow behavior only. Some tests now
 exercise Step I TOPSIS ranking, Step J confidence scoring, and Step K explicit
 plant matching. Step L workflow tests exercise internal recommendation assembly
-only. They do not expose `/recommend`, run AHP, or change deployment settings.
+only. Step M tests exercise the local `/api/v1/recommend` wrapper. They do not
+run AHP, change deployment settings, or touch Azure resources.
 
 ## Internal Workflow Service Note
 
@@ -192,6 +195,12 @@ workflow. The A-L path runs A-K first, then assembles internal recommendation
 objects through Step L. Step L sets `match_score` equal to `topsis_closeness`,
 keeps `confidence_score` separate, preserves rank and `weights_status`, and
 still does not create a `/recommend` endpoint.
+
+The local `/api/v1/recommend` endpoint is a thin FastAPI wrapper around
+`ScientificWorkflowService.run(..., max_step="L")`. It returns the internal
+`recommendation_assembly_bundle`, keeps temporary weights marked as
+`temporary_not_expert_validated`, and does not deploy anything or change Azure,
+secrets, `.env`, or database records.
 
 Keep TOPSIS closeness separate from `confidence_score`. Temporary weights must
 remain visibly marked as `temporary_not_expert_validated`; do not present them

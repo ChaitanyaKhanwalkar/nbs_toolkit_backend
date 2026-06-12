@@ -19,6 +19,7 @@ Use schemas here for:
 - data availability responses
 - internal scientific engine bundle responses from Steps A-K and Step L-A
 - internal scientific workflow result responses that wrap staged A-J, A-K, or A-L bundles
+- local recommendation API request/response shapes for `/api/v1/recommend`
 
 Do not put database queries here. Repositories query the database.
 
@@ -40,6 +41,10 @@ internal assembled recommendation objects and may include `match_score` only as
 a direct copy of `topsis_closeness`. The workflow result schema can include an
 optional Step L assembly bundle only when `max_step="L"` is explicitly
 requested; it still does not create API route fields or `/recommend`.
+`recommendation.py` contains the local `/api/v1/recommend` request/response
+schemas. That endpoint wraps the existing workflow service and returns the
+internal Step L assembly bundle; it must keep temporary weights provisional and
+must not add health-risk or AHP fields.
 
 Do not add endpoint-facing recommendation fields, AHP pairwise logic, plant
 recommendation fields, or health-risk classifications until that logic is
