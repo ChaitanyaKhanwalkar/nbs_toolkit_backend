@@ -333,10 +333,11 @@ class ConfidenceScoringBundleResponse(RawResponseModel):
 class ScientificWorkflowResultResponse(RawResponseModel):
     """Serialized output from the internal Scientific Workflow service.
 
-    Bundle fields are optional because the workflow can stop safely after Step A
-    validation or Step B water-input assembly. This schema only mirrors staged
-    outputs and does not add final recommendation, ranking, TOPSIS, AHP,
-    confidence-score, or plant-selection fields.
+    Bundle fields are optional because the workflow can stop safely at early
+    stages or can be requested to stop at Step E for backward-compatible raw
+    orchestration. This schema mirrors staged outputs through Step J and does
+    not add final recommendation, match-score, AHP pairwise, plant-selection, or
+    health-risk fields.
     """
 
     workflow_status: str
@@ -346,5 +347,10 @@ class ScientificWorkflowResultResponse(RawResponseModel):
     pollutant_gap_bundle: PollutantGapBundleResponse | None = None
     treatment_need_bundle: TreatmentNeedBundleResponse | None = None
     candidate_filter_bundle: CandidateFilterBundleResponse | None = None
+    mcda_matrix_bundle: McdaMatrixBundleResponse | None = None
+    normalized_mcda_matrix_bundle: NormalizedMcdaMatrixBundleResponse | None = None
+    mcda_weights_bundle: McdaWeightsBundleResponse | None = None
+    topsis_ranking_bundle: TopsisRankingBundleResponse | None = None
+    confidence_scoring_bundle: ConfidenceScoringBundleResponse | None = None
     errors: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)

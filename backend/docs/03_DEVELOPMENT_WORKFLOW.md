@@ -149,6 +149,9 @@ python tests\confidence_scoring_schema_conversion_test.py
 python tests\scientific_workflow_service_test.py
 python tests\workflow_schema_test.py
 python tests\workflow_schema_conversion_test.py
+python tests\scientific_workflow_service_aj_test.py
+python tests\workflow_aj_schema_test.py
+python tests\workflow_aj_schema_conversion_test.py
 ```
 
 These tests validate staged scientific workflow behavior only. Some tests now

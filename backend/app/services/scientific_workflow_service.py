@@ -1,25 +1,36 @@
-"""Run Scientific Engine Steps A-E as one internal workflow.
+"""Run Scientific Engine Steps A-E or A-J as one internal workflow.
 
 This service is a backend-only coordinator. It calls the existing staged
 engines in order and returns their intermediate bundles so future code can see
 what happened at each step. It does not create final recommendations, API
-routes, rankings, TOPSIS/AHP scores, plant choices, or health-risk labels.
+routes, match-score fields, AHP pairwise weights, plant choices, or health-risk
+labels.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 
 from app.engines import (
     CandidateFilterBundle,
     CandidateFilteringEngine,
+    ConfidenceScoringBundle,
+    ConfidenceScoringEngine,
     InputContext,
     InputNormalizationEngine,
+    McdaMatrixBuilder,
+    McdaMatrixBundle,
+    McdaNormalizationEngine,
+    McdaWeightsBundle,
+    McdaWeightsHandler,
+    NormalizedMcdaMatrixBundle,
     PollutantGapBundle,
     PollutantGapEngine,
     TreatmentNeedBundle,
     TreatmentNeedClassifier,
+    TopsisRankingBundle,
+    TopsisRankingEngine,
     WaterInputAssemblyEngine,
     WaterInputBundle,
 )
@@ -32,6 +43,11 @@ WORKFLOW_COMPLETED = "completed"
 WORKFLOW_VALIDATION_FAILED = "validation_failed"
 WORKFLOW_DATA_MISSING = "data_missing"
 WORKFLOW_FAILED = "failed"
+
+VALID_WORKFLOW_STEPS = {"A", "B", "C", "D", "E", "F", "G", "H", "I", "J"}
+DEFAULT_WORKFLOW_END_STEP = "E"
+
+MatrixTransform = Callable[[McdaMatrixBundle], McdaMatrixBundle]
 
 
 def _to_plain_value(value: Any) -> Any:
@@ -69,6 +85,11 @@ class ScientificWorkflowResult:
     pollutant_gap_bundle: PollutantGapBundle | None = None
     treatment_need_bundle: TreatmentNeedBundle | None = None
     candidate_filter_bundle: CandidateFilterBundle | None = None
+    mcda_matrix_bundle: McdaMatrixBundle | None = None
+    normalized_mcda_matrix_bundle: NormalizedMcdaMatrixBundle | None = None
+    mcda_weights_bundle: McdaWeightsBundle | None = None
+    topsis_ranking_bundle: TopsisRankingBundle | None = None
+    confidence_scoring_bundle: ConfidenceScoringBundle | None = None
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
@@ -83,13 +104,18 @@ class ScientificWorkflowResult:
             "pollutant_gap_bundle": _to_plain_value(self.pollutant_gap_bundle),
             "treatment_need_bundle": _to_plain_value(self.treatment_need_bundle),
             "candidate_filter_bundle": _to_plain_value(self.candidate_filter_bundle),
+            "mcda_matrix_bundle": _to_plain_value(self.mcda_matrix_bundle),
+            "normalized_mcda_matrix_bundle": _to_plain_value(self.normalized_mcda_matrix_bundle),
+            "mcda_weights_bundle": _to_plain_value(self.mcda_weights_bundle),
+            "topsis_ranking_bundle": _to_plain_value(self.topsis_ranking_bundle),
+            "confidence_scoring_bundle": _to_plain_value(self.confidence_scoring_bundle),
             "errors": list(self.errors),
             "warnings": list(self.warnings),
         }
 
 
 class ScientificWorkflowService:
-    """Coordinate Steps A-E without exposing an endpoint or final decision.
+    """Coordinate staged workflow steps without exposing an endpoint or final decision.
 
     Pass fake providers in tests or real read-only services in application code.
     The service keeps each step separate so future development can inspect or
@@ -124,8 +150,24 @@ class ScientificWorkflowService:
             nbs_provider=NbsCatalogService(session),
         )
 
-    def run(self, raw_input: Mapping[str, Any] | None = None, **fields: Any) -> ScientificWorkflowResult:
-        """Run Steps A-E and return the staged bundles produced along the way."""
+    def run(
+        self,
+        raw_input: Mapping[str, Any] | None = None,
+        *,
+        max_step: str = DEFAULT_WORKFLOW_END_STEP,
+        supplied_weights: Mapping[str, Any] | None = None,
+        weights_source: str | None = None,
+        expert_validated: bool = False,
+        matrix_transform: MatrixTransform | None = None,
+        **fields: Any,
+    ) -> ScientificWorkflowResult:
+        """Run staged workflow bundles through the requested step.
+
+        The default `max_step="E"` preserves the original A-E workflow behavior.
+        Use `max_step="J"` to run the internal A-J staged workflow. Supplied
+        weights remain transparent; temporary weights are never treated as
+        expert validated unless the explicit flag is true.
+        """
 
         errors: list[str] = []
         warnings: list[str] = []
@@ -135,8 +177,23 @@ class ScientificWorkflowService:
         pollutant_gap_bundle: PollutantGapBundle | None = None
         treatment_need_bundle: TreatmentNeedBundle | None = None
         candidate_filter_bundle: CandidateFilterBundle | None = None
+        mcda_matrix_bundle: McdaMatrixBundle | None = None
+        normalized_mcda_matrix_bundle: NormalizedMcdaMatrixBundle | None = None
+        mcda_weights_bundle: McdaWeightsBundle | None = None
+        topsis_ranking_bundle: TopsisRankingBundle | None = None
+        confidence_scoring_bundle: ConfidenceScoringBundle | None = None
 
         try:
+            max_step = _normalize_max_step(max_step)
+            if max_step not in VALID_WORKFLOW_STEPS:
+                _append_unique(errors, f"Unsupported max_step '{max_step}'.")
+                return ScientificWorkflowResult(
+                    workflow_status=WORKFLOW_FAILED,
+                    step_completed=None,
+                    errors=errors,
+                    warnings=warnings,
+                )
+
             input_context = self.input_engine.normalize(raw_input, **fields)
             step_completed = "A"
             _extend_unique(errors, input_context.errors)
@@ -150,6 +207,14 @@ class ScientificWorkflowService:
                     errors=errors,
                     warnings=warnings,
                 )
+            if max_step == "A":
+                return ScientificWorkflowResult(
+                    workflow_status=WORKFLOW_COMPLETED,
+                    step_completed=step_completed,
+                    input_context=input_context,
+                    errors=errors,
+                    warnings=warnings,
+                )
 
             water_input_bundle = WaterInputAssemblyEngine(self.water_service).assemble(input_context)
             step_completed = "B"
@@ -158,6 +223,15 @@ class ScientificWorkflowService:
             if self._water_data_is_missing(water_input_bundle):
                 return ScientificWorkflowResult(
                     workflow_status=WORKFLOW_DATA_MISSING,
+                    step_completed=step_completed,
+                    input_context=input_context,
+                    water_input_bundle=water_input_bundle,
+                    errors=errors,
+                    warnings=warnings,
+                )
+            if max_step == "B":
+                return ScientificWorkflowResult(
+                    workflow_status=WORKFLOW_COMPLETED,
                     step_completed=step_completed,
                     input_context=input_context,
                     water_input_bundle=water_input_bundle,
@@ -183,10 +257,31 @@ class ScientificWorkflowService:
             )
             step_completed = "C"
             _extend_unique(warnings, pollutant_gap_bundle.warnings)
+            if max_step == "C":
+                return ScientificWorkflowResult(
+                    workflow_status=WORKFLOW_COMPLETED,
+                    step_completed=step_completed,
+                    input_context=input_context,
+                    water_input_bundle=water_input_bundle,
+                    pollutant_gap_bundle=pollutant_gap_bundle,
+                    errors=errors,
+                    warnings=warnings,
+                )
 
             treatment_need_bundle = self.treatment_classifier.classify(pollutant_gap_bundle)
             step_completed = "D"
             _extend_unique(warnings, treatment_need_bundle.warnings)
+            if max_step == "D":
+                return ScientificWorkflowResult(
+                    workflow_status=WORKFLOW_COMPLETED,
+                    step_completed=step_completed,
+                    input_context=input_context,
+                    water_input_bundle=water_input_bundle,
+                    pollutant_gap_bundle=pollutant_gap_bundle,
+                    treatment_need_bundle=treatment_need_bundle,
+                    errors=errors,
+                    warnings=warnings,
+                )
 
             if self.nbs_provider is None:
                 _append_unique(errors, "An NbS provider is required before Step E can run.")
@@ -207,6 +302,117 @@ class ScientificWorkflowService:
             step_completed = "E"
             _extend_unique(warnings, candidate_filter_bundle.warnings)
 
+            if max_step == "E":
+                return ScientificWorkflowResult(
+                    workflow_status=WORKFLOW_COMPLETED,
+                    step_completed=step_completed,
+                    input_context=input_context,
+                    water_input_bundle=water_input_bundle,
+                    pollutant_gap_bundle=pollutant_gap_bundle,
+                    treatment_need_bundle=treatment_need_bundle,
+                    candidate_filter_bundle=candidate_filter_bundle,
+                    errors=errors,
+                    warnings=warnings,
+                )
+
+            mcda_matrix_bundle = McdaMatrixBuilder(self.nbs_provider).build(
+                candidate_filter_bundle,
+            )
+            if matrix_transform is not None:
+                mcda_matrix_bundle = matrix_transform(mcda_matrix_bundle)
+            step_completed = "F"
+            _extend_unique(warnings, mcda_matrix_bundle.warnings)
+            if max_step == "F":
+                return ScientificWorkflowResult(
+                    workflow_status=WORKFLOW_COMPLETED,
+                    step_completed=step_completed,
+                    input_context=input_context,
+                    water_input_bundle=water_input_bundle,
+                    pollutant_gap_bundle=pollutant_gap_bundle,
+                    treatment_need_bundle=treatment_need_bundle,
+                    candidate_filter_bundle=candidate_filter_bundle,
+                    mcda_matrix_bundle=mcda_matrix_bundle,
+                    errors=errors,
+                    warnings=warnings,
+                )
+
+            normalized_mcda_matrix_bundle = McdaNormalizationEngine().normalize(
+                mcda_matrix_bundle,
+            )
+            step_completed = "G"
+            _extend_unique(warnings, normalized_mcda_matrix_bundle.warnings)
+            if max_step == "G":
+                return ScientificWorkflowResult(
+                    workflow_status=WORKFLOW_COMPLETED,
+                    step_completed=step_completed,
+                    input_context=input_context,
+                    water_input_bundle=water_input_bundle,
+                    pollutant_gap_bundle=pollutant_gap_bundle,
+                    treatment_need_bundle=treatment_need_bundle,
+                    candidate_filter_bundle=candidate_filter_bundle,
+                    mcda_matrix_bundle=mcda_matrix_bundle,
+                    normalized_mcda_matrix_bundle=normalized_mcda_matrix_bundle,
+                    errors=errors,
+                    warnings=warnings,
+                )
+
+            mcda_weights_bundle = McdaWeightsHandler().prepare_from_normalized_bundle(
+                normalized_mcda_matrix_bundle,
+                supplied_weights=supplied_weights,
+                weights_source=weights_source,
+                expert_validated=expert_validated,
+            )
+            step_completed = "H"
+            _extend_unique(warnings, mcda_weights_bundle.warnings)
+            if max_step == "H":
+                return ScientificWorkflowResult(
+                    workflow_status=WORKFLOW_COMPLETED,
+                    step_completed=step_completed,
+                    input_context=input_context,
+                    water_input_bundle=water_input_bundle,
+                    pollutant_gap_bundle=pollutant_gap_bundle,
+                    treatment_need_bundle=treatment_need_bundle,
+                    candidate_filter_bundle=candidate_filter_bundle,
+                    mcda_matrix_bundle=mcda_matrix_bundle,
+                    normalized_mcda_matrix_bundle=normalized_mcda_matrix_bundle,
+                    mcda_weights_bundle=mcda_weights_bundle,
+                    errors=errors,
+                    warnings=warnings,
+                )
+
+            topsis_ranking_bundle = TopsisRankingEngine().rank(
+                normalized_mcda_matrix_bundle,
+                mcda_weights_bundle,
+            )
+            step_completed = "I"
+            _extend_unique(warnings, topsis_ranking_bundle.warnings)
+            if max_step == "I":
+                return ScientificWorkflowResult(
+                    workflow_status=WORKFLOW_COMPLETED,
+                    step_completed=step_completed,
+                    input_context=input_context,
+                    water_input_bundle=water_input_bundle,
+                    pollutant_gap_bundle=pollutant_gap_bundle,
+                    treatment_need_bundle=treatment_need_bundle,
+                    candidate_filter_bundle=candidate_filter_bundle,
+                    mcda_matrix_bundle=mcda_matrix_bundle,
+                    normalized_mcda_matrix_bundle=normalized_mcda_matrix_bundle,
+                    mcda_weights_bundle=mcda_weights_bundle,
+                    topsis_ranking_bundle=topsis_ranking_bundle,
+                    errors=errors,
+                    warnings=warnings,
+                )
+
+            confidence_scoring_bundle = ConfidenceScoringEngine().score(
+                topsis_ranking_bundle,
+                water_bundle=water_input_bundle,
+                candidate_bundle=candidate_filter_bundle,
+                normalized_bundle=normalized_mcda_matrix_bundle,
+                weights_bundle=mcda_weights_bundle,
+            )
+            step_completed = "J"
+            _extend_unique(warnings, confidence_scoring_bundle.warnings)
+
             return ScientificWorkflowResult(
                 workflow_status=WORKFLOW_COMPLETED,
                 step_completed=step_completed,
@@ -215,6 +421,11 @@ class ScientificWorkflowService:
                 pollutant_gap_bundle=pollutant_gap_bundle,
                 treatment_need_bundle=treatment_need_bundle,
                 candidate_filter_bundle=candidate_filter_bundle,
+                mcda_matrix_bundle=mcda_matrix_bundle,
+                normalized_mcda_matrix_bundle=normalized_mcda_matrix_bundle,
+                mcda_weights_bundle=mcda_weights_bundle,
+                topsis_ranking_bundle=topsis_ranking_bundle,
+                confidence_scoring_bundle=confidence_scoring_bundle,
                 errors=errors,
                 warnings=warnings,
             )
@@ -228,6 +439,11 @@ class ScientificWorkflowService:
                 pollutant_gap_bundle=pollutant_gap_bundle,
                 treatment_need_bundle=treatment_need_bundle,
                 candidate_filter_bundle=candidate_filter_bundle,
+                mcda_matrix_bundle=mcda_matrix_bundle,
+                normalized_mcda_matrix_bundle=normalized_mcda_matrix_bundle,
+                mcda_weights_bundle=mcda_weights_bundle,
+                topsis_ranking_bundle=topsis_ranking_bundle,
+                confidence_scoring_bundle=confidence_scoring_bundle,
                 errors=errors,
                 warnings=warnings,
             )
@@ -237,3 +453,9 @@ class ScientificWorkflowService:
         """Return True when Step B found no observations to pass forward."""
 
         return bundle.selected_source_type == "missing" or bundle.observation_count == 0
+
+
+def _normalize_max_step(max_step: str) -> str:
+    """Normalize the requested workflow end step without guessing behavior."""
+
+    return str(max_step or DEFAULT_WORKFLOW_END_STEP).strip().upper()

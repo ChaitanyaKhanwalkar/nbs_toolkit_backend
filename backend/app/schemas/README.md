@@ -18,7 +18,7 @@ Use schemas here for:
 - river context responses
 - data availability responses
 - internal scientific engine bundle responses from Steps A-J
-- internal scientific workflow result responses that wrap staged A-E bundles
+- internal scientific workflow result responses that wrap staged A-J bundles
 
 Do not put database queries here. Repositories query the database.
 
