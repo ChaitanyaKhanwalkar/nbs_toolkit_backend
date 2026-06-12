@@ -15,6 +15,15 @@ Template:
 
 ---
 
+## 2026-06-12 - Internal workflow service documentation alignment
+**Done:** Internal workflow service documentation was aligned. `ScientificWorkflowService.run(...)` defaults to the safe A-E path. `max_step="J"` explicitly runs the staged A-J path.
+**Why:** The workflow guide needed to make the safe default and explicit extended path clear for future developers before any endpoint or final recommendation work begins.
+**Sources added:** none.
+**Gaps / NULLs logged:** A-J includes MCDA matrix preparation, normalization, weights handling, TOPSIS ranking, and confidence scoring, but still does not create final recommendations or expose `/recommend`. TOPSIS closeness remains separate from `confidence_score`. Temporary weights remain marked as `temporary_not_expert_validated`.
+**Blockers / next:** Do not add final recommendation logic, plant matching, or `/recommend` until those steps are explicitly approved and documented.
+
+---
+
 ## 2026-06-03 — Project kickoff & data audit
 **Done:** Set up CLAUDE.md + PLAN.md. Audited the five CSVs.
 **Why:** Establish provenance-first conventions and a verified picture of current data before
