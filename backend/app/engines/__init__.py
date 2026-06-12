@@ -38,6 +38,12 @@ from app.engines.treatment_need import (
     TreatmentNeedClassifier,
     TreatmentNeedResult,
 )
+from app.engines.topsis_ranking import (
+    TopsisCriterionContribution,
+    TopsisRankedCandidate,
+    TopsisRankingBundle,
+    TopsisRankingEngine,
+)
 from app.engines.water_input_assembly import (
     SOURCE_PRIORITY,
     WaterInputAssemblyEngine,
@@ -67,6 +73,10 @@ __all__ = [
     "TreatmentNeedBundle",
     "TreatmentNeedClassifier",
     "TreatmentNeedResult",
+    "TopsisCriterionContribution",
+    "TopsisRankedCandidate",
+    "TopsisRankingBundle",
+    "TopsisRankingEngine",
     "SOURCE_PRIORITY",
     "WaterInputAssemblyEngine",
     "WaterInputBundle",

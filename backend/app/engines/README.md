@@ -7,7 +7,7 @@ step is ready and documented. The API layer should not calculate science, and
 repositories should not calculate science. Engines should receive clean inputs
 from services and return clear, explainable results.
 
-## Current Status: Steps A, B, C, D, E, F, G, and H Only
+## Current Status: Steps A, B, C, D, E, F, G, H, and I Only
 
 The current files implement Step A:
 
@@ -74,11 +74,18 @@ They also implement Step H:
 - report missing and extra criteria weights
 - clearly distinguish temporary weights from explicitly expert-validated weights
 
-Steps A, B, C, D, E, F, G, and H do not recommend anything.
+They also implement Step I:
+
+- apply Step H weights to Step G normalized MCDA criteria
+- calculate TOPSIS ideal-best and ideal-worst distances
+- calculate TOPSIS closeness coefficients
+- rank eligible/data-pending candidates by TOPSIS closeness
+- carry the weight status honestly, including temporary/non-expert warnings
+
+Steps A, B, C, D, E, F, G, H, and I do not create final recommendations.
 
 They do not:
 
-- rank with MCDA or TOPSIS
 - calculate AHP pairwise weights
 - calculate confidence labels
 - recommend plants
@@ -88,9 +95,9 @@ They do not:
 
 Future engine modules may be added in this order:
 
-1. TOPSIS ranking after weights are available and approved
-2. confidence scoring
-3. plant matching after technology ranking
+1. confidence scoring
+2. plant matching after technology ranking
+3. final recommendation assembly after confidence and plant layers exist
 
 Do not skip ahead. Follow `backend/docs/SCIENTIFIC_RECOMMENDATION_ENGINE.md`.
 
