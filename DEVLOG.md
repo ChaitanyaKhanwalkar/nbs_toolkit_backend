@@ -15,6 +15,15 @@ Template:
 
 ---
 
+## 2026-06-13 - Step N.4 backend-only Azure workflow packaging
+**Done:** Updated the GitHub Actions workflow packaging path for the revamped backend.
+**Why:** Azure needs the backend package root to contain `app/` and `requirements.txt`, not the old root app or the whole repository. The workflow now installs `backend/requirements.txt` and packages the contents of `backend/`.
+**Sources added:** none.
+**Gaps / NULLs logged:** The package excludes local `.env`, `.venv/`, `.venv_broken/`, `data/*.db`, Python caches, compiled files, and tests. The `main` trigger remains unchanged, no deployment was performed from this branch, no secrets changed, and no app/scientific logic changed.
+**Blockers / next:** Review the workflow run artifact listing on `main` before treating Azure as production-ready.
+
+---
+
 ## 2026-06-13 - Step M.2 real-data recommendation API smoke test
 **Done:** Added a local FastAPI TestClient smoke test for `POST /api/v1/recommend` using live standards vocabulary and the Step M.1 projected `removal_evidence_score`.
 **Why:** The recommendation endpoint needed a repeatable real-data check that proves the staged Step L path can produce ranked recommendations without requiring a live Uvicorn server or Azure services.

@@ -10,27 +10,43 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 🔹 1) Checkout your repository code
+      # 1) Checkout repository code.
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 🔹 2) Set up Python
+      # 2) Set up Python.
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      # 🔹 3) Install dependencies (test build)
+      # 3) Install dependencies from the revamped backend package.
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r backend/requirements.txt
 
-      # 🔹 4) Zip project for deployment
+      # 4) Zip only backend/ so Azure receives app/ at package root.
       - name: Zip application
-        run: zip -r app.zip .
+        run: |
+          cd backend
+          zip -r ../app.zip . \
+            -x ".env" \
+            -x ".venv/*" \
+            -x ".venv_broken/*" \
+            -x "data/*.db" \
+            -x "__pycache__/*" \
+            -x "*/__pycache__/*" \
+            -x "*/*/__pycache__/*" \
+            -x "*.pyc" \
+            -x "tests/*"
+          cd ..
 
-      # 🔹 5) Deploy using PUBLISH PROFILE
+      # 5) Print zip contents so app/main.py and requirements.txt are visible.
+      - name: Verify deployment package
+        run: unzip -l app.zip | head -120
+
+      # 6) Deploy using the existing publish profile.
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
         with:
