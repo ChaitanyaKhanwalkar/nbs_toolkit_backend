@@ -1,9 +1,10 @@
 """Pydantic schemas for internal scientific engine bundle outputs.
 
-These response shapes mirror the current Step A-H engine dataclasses so future
+These response shapes mirror the current Step A-I engine dataclasses so future
 code can serialize them safely. They do not add scientific behavior, routes,
-final recommendations, rankings, TOPSIS/AHP fields, confidence scores, or plant
-recommendations.
+final recommendations, confidence scores, AHP pairwise weights, or plant
+recommendations. Step I schemas keep TOPSIS closeness separate from future
+match-score or confidence-score fields.
 """
 
 from typing import Any, Literal
@@ -222,6 +223,62 @@ class McdaWeightsBundleResponse(RawResponseModel):
     expert_validated: bool = False
     missing_weight_criteria: list[str] = Field(default_factory=list)
     extra_weight_criteria: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
+class TopsisCriterionContributionResponse(RawResponseModel):
+    """Serialized output for one Step I weighted TOPSIS criterion."""
+
+    criterion_name: str
+    normalized_value: float
+    weight: float
+    weighted_value: float
+
+
+class TopsisRankedCandidateResponse(RawResponseModel):
+    """Serialized output for one Step I TOPSIS-ranked candidate."""
+
+    nbs_id: int | None = None
+    nbs_name: str | None = None
+    eligibility_status: str
+    rank: int
+    topsis_closeness: float | None = None
+    distance_to_ideal_best: float | None = None
+    distance_to_ideal_worst: float | None = None
+    criterion_contributions: list[TopsisCriterionContributionResponse] = Field(
+        default_factory=list
+    )
+    caution_flags: list[str] = Field(default_factory=list)
+    source_ids: list[int] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class TopsisRankingBundleResponse(RawResponseModel):
+    """Serialized output from Step I TOPSIS ranking.
+
+    This schema mirrors TOPSIS ranking internals only. It does not rename
+    `topsis_closeness` to a match score and does not include final
+    recommendation, confidence-score, plant, health-risk, or API route fields.
+    """
+
+    use_case: str
+    treatment_need_groups: list[str] = Field(default_factory=list)
+    row_count: int = 0
+    ranked_count: int = 0
+    criteria_used: list[str] = Field(default_factory=list)
+    criteria_skipped: list[str] = Field(default_factory=list)
+    weights_status: Literal[
+        "weights_missing",
+        "temporary_not_expert_validated",
+        "expert_validated",
+        "invalid_weights",
+    ] = "weights_missing"
+    weights_source: str | None = None
+    expert_validated: bool = False
+    ranking_method: Literal["topsis"] = "topsis"
+    ranked_candidates: list[TopsisRankedCandidateResponse] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
 

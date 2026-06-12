@@ -27,6 +27,9 @@ from app.schemas.engine import (
     ScientificWorkflowResultResponse,
     TreatmentNeedBundleResponse,
     TreatmentNeedResultResponse,
+    TopsisCriterionContributionResponse,
+    TopsisRankedCandidateResponse,
+    TopsisRankingBundleResponse,
     WaterInputBundleResponse,
 )
 from app.schemas.nbs import (
@@ -115,6 +118,9 @@ __all__ = [
     "StandardsUseCaseResponse",
     "TreatmentNeedBundleResponse",
     "TreatmentNeedResultResponse",
+    "TopsisCriterionContributionResponse",
+    "TopsisRankedCandidateResponse",
+    "TopsisRankingBundleResponse",
     "UseCaseResponse",
     "WaterDataResponse",
     "WaterInputBundleResponse",
