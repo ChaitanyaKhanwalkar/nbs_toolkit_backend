@@ -1,6 +1,6 @@
 """Pydantic schemas for internal scientific engine bundle outputs.
 
-These response shapes mirror the current Step A-E engine dataclasses so future
+These response shapes mirror the current Step A-G engine dataclasses so future
 code can serialize them safely. They do not add scientific behavior, routes,
 final recommendations, rankings, TOPSIS/AHP fields, confidence scores, or plant
 recommendations.
@@ -163,6 +163,48 @@ class McdaMatrixBundleResponse(RawResponseModel):
     missing_criteria_summary: dict[str, int] = Field(default_factory=dict)
     warnings: list[str] = Field(default_factory=list)
     weights_status: str = "not_applied"
+
+
+class NormalizedMcdaCriterionResponse(RawResponseModel):
+    """Serialized output for one Step G normalized MCDA criterion."""
+
+    criterion_name: str
+    raw_value: Any = None
+    normalized_value: float | None = None
+    direction: str
+    normalization_status: str
+    notes: list[str] = Field(default_factory=list)
+
+
+class NormalizedMcdaMatrixRowResponse(RawResponseModel):
+    """Serialized output for one Step G normalized MCDA matrix row."""
+
+    nbs_id: int | None = None
+    nbs_name: str | None = None
+    eligibility_status: str
+    supported_treatment_needs: list[str] = Field(default_factory=list)
+    normalized_criteria: list[NormalizedMcdaCriterionResponse] = Field(
+        default_factory=list
+    )
+    missing_criteria: list[str] = Field(default_factory=list)
+    caution_flags: list[str] = Field(default_factory=list)
+    source_ids: list[int] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
+class NormalizedMcdaMatrixBundleResponse(RawResponseModel):
+    """Serialized output from Step G unweighted MCDA normalization."""
+
+    use_case: str
+    treatment_need_groups: list[str] = Field(default_factory=list)
+    row_count: int = 0
+    criteria_names: list[str] = Field(default_factory=list)
+    rows: list[NormalizedMcdaMatrixRowResponse] = Field(default_factory=list)
+    normalization_method: str = "min_max_unweighted"
+    weights_status: str = "not_applied"
+    normalized_criteria_count: int = 0
+    skipped_criteria_count: int = 0
+    warnings: list[str] = Field(default_factory=list)
 
 
 class ScientificWorkflowResultResponse(RawResponseModel):
