@@ -1,10 +1,10 @@
 """Pydantic schemas for internal scientific engine bundle outputs.
 
-These response shapes mirror the current Step A-I engine dataclasses so future
+These response shapes mirror the current Step A-J engine dataclasses so future
 code can serialize them safely. They do not add scientific behavior, routes,
-final recommendations, confidence scores, AHP pairwise weights, or plant
-recommendations. Step I schemas keep TOPSIS closeness separate from future
-match-score or confidence-score fields.
+final recommendations, AHP pairwise weights, or plant recommendations. Step I
+schemas keep TOPSIS closeness separate from match-score fields. Step J schemas
+serialize confidence scores separately from TOPSIS closeness and rank.
 """
 
 from typing import Any, Literal
@@ -279,6 +279,53 @@ class TopsisRankingBundleResponse(RawResponseModel):
     expert_validated: bool = False
     ranking_method: Literal["topsis"] = "topsis"
     ranked_candidates: list[TopsisRankedCandidateResponse] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
+class ConfidenceFactorResponse(RawResponseModel):
+    """Serialized output for one Step J confidence factor."""
+
+    factor_name: str
+    factor_score: float
+    factor_weight: float
+    weighted_score: float
+    notes: list[str] = Field(default_factory=list)
+
+
+class CandidateConfidenceResultResponse(RawResponseModel):
+    """Serialized output for one Step J candidate confidence result."""
+
+    nbs_id: int | None = None
+    nbs_name: str | None = None
+    rank: int
+    topsis_closeness: float | None = None
+    confidence_score: float
+    confidence_label: Literal["high", "medium", "low"]
+    factors: list[ConfidenceFactorResponse] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
+class ConfidenceScoringBundleResponse(RawResponseModel):
+    """Serialized output from Step J confidence scoring.
+
+    This schema keeps `confidence_score` separate from TOPSIS closeness and
+    preserves the Step I rank value. It does not include final recommendation,
+    match-score, plant, health-risk, or API route fields.
+    """
+
+    use_case: str
+    ranking_method: Literal["topsis"] = "topsis"
+    weights_status: Literal[
+        "weights_missing",
+        "temporary_not_expert_validated",
+        "expert_validated",
+        "invalid_weights",
+    ] = "weights_missing"
+    expert_validated: bool = False
+    confidence_method: Literal["rule_based_v1"] = "rule_based_v1"
+    results: list[CandidateConfidenceResultResponse] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
 

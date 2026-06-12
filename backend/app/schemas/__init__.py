@@ -13,8 +13,11 @@ from app.schemas.common import (
     SourceRef,
 )
 from app.schemas.engine import (
+    CandidateConfidenceResultResponse,
     CandidateFilterBundleResponse,
     CandidateFilterResultResponse,
+    ConfidenceFactorResponse,
+    ConfidenceScoringBundleResponse,
     InputContextResponse,
     McdaMatrixBundleResponse,
     McdaMatrixRowResponse,
@@ -73,8 +76,11 @@ from app.schemas.water import (
 
 __all__ = [
     "BasinResponse",
+    "CandidateConfidenceResultResponse",
     "CandidateFilterBundleResponse",
     "CandidateFilterResultResponse",
+    "ConfidenceFactorResponse",
+    "ConfidenceScoringBundleResponse",
     "DataAvailabilityResponse",
     "DataSectionAvailabilityResponse",
     "InputContextResponse",
