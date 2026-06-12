@@ -29,6 +29,7 @@ from app.engines.mcda_normalization import (
     NormalizedMcdaMatrixBundle,
     NormalizedMcdaMatrixRow,
 )
+from app.engines.mcda_numeric_projection import McdaNumericProjectionEngine
 from app.engines.mcda_weights import (
     McdaWeightsBundle,
     McdaWeightsHandler,
@@ -83,6 +84,7 @@ __all__ = [
     "McdaMatrixBundle",
     "McdaMatrixRow",
     "McdaNormalizationEngine",
+    "McdaNumericProjectionEngine",
     "McdaWeightsBundle",
     "McdaWeightsHandler",
     "NormalizedMcdaCriterion",

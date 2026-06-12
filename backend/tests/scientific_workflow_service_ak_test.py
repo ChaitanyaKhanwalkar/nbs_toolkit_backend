@@ -68,6 +68,7 @@ WEIGHT_KEYS = [
     "co_benefit_indicator",
     "catalogue_criteria",
     "removal_evidence_coverage",
+    "removal_evidence_score",
     "site_suitability",
 ]
 
@@ -115,6 +116,7 @@ def temporary_weights() -> dict[str, float]:
     weights = {criterion_name: 0.0 for criterion_name in WEIGHT_KEYS}
     weights.update(
         {
+            "removal_evidence_score": 5.0,
             "removal_evidence_coverage": 5.0,
             "site_suitability": 3.0,
             "cost_indicator": 2.0,

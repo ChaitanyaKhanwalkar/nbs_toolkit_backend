@@ -15,6 +15,15 @@ Template:
 
 ---
 
+## 2026-06-13 - Step M.1 production numeric MCDA projection
+**Done:** Added a conservative numeric projection layer between raw MCDA matrix preparation and normalization.
+**Why:** Live Step F produces rich raw MCDA criteria objects, while Step G only normalizes numeric values with explicit direction rules. The projection layer derives numeric proxy criteria only from already-present Step F raw data so TOPSIS can receive normalizable criteria without weakening Step G safety.
+**Sources added:** none.
+**Gaps / NULLs logged:** Projection uses already-present Step F raw data only. No DB mutation, no Azure deployment, no secrets or `.env` changes, no AHP expert weights, and no health-risk logic were added. Temporary weights remain `temporary_not_expert_validated`.
+**Blockers / next:** Continued Step M.1 by adding variable `removal_evidence_score`, derived only from existing removal efficiency ranges in Step F raw rows. Still no DB mutation, no Azure deployment, no secrets or `.env` changes, no AHP expert weights, and no health-risk logic. Validate live `/api/v1/recommend` output to confirm projected criteria produce ranked candidates with production data, then review whether more explicit numeric source fields are needed in the schema.
+
+---
+
 ## 2026-06-13 - Step M local recommendation API endpoint
 **Done:** Step M local recommendation API endpoint was added. `POST /api/v1/recommend` wraps `ScientificWorkflowService.run(..., max_step="L")` and returns the internal `recommendation_assembly_bundle`.
 **Why:** The backend needed a local API readiness wrapper around the staged A-L workflow without changing deployment, Azure settings, secrets, `.env`, old folders, or database records.

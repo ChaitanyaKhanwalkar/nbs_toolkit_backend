@@ -18,14 +18,17 @@ from typing import Any
 
 from scientific_workflow_service_ak_test import (
     FakePlantMappingProvider,
+    ScientificWorkflowService,
     WORKFLOW_COMPLETED,
     add_fake_numeric_criteria,
     build_raw_input,
+    fake_standards_service,
     run_aj_workflow,
     run_ak_workflow,
     temporary_weights,
     workflow_service,
 )
+from scientific_engine_ai_integration_test import FakeNbsCatalogService, nbs_profile
 
 
 FORBIDDEN_FIELDS = {
@@ -37,6 +40,51 @@ FORBIDDEN_FIELDS = {
     "ahp",
     "ahp_weight",
 }
+
+
+def variable_removal_nbs_provider() -> FakeNbsCatalogService:
+    """Return fake profiles with different explicit removal efficiencies."""
+
+    return FakeNbsCatalogService(
+        {
+            1: nbs_profile(
+                nbs_id=1,
+                solution="High efficiency wetland",
+                removal_rows=[
+                    {"parameter": "BOD", "eff_low": 70.0, "eff_high": 90.0},
+                    {"parameter": "TSS", "eff_low": 60.0, "eff_high": 80.0},
+                ],
+            ),
+            2: nbs_profile(
+                nbs_id=2,
+                solution="Lower efficiency wetland",
+                removal_rows=[
+                    {"parameter": "BOD", "eff_low": 30.0, "eff_high": 40.0},
+                    {"parameter": "TSS", "eff_low": 20.0, "eff_high": 30.0},
+                ],
+            ),
+        }
+    )
+
+
+def projection_workflow_service() -> ScientificWorkflowService:
+    """Return the service with variable removal evidence for Step M.1 checks."""
+
+    return ScientificWorkflowService(
+        standards_service=fake_standards_service(),
+        nbs_provider=variable_removal_nbs_provider(),
+        plant_provider=FakePlantMappingProvider(),
+    )
+
+
+def projection_temporary_weights() -> dict[str, float]:
+    """Return temporary weights that include the projected efficiency score."""
+
+    return {
+        "removal_evidence_score": 5.0,
+        "removal_evidence_coverage": 1.0,
+        "site_suitability": 1.0,
+    }
 
 
 def run_al_workflow() -> Any:
@@ -159,6 +207,29 @@ def assert_temporary_weights_remain_visibly_provisional() -> None:
     )
 
 
+def assert_step_l_can_rank_with_projected_removal_score() -> None:
+    """Step L should rank when production projection gives one variable criterion."""
+
+    result = projection_workflow_service().run(
+        build_raw_input(),
+        max_step="L",
+        supplied_weights=projection_temporary_weights(),
+        weights_source="temporary_projection_test_weights",
+        expert_validated=False,
+    )
+
+    assert result.workflow_status == WORKFLOW_COMPLETED
+    assert result.step_completed == "L"
+    assert result.topsis_ranking_bundle is not None
+    assert result.recommendation_assembly_bundle is not None
+    assert result.topsis_ranking_bundle.ranked_count == 2
+    assert "removal_evidence_score" in result.topsis_ranking_bundle.criteria_used
+    assert result.recommendation_assembly_bundle.recommendation_count == 2
+    assert result.recommendation_assembly_bundle.weights_status == (
+        "temporary_not_expert_validated"
+    )
+
+
 def assert_forbidden_fields_are_absent() -> None:
     """A-L workflow output must not include API, AHP, or health-risk fields."""
 
@@ -198,6 +269,7 @@ def main() -> None:
     assert_rank_match_score_and_confidence_are_preserved()
     assert_plants_do_not_affect_rank()
     assert_temporary_weights_remain_visibly_provisional()
+    assert_step_l_can_rank_with_projected_removal_score()
     assert_forbidden_fields_are_absent()
     assert_no_api_or_recommend_route_involved()
     print("scientific workflow service A-L checks ok: internal assembly only")

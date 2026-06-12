@@ -22,6 +22,7 @@ from app.engines import (
     McdaMatrixBuilder,
     McdaMatrixBundle,
     McdaNormalizationEngine,
+    McdaNumericProjectionEngine,
     McdaWeightsBundle,
     McdaWeightsHandler,
     NormalizedMcdaMatrixBundle,
@@ -352,6 +353,9 @@ class ScientificWorkflowService:
             )
             if matrix_transform is not None:
                 mcda_matrix_bundle = matrix_transform(mcda_matrix_bundle)
+            mcda_matrix_bundle = McdaNumericProjectionEngine().project(
+                mcda_matrix_bundle,
+            )
             step_completed = "F"
             _extend_unique(warnings, mcda_matrix_bundle.warnings)
             if max_step == "F":

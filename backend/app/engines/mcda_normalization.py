@@ -30,6 +30,9 @@ DIRECTION_UNKNOWN = "unknown"
 # as direction_unknown so the engine does not silently guess scientific meaning.
 CRITERION_DIRECTION_MAP = {
     "removal_evidence_coverage": DIRECTION_BENEFIT,
+    # Projected from existing Step F removal efficiency rows only; higher
+    # documented removal efficiency is better for the future MCDA step.
+    "removal_evidence_score": DIRECTION_BENEFIT,
     "co_benefit_score": DIRECTION_BENEFIT,
     "climate_suitability": DIRECTION_BENEFIT,
     "site_suitability": DIRECTION_BENEFIT,
