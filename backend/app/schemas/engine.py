@@ -1,10 +1,11 @@
 """Pydantic schemas for internal scientific engine bundle outputs.
 
-These response shapes mirror the current Step A-J engine dataclasses so future
+These response shapes mirror the current Step A-K engine dataclasses so future
 code can serialize them safely. They do not add scientific behavior, routes,
 final recommendations, AHP pairwise weights, or plant recommendations. Step I
 schemas keep TOPSIS closeness separate from match-score fields. Step J schemas
-serialize confidence scores separately from TOPSIS closeness and rank.
+serialize confidence scores separately from TOPSIS closeness and rank. Step K
+schemas serialize explicit plant mappings without changing ranks or confidence.
 """
 
 from typing import Any, Literal
@@ -326,6 +327,54 @@ class ConfidenceScoringBundleResponse(RawResponseModel):
     expert_validated: bool = False
     confidence_method: Literal["rule_based_v1"] = "rule_based_v1"
     results: list[CandidateConfidenceResultResponse] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
+class PlantMatchResponse(RawResponseModel):
+    """Serialized output for one Step K explicit plant match."""
+
+    plant_id: int | None = None
+    scientific_name: str | None = None
+    common_name: str | None = None
+    local_name: str | None = None
+    nbs_id: int | None = None
+    nbs_name: str | None = None
+    suitability_notes: list[str] = Field(default_factory=list)
+    source_ids: list[int] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
+class CandidatePlantMatchesResponse(RawResponseModel):
+    """Serialized Step K plant matches for one already-ranked candidate."""
+
+    nbs_id: int | None = None
+    nbs_name: str | None = None
+    rank: int
+    topsis_closeness: float | None = None
+    confidence_score: float | None = None
+    confidence_label: Literal["high", "medium", "low"] | None = None
+    plant_matches: list[PlantMatchResponse] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
+class PlantMatchingBundleResponse(RawResponseModel):
+    """Serialized output from Step K explicit plant matching.
+
+    This schema keeps plant matching downstream from ranking and confidence. It
+    does not include final recommendation, match-score, health-risk, or API
+    route fields.
+    """
+
+    use_case: str
+    ranking_method: Literal["topsis"] = "topsis"
+    confidence_method: Literal["rule_based_v1"] | None = None
+    plant_matching_method: Literal["explicit_mapping_v1"] = "explicit_mapping_v1"
+    candidate_matches: list[CandidatePlantMatchesResponse] = Field(
+        default_factory=list
+    )
     warnings: list[str] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
 

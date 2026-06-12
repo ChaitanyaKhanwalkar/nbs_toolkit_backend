@@ -33,6 +33,12 @@ from app.engines.mcda_weights import (
     McdaWeightsBundle,
     McdaWeightsHandler,
 )
+from app.engines.plant_matching import (
+    CandidatePlantMatches,
+    PlantMatch,
+    PlantMatchingBundle,
+    PlantMatchingEngine,
+)
 from app.engines.pollutant_gap import (
     ParameterGapResult,
     PollutantGapBundle,
@@ -77,6 +83,10 @@ __all__ = [
     "NormalizedMcdaMatrixBundle",
     "NormalizedMcdaMatrixRow",
     "ParameterGapResult",
+    "CandidatePlantMatches",
+    "PlantMatch",
+    "PlantMatchingBundle",
+    "PlantMatchingEngine",
     "PollutantGapBundle",
     "PollutantGapEngine",
     "TargetUseCaseValidator",

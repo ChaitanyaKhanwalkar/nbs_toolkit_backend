@@ -7,7 +7,7 @@ step is ready and documented. The API layer should not calculate science, and
 repositories should not calculate science. Engines should receive clean inputs
 from services and return clear, explainable results.
 
-## Current Status: Steps A, B, C, D, E, F, G, H, I, and J Only
+## Current Status: Steps A, B, C, D, E, F, G, H, I, J, and K Only
 
 The current files implement Step A:
 
@@ -91,20 +91,27 @@ They also implement Step J:
 - label confidence as high, medium, or low
 - carry provisional warnings when temporary weights are used
 
-Steps A, B, C, D, E, F, G, H, I, and J do not create final recommendations.
+They also implement Step K:
+
+- attach plants only when an explicit plant-to-NbS mapping is returned by the
+  plant provider
+- preserve TOPSIS rank and closeness without changing them
+- preserve confidence score and label without changing them
+- return empty plant match lists with warnings when mappings are missing
+
+Steps A, B, C, D, E, F, G, H, I, J, and K do not create final recommendations.
 
 They do not:
 
 - calculate AHP pairwise weights
-- recommend plants
+- treat plant matches as final plant recommendations
 - classify health risk
 
 ## Future Steps
 
 Future engine modules may be added in this order:
 
-1. plant matching after technology ranking and confidence scoring
-2. final recommendation assembly after confidence and plant layers exist
+1. final recommendation assembly after confidence and plant layers exist
 
 Do not skip ahead. Follow `backend/docs/SCIENTIFIC_RECOMMENDATION_ENGINE.md`.
 

@@ -131,6 +131,7 @@ python tests\scientific_engine_ag_integration_test.py
 python tests\scientific_engine_ah_integration_test.py
 python tests\scientific_engine_ai_integration_test.py
 python tests\scientific_engine_aj_integration_test.py
+python tests\scientific_engine_ak_integration_test.py
 python tests\engine_schema_smoke_test.py
 python tests\engine_schema_conversion_test.py
 python tests\mcda_matrix_schema_test.py
@@ -146,6 +147,9 @@ python tests\topsis_ranking_schema_conversion_test.py
 python tests\confidence_scoring_test.py
 python tests\confidence_scoring_schema_test.py
 python tests\confidence_scoring_schema_conversion_test.py
+python tests\plant_matching_test.py
+python tests\plant_matching_schema_test.py
+python tests\plant_matching_schema_conversion_test.py
 python tests\scientific_workflow_service_test.py
 python tests\workflow_schema_test.py
 python tests\workflow_schema_conversion_test.py
@@ -155,8 +159,9 @@ python tests\workflow_aj_schema_conversion_test.py
 ```
 
 These tests validate staged scientific workflow behavior only. Some tests now
-exercise Step I TOPSIS ranking and Step J confidence scoring, but they do not
-create final recommendations, run AHP, or expose `/recommend`.
+exercise Step I TOPSIS ranking, Step J confidence scoring, and Step K explicit
+plant matching, but they do not create final recommendations, run AHP, or
+expose `/recommend`.
 
 ## Internal Workflow Service Note
 

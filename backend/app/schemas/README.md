@@ -17,7 +17,7 @@ Use schemas here for:
 - pollution context responses
 - river context responses
 - data availability responses
-- internal scientific engine bundle responses from Steps A-J
+- internal scientific engine bundle responses from Steps A-K
 - internal scientific workflow result responses that wrap staged A-J bundles
 
 Do not put database queries here. Repositories query the database.
@@ -31,8 +31,9 @@ bundles and the internal `ScientificWorkflowResult` wrapper. These schemas are
 for safe future serialization and tests only. They do not create routes or run
 workflow logic. Step I schemas can serialize TOPSIS rank/closeness outputs, but
 they do not rename `topsis_closeness` to `match_score`. Step J schemas can
-serialize confidence scores separately from TOPSIS closeness and preserve rank,
-but they do not recommend plants, classify health risk, or create final
+serialize confidence scores separately from TOPSIS closeness and preserve rank.
+Step K schemas serialize explicitly mapped plants after ranking/confidence, but
+they do not let plants affect rank, confidence, health risk, or final
 recommendations.
 
 Do not add final recommendation fields, AHP pairwise logic, plant

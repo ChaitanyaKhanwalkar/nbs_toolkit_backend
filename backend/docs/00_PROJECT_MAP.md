@@ -95,14 +95,14 @@ match the service layer where possible and keep fields optional because some
 research data may be incomplete.
 
 `backend/app/schemas/engine.py` describes safe JSON shapes for existing
-internal scientific engine bundles from Steps A-E. It is for future
+internal scientific engine bundles from Steps A-K. It is for future
 serialization and testing only; it does not create workflow routes or final
 recommendation responses.
 
 Schemas are especially important for future recommendation responses because every output should include explanations, cautions, confidence, and provenance.
 
-Do not add recommendation response fields, TOPSIS rankings, AHP weights,
-exceedance labels, or health-risk classifications until the scientific engine
+Do not add final recommendation response fields, AHP pairwise weights,
+match-score aliases, or health-risk classifications until the scientific engine
 readiness gate is satisfied.
 
 ## backend/app/repositories/
@@ -143,9 +143,9 @@ not calculate exceedance, health risk, AHP weights, TOPSIS rankings, or
 recommendations.
 
 `scientific_workflow_service.py` is an internal coordinator for Scientific
-Engine Steps A-E. It runs the staged engines in order and returns their
-intermediate bundles only; it does not expose an endpoint or create final
-recommendations.
+Engine Steps A-E by default and A-J when explicitly requested. It runs the
+staged engines in order and returns their intermediate bundles only; it does
+not expose an endpoint or create final recommendations.
 
 ## backend/app/engines/
 
@@ -153,7 +153,7 @@ Future scientific logic and recommendation calculations will live here.
 
 Change scientific logic in this folder later, but only after the repository, service, engine, and schema layers are ready.
 
-The current engine files implement Step A, Step B, Step C, Step D, Step E, Step F, Step G, Step H, Step I, and Step J
+The current engine files implement Step A, Step B, Step C, Step D, Step E, Step F, Step G, Step H, Step I, Step J, and Step K
 only. Step A handles input normalization and target use-case validation. Step B
 assembles raw water observations by priority: user measured data, then station
 observations, then basin observations, then a safe missing-data bundle. Step C
@@ -169,13 +169,14 @@ missing or extra weights, and clearly marks temporary weights as not expert
 validated. Step I applies the Step H weights to Step G normalized criteria and
 calculates TOPSIS closeness/rank order for eligible and data-pending candidates.
 Step J calculates rule-based confidence scores separately from TOPSIS closeness,
-preserves rank, and labels confidence as high, medium, or low. These steps
-prepare, rank, and confidence-label candidate technologies, but do not create
-final recommendations, classify health risk, or recommend plants.
+preserves rank, and labels confidence as high, medium, or low. Step K attaches
+only explicitly mapped plant options after ranking/confidence and does not let
+plants change rank, TOPSIS closeness, or confidence. These steps prepare, rank,
+confidence-label, and attach mapped plants to candidate technologies, but do
+not create final recommendations or classify health risk.
 
 Later engine modules may handle:
 
-- plant selection after technology ranking and confidence scoring
 - final recommendation assembly after plant and confidence layers are ready
 
 Do not implement recommendation code yet. The rules are defined in `backend/docs/SCIENTIFIC_RECOMMENDATION_ENGINE.md`.
