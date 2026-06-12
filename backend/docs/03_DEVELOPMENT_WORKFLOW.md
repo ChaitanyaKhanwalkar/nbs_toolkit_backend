@@ -131,6 +131,8 @@ python tests\engine_schema_smoke_test.py
 python tests\engine_schema_conversion_test.py
 python tests\mcda_matrix_schema_test.py
 python tests\mcda_matrix_schema_conversion_test.py
+python tests\mcda_normalization_schema_test.py
+python tests\mcda_normalization_schema_conversion_test.py
 python tests\scientific_workflow_service_test.py
 python tests\workflow_schema_test.py
 python tests\workflow_schema_conversion_test.py
