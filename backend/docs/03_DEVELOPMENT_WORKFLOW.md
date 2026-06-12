@@ -159,12 +159,15 @@ python tests\workflow_aj_schema_conversion_test.py
 python tests\scientific_workflow_service_ak_test.py
 python tests\workflow_ak_schema_test.py
 python tests\workflow_ak_schema_conversion_test.py
+python tests\scientific_workflow_service_al_test.py
+python tests\workflow_al_schema_test.py
+python tests\workflow_al_schema_conversion_test.py
 ```
 
 These tests validate staged scientific workflow behavior only. Some tests now
 exercise Step I TOPSIS ranking, Step J confidence scoring, and Step K explicit
-plant matching, but they do not create final recommendations, run AHP, or
-expose `/recommend`.
+plant matching. Step L workflow tests exercise internal recommendation assembly
+only. They do not expose `/recommend`, run AHP, or change deployment settings.
 
 ## Internal Workflow Service Note
 
@@ -183,6 +186,12 @@ workflow. The A-K path runs A-J first, then attaches explicitly mapped plants
 through Step K. Plant matching preserves rank, TOPSIS closeness,
 `confidence_score`, and `confidence_label`; missing plant mappings produce empty
 plant match lists with warnings instead of guessed plant records.
+
+Use `max_step="L"` only when you intentionally want the staged A-L internal
+workflow. The A-L path runs A-K first, then assembles internal recommendation
+objects through Step L. Step L sets `match_score` equal to `topsis_closeness`,
+keeps `confidence_score` separate, preserves rank and `weights_status`, and
+still does not create a `/recommend` endpoint.
 
 Keep TOPSIS closeness separate from `confidence_score`. Temporary weights must
 remain visibly marked as `temporary_not_expert_validated`; do not present them

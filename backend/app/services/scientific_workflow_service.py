@@ -1,10 +1,10 @@
-"""Run Scientific Engine Steps A-E, A-J, or A-K as one internal workflow.
+"""Run Scientific Engine Steps A-E, A-J, A-K, or A-L as one internal workflow.
 
 This service is a backend-only coordinator. It calls the existing staged
 engines in order and returns their intermediate bundles so future code can see
 what happened at each step. It does not create final recommendations, API
-routes, match-score fields, AHP pairwise weights, plant-driven ranking, or
-health-risk labels.
+routes, AHP pairwise weights, plant-driven ranking, or health-risk labels.
+Step L only assembles internal recommendation-shaped objects.
 """
 
 from __future__ import annotations
@@ -29,6 +29,8 @@ from app.engines import (
     PlantMatchingEngine,
     PollutantGapBundle,
     PollutantGapEngine,
+    RecommendationAssemblyBundle,
+    RecommendationAssemblyEngine,
     TreatmentNeedBundle,
     TreatmentNeedClassifier,
     TopsisRankingBundle,
@@ -47,7 +49,20 @@ WORKFLOW_VALIDATION_FAILED = "validation_failed"
 WORKFLOW_DATA_MISSING = "data_missing"
 WORKFLOW_FAILED = "failed"
 
-VALID_WORKFLOW_STEPS = {"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K"}
+VALID_WORKFLOW_STEPS = {
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "F",
+    "G",
+    "H",
+    "I",
+    "J",
+    "K",
+    "L",
+}
 DEFAULT_WORKFLOW_END_STEP = "E"
 
 MatrixTransform = Callable[[McdaMatrixBundle], McdaMatrixBundle]
@@ -94,6 +109,7 @@ class ScientificWorkflowResult:
     topsis_ranking_bundle: TopsisRankingBundle | None = None
     confidence_scoring_bundle: ConfidenceScoringBundle | None = None
     plant_matching_bundle: PlantMatchingBundle | None = None
+    recommendation_assembly_bundle: RecommendationAssemblyBundle | None = None
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
@@ -114,6 +130,9 @@ class ScientificWorkflowResult:
             "topsis_ranking_bundle": _to_plain_value(self.topsis_ranking_bundle),
             "confidence_scoring_bundle": _to_plain_value(self.confidence_scoring_bundle),
             "plant_matching_bundle": _to_plain_value(self.plant_matching_bundle),
+            "recommendation_assembly_bundle": _to_plain_value(
+                self.recommendation_assembly_bundle
+            ),
             "errors": list(self.errors),
             "warnings": list(self.warnings),
         }
@@ -174,9 +193,10 @@ class ScientificWorkflowService:
 
         The default `max_step="E"` preserves the original A-E workflow behavior.
         Use `max_step="J"` to run the internal A-J staged workflow. Use
-        `max_step="K"` to add explicit plant matching after A-J. Supplied
-        weights remain transparent; temporary weights are never treated as
-        expert validated unless the explicit flag is true.
+        `max_step="K"` to add explicit plant matching after A-J. Use
+        `max_step="L"` to assemble internal recommendation-shaped objects
+        after A-K. Supplied weights remain transparent; temporary weights are
+        never treated as expert validated unless the explicit flag is true.
         """
 
         errors: list[str] = []
@@ -193,6 +213,7 @@ class ScientificWorkflowService:
         topsis_ranking_bundle: TopsisRankingBundle | None = None
         confidence_scoring_bundle: ConfidenceScoringBundle | None = None
         plant_matching_bundle: PlantMatchingBundle | None = None
+        recommendation_assembly_bundle: RecommendationAssemblyBundle | None = None
 
         try:
             max_step = _normalize_max_step(max_step)
@@ -470,6 +491,33 @@ class ScientificWorkflowService:
             step_completed = "K"
             _extend_unique(warnings, plant_matching_bundle.warnings)
 
+            if max_step == "K":
+                return ScientificWorkflowResult(
+                    workflow_status=WORKFLOW_COMPLETED,
+                    step_completed=step_completed,
+                    input_context=input_context,
+                    water_input_bundle=water_input_bundle,
+                    pollutant_gap_bundle=pollutant_gap_bundle,
+                    treatment_need_bundle=treatment_need_bundle,
+                    candidate_filter_bundle=candidate_filter_bundle,
+                    mcda_matrix_bundle=mcda_matrix_bundle,
+                    normalized_mcda_matrix_bundle=normalized_mcda_matrix_bundle,
+                    mcda_weights_bundle=mcda_weights_bundle,
+                    topsis_ranking_bundle=topsis_ranking_bundle,
+                    confidence_scoring_bundle=confidence_scoring_bundle,
+                    plant_matching_bundle=plant_matching_bundle,
+                    errors=errors,
+                    warnings=warnings,
+                )
+
+            recommendation_assembly_bundle = RecommendationAssemblyEngine().assemble(
+                topsis_ranking_bundle,
+                confidence_scoring_bundle,
+                plant_matching_bundle,
+            )
+            step_completed = "L"
+            _extend_unique(warnings, recommendation_assembly_bundle.warnings)
+
             return ScientificWorkflowResult(
                 workflow_status=WORKFLOW_COMPLETED,
                 step_completed=step_completed,
@@ -484,6 +532,7 @@ class ScientificWorkflowService:
                 topsis_ranking_bundle=topsis_ranking_bundle,
                 confidence_scoring_bundle=confidence_scoring_bundle,
                 plant_matching_bundle=plant_matching_bundle,
+                recommendation_assembly_bundle=recommendation_assembly_bundle,
                 errors=errors,
                 warnings=warnings,
             )
@@ -503,6 +552,7 @@ class ScientificWorkflowService:
                 topsis_ranking_bundle=topsis_ranking_bundle,
                 confidence_scoring_bundle=confidence_scoring_bundle,
                 plant_matching_bundle=plant_matching_bundle,
+                recommendation_assembly_bundle=recommendation_assembly_bundle,
                 errors=errors,
                 warnings=warnings,
             )

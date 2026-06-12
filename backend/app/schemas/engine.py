@@ -1,12 +1,14 @@
 """Pydantic schemas for internal scientific engine bundle outputs.
 
-These response shapes mirror the current Step A-L-A engine dataclasses so future
+These response shapes mirror the current Step A-L engine dataclasses so future
 code can serialize them safely. They do not add scientific behavior, routes,
 API endpoints, AHP pairwise weights, or plant recommendations. Step I
 schemas keep TOPSIS closeness separate from match-score fields. Step J schemas
 serialize confidence scores separately from TOPSIS closeness and rank. Step K
 schemas serialize explicit plant mappings without changing ranks or confidence.
-Step L-A schemas serialize internal recommendation assembly objects only.
+Step L-A schemas serialize internal recommendation assembly objects only, and
+the workflow wrapper can carry that bundle when max_step="L" is explicitly
+requested.
 """
 
 from typing import Any, Literal
@@ -452,9 +454,9 @@ class ScientificWorkflowResultResponse(RawResponseModel):
 
     Bundle fields are optional because the workflow can stop safely at early
     stages or can be requested to stop at Step E for backward-compatible raw
-    orchestration. This schema mirrors staged outputs through Step K and does
-    not add final recommendation, match-score, AHP pairwise, plant-driven
-    ranking, or health-risk fields.
+    orchestration. This schema mirrors staged outputs through explicit Step L
+    and does not add API routes, AHP pairwise, plant-driven ranking, or
+    health-risk fields.
     """
 
     workflow_status: str
@@ -470,5 +472,6 @@ class ScientificWorkflowResultResponse(RawResponseModel):
     topsis_ranking_bundle: TopsisRankingBundleResponse | None = None
     confidence_scoring_bundle: ConfidenceScoringBundleResponse | None = None
     plant_matching_bundle: PlantMatchingBundleResponse | None = None
+    recommendation_assembly_bundle: RecommendationAssemblyBundleResponse | None = None
     errors: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)

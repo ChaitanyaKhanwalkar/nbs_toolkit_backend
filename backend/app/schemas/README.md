@@ -18,7 +18,7 @@ Use schemas here for:
 - river context responses
 - data availability responses
 - internal scientific engine bundle responses from Steps A-K and Step L-A
-- internal scientific workflow result responses that wrap staged A-J or A-K bundles
+- internal scientific workflow result responses that wrap staged A-J, A-K, or A-L bundles
 
 Do not put database queries here. Repositories query the database.
 
@@ -37,8 +37,9 @@ workflow result schema can include an optional Step K bundle when
 `max_step="K"` is requested, but it does not let plants affect rank,
 confidence, health risk, or final recommendations. Step L-A schemas serialize
 internal assembled recommendation objects and may include `match_score` only as
-a direct copy of `topsis_closeness`; they still do not create API route fields
-or `/recommend`.
+a direct copy of `topsis_closeness`. The workflow result schema can include an
+optional Step L assembly bundle only when `max_step="L"` is explicitly
+requested; it still does not create API route fields or `/recommend`.
 
 Do not add endpoint-facing recommendation fields, AHP pairwise logic, plant
 recommendation fields, or health-risk classifications until that logic is
