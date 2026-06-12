@@ -158,6 +158,22 @@ These tests validate staged scientific workflow behavior only. Some tests now
 exercise Step I TOPSIS ranking and Step J confidence scoring, but they do not
 create final recommendations, run AHP, or expose `/recommend`.
 
+## Internal Workflow Service Note
+
+`ScientificWorkflowService.run(...)` defaults to the safe A-E path. That means
+it stops after input normalization, water input assembly, pollutant gaps,
+treatment need classification, and candidate filtering unless a later step is
+explicitly requested.
+
+Use `max_step="J"` only when you intentionally want the staged A-J internal
+workflow. The A-J path adds MCDA matrix preparation, MCDA normalization, criteria
+weights handling, TOPSIS ranking, and confidence scoring. It still does not
+create final recommendations and does not create or expose `/recommend`.
+
+Keep TOPSIS closeness separate from `confidence_score`. Temporary weights must
+remain visibly marked as `temporary_not_expert_validated`; do not present them
+as expert-validated weights.
+
 ## 4. Add Future Modules Step By Step
 
 Build the backend in layers.
