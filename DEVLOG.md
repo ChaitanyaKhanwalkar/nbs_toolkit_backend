@@ -15,6 +15,15 @@ Template:
 
 ---
 
+## 2026-06-13 - Step L-B workflow service support
+**Done:** Step L-B workflow-service support was added. `ScientificWorkflowService.run(...)` still defaults to the safe A-E path. `max_step="J"` still runs A-J only. `max_step="K"` still runs A-K only. `max_step="L"` now runs A-K plus internal recommendation assembly.
+**Why:** The workflow needed an explicit opt-in path for internal recommendation assembly while keeping earlier staged paths unchanged and avoiding endpoint work.
+**Sources added:** none.
+**Gaps / NULLs logged:** `recommendation_assembly_bundle` is internal workflow output only. `match_score` is copied from `topsis_closeness`. `confidence_score`, rank, `weights_status`, and `expert_validated` remain separate and preserved. Plant matches remain supporting options and do not affect rank. Still no `/recommend` endpoint, still no API route, still no Azure/secrets/env changes, and still no DB mutation.
+**Blockers / next:** Keep Step L internal until a future task explicitly approves any endpoint or production-facing API design.
+
+---
+
 ## 2026-06-12 - A-K workflow service support
 **Done:** A-K workflow-service support was added. `ScientificWorkflowService.run(...)` still defaults to the safe A-E path. `max_step="J"` still runs A-J without plant matching. `max_step="K"` now runs A-J plus Step K plant matching.
 **Why:** The internal workflow needed an explicit opt-in path for plant matching after ranked NbS options while preserving the safe default and the A-J behavior.
