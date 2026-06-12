@@ -15,6 +15,15 @@ Template:
 
 ---
 
+## 2026-06-13 - Step M local recommendation API endpoint
+**Done:** Step M local recommendation API endpoint was added. `POST /api/v1/recommend` wraps `ScientificWorkflowService.run(..., max_step="L")` and returns the internal `recommendation_assembly_bundle`.
+**Why:** The backend needed a local API readiness wrapper around the staged A-L workflow without changing deployment, Azure settings, secrets, `.env`, old folders, or database records.
+**Sources added:** none.
+**Gaps / NULLs logged:** `match_score` is copied from `topsis_closeness`. `confidence_score` remains separate from `match_score`. `weights_status` and `expert_validated` remain visible. Temporary weights remain provisional and must not be presented as expert validated. Health risk and AHP remain pending/not implemented. No Azure deployment was done, no secrets or `.env` changes were made, and no DB mutation was added.
+**Blockers / next:** Local API tests passed for the recommendation route. `/health/db` returned `503` during `api_smoke_test.py` while other raw DB-backed routes passed; DB health should be checked before deployment.
+
+---
+
 ## 2026-06-13 - Step L-B workflow service support
 **Done:** Step L-B workflow-service support was added. `ScientificWorkflowService.run(...)` still defaults to the safe A-E path. `max_step="J"` still runs A-J only. `max_step="K"` still runs A-K only. `max_step="L"` now runs A-K plus internal recommendation assembly.
 **Why:** The workflow needed an explicit opt-in path for internal recommendation assembly while keeping earlier staged paths unchanged and avoiding endpoint work.
