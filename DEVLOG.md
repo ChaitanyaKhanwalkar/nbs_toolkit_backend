@@ -15,6 +15,15 @@ Template:
 
 ---
 
+## 2026-06-13 - Step N.5 Azure startup dependency readiness
+**Done:** Added `gunicorn>=22.0` to the revamped backend runtime dependencies for Azure FastAPI startup.
+**Why:** The current direct Uvicorn startup command may work, but Gunicorn with Uvicorn workers is preferred for production App Service. Recommended Azure Startup Command: `gunicorn -w 2 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 app.main:app`.
+**Sources added:** none.
+**Gaps / NULLs logged:** No secrets changed, no DB files changed, no app/scientific logic changed, and no deployment was performed.
+**Blockers / next:** Set or verify the Azure Startup Command only during the controlled deployment step.
+
+---
+
 ## 2026-06-13 - Step N.4 backend-only Azure workflow packaging
 **Done:** Updated the GitHub Actions workflow packaging path for the revamped backend.
 **Why:** Azure needs the backend package root to contain `app/` and `requirements.txt`, not the old root app or the whole repository. The workflow now installs `backend/requirements.txt` and packages the contents of `backend/`.
