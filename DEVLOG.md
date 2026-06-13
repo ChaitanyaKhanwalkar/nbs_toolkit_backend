@@ -15,6 +15,15 @@ Template:
 
 ---
 
+## 2026-06-13 - Step O.4.5 Azure startup script for Oryx package
+**Done:** Added `backend/startup.sh` and updated the workflow package verification so `startup.sh`, `app/main.py`, and `requirements.txt` are visible in `app.zip`.
+**Why:** Azure/Oryx can leave the correct revamped backend inside `output.tar.zst` while stale files remain in `/home/site/wwwroot`. A repository-owned startup script avoids fragile nested portal quoting by letting Azure use the simple Startup Command `bash /home/site/wwwroot/startup.sh`.
+**Sources added:** none.
+**Gaps / NULLs logged:** The startup script extracts `output.tar.zst` to `/tmp/nbsrun` when present, starts `app.main:app` from the clean extracted package, does not print secrets such as `DATABASE_URL`, and does not mutate the database. No secrets, DB files, scientific logic, or API logic changed.
+**Blockers / next:** Set Azure Startup Command to `bash /home/site/wwwroot/startup.sh` during the controlled portal/app settings step and confirm `/health` uses the extracted package.
+
+---
+
 ## 2026-06-13 - Step N.5 Azure startup dependency readiness
 **Done:** Added `gunicorn>=22.0` to the revamped backend runtime dependencies for Azure FastAPI startup.
 **Why:** The current direct Uvicorn startup command may work, but Gunicorn with Uvicorn workers is preferred for production App Service. Recommended Azure Startup Command: `gunicorn -w 2 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 app.main:app`.

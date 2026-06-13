@@ -42,9 +42,11 @@ jobs:
             -x "tests/*"
           cd ..
 
-      # 5) Print zip contents so app/main.py and requirements.txt are visible.
+      # 5) Print zip contents so startup.sh, app/main.py, and requirements.txt are visible.
       - name: Verify deployment package
-        run: unzip -l app.zip | head -120
+        run: |
+          unzip -l app.zip | head -120
+          unzip -l app.zip | grep -E "startup.sh|app/main.py|requirements.txt"
 
       # 6) Deploy using the existing publish profile.
       - name: Deploy to Azure Web App
