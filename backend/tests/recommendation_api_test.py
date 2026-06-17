@@ -24,7 +24,10 @@ except ModuleNotFoundError as exc:
     )
     raise SystemExit(0) from exc
 
-from app.api.routes.recommendation import get_scientific_workflow_service
+from app.api.routes.recommendation import (
+    get_reference_data_service,
+    get_scientific_workflow_service,
+)
 from app.main import app
 from app.services import ScientificWorkflowService
 from scientific_engine_ai_integration_test import (
@@ -75,18 +78,56 @@ def fake_workflow_service() -> FakeWorkflowService:
     return FakeWorkflowService()
 
 
+class FakeReferenceDataService:
+    """Reference-service double that echoes a citation for each requested ID."""
+
+    def get_citations_for_ids(self, source_ids: Any) -> list[dict[str, Any]]:
+        """Return one fake citation per unique integer ID, no DB involved."""
+
+        unique: list[int] = []
+        for source_id in source_ids or []:
+            try:
+                value = int(source_id)
+            except (TypeError, ValueError):
+                continue
+            if value not in unique:
+                unique.append(value)
+        return [
+            {
+                "id": value,
+                "short": f"S{value}",
+                "citation": f"Test source {value}",
+                "type": "test",
+                "url": None,
+                "license": "test-license",
+            }
+            for value in unique
+        ]
+
+
+def fake_reference_data_service() -> FakeReferenceDataService:
+    """Return the local fake reference-data service for dependency overrides."""
+
+    return FakeReferenceDataService()
+
+
 @contextmanager
 def recommendation_test_client() -> Iterator[TestClient]:
-    """Return a client with the recommendation workflow dependency overridden."""
+    """Return a client with the recommendation dependencies overridden."""
 
     app.dependency_overrides[get_scientific_workflow_service] = fake_workflow_service
+    app.dependency_overrides[get_reference_data_service] = fake_reference_data_service
     try:
         yield TestClient(app)
     finally:
         app.dependency_overrides.clear()
 
 
-def valid_payload(*, include_weights: bool = True) -> dict[str, Any]:
+def valid_payload(
+    *,
+    include_weights: bool = True,
+    use_default_weights: bool | None = None,
+) -> dict[str, Any]:
     """Return a request payload shaped like a local frontend request."""
 
     raw_input = build_raw_input()
@@ -98,6 +139,8 @@ def valid_payload(*, include_weights: bool = True) -> dict[str, Any]:
     }
     if include_weights:
         payload["temporary_weights"] = temporary_weights()
+    if use_default_weights is not None:
+        payload["use_default_weights"] = use_default_weights
     return payload
 
 
@@ -139,6 +182,25 @@ def assert_recommendation_response_with_temporary_weights() -> None:
         assert recommendation["weights_status"] == "temporary_not_expert_validated"
 
 
+def assert_response_includes_resolved_citations() -> None:
+    """Source IDs referenced by recommendations should resolve to citations."""
+
+    with recommendation_test_client() as client:
+        payload = post_recommend(client, valid_payload())
+
+    citations = payload["citations"]
+    assert citations
+    referenced_ids = {
+        source_id
+        for recommendation in payload["recommendation_assembly_bundle"]["recommendations"]
+        for source_id in recommendation["evidence_summary"]["source_ids"]
+    }
+    citation_ids = {citation["id"] for citation in citations}
+    assert citation_ids == referenced_ids
+    for citation in citations:
+        assert "citation" in citation and "license" in citation
+
+
 def assert_plants_do_not_affect_rank() -> None:
     """Plant matches should be supporting output and should not change rank."""
 
@@ -157,10 +219,13 @@ def assert_plants_do_not_affect_rank() -> None:
 
 
 def assert_missing_weights_returns_safe_warning_response() -> None:
-    """Missing weights should return a structured response instead of crashing."""
+    """Opting out of defaults with no supplied weights returns a safe empty response."""
 
     with recommendation_test_client() as client:
-        payload = post_recommend(client, valid_payload(include_weights=False))
+        payload = post_recommend(
+            client,
+            valid_payload(include_weights=False, use_default_weights=False),
+        )
 
     assert payload["workflow_status"] == "completed"
     assert payload["step_completed"] == "L"
@@ -170,6 +235,24 @@ def assert_missing_weights_returns_safe_warning_response() -> None:
     assert payload["recommendation_assembly_bundle"]["recommendation_count"] == 0
     assert payload["provisional_note"]
     assert any("No MCDA criteria weights" in warning for warning in payload["warnings"])
+
+
+def assert_default_weights_produce_provisional_ranking() -> None:
+    """No supplied weights + default-weights on should still rank, flagged provisional."""
+
+    with recommendation_test_client() as client:
+        payload = post_recommend(client, valid_payload(include_weights=False))
+
+    assert payload["workflow_status"] == "completed"
+    assert payload["step_completed"] == "L"
+    assert payload["weights_status"] == "temporary_not_expert_validated"
+    assert payload["expert_validated"] is False
+    assert payload["provisional_note"]
+
+    bundle = payload["recommendation_assembly_bundle"]
+    assert bundle["recommendation_count"] > 0
+    assert bundle["weights_status"] == "temporary_not_expert_validated"
+    assert any("provisional default" in warning for warning in payload["warnings"])
 
 
 def assert_forbidden_fields_are_absent() -> None:
@@ -224,6 +307,8 @@ def main() -> None:
     assert_recommendation_response_with_temporary_weights()
     assert_plants_do_not_affect_rank()
     assert_missing_weights_returns_safe_warning_response()
+    assert_default_weights_produce_provisional_ranking()
+    assert_response_includes_resolved_citations()
     assert_forbidden_fields_are_absent()
     assert_no_stack_trace_for_failed_service()
     print("recommendation API checks ok: local max_step L wrapper only")

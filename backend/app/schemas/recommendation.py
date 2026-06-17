@@ -23,6 +23,7 @@ class RecommendationRequest(RawResponseModel):
     basin_id: int | None = None
     region_id: int | None = None
     temporary_weights: dict[str, float] | None = None
+    use_default_weights: bool = True
     notes: str | None = None
     context: dict[str, Any] = Field(default_factory=dict)
 
@@ -47,6 +48,17 @@ class RecommendationRequest(RawResponseModel):
         return payload
 
 
+class CitationResponse(RawResponseModel):
+    """One resolved provenance/citation record referenced by a recommendation."""
+
+    id: int
+    short: str | None = None
+    citation: str | None = None
+    type: str | None = None
+    url: str | None = None
+    license: str | None = None
+
+
 class RecommendationResponse(RawResponseModel):
     """Safe response returned by the local recommendation workflow endpoint."""
 
@@ -54,6 +66,7 @@ class RecommendationResponse(RawResponseModel):
     step_completed: str | None = None
     use_case: str | None = None
     recommendation_assembly_bundle: RecommendationAssemblyBundleResponse | None = None
+    citations: list[CitationResponse] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
     errors: list[str] = Field(default_factory=list)
     missing_data_messages: list[str] = Field(default_factory=list)

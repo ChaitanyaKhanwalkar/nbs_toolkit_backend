@@ -151,6 +151,21 @@ def assert_evidence_summary_preserves_sources_and_cautions() -> None:
     assert recommendation.evidence_summary.warnings
 
 
+def assert_criteria_breakdown_is_exposed() -> None:
+    """Assembly should surface each criterion's normalized value and weight."""
+
+    recommendation = assembled_bundle().recommendations[0]
+
+    assert recommendation.criteria_breakdown
+    for contribution in recommendation.criteria_breakdown:
+        assert contribution["criterion_name"]
+        assert 0.0 <= contribution["normalized_value"] <= 1.0
+        assert "weight" in contribution and "weighted_value" in contribution
+    assert any(
+        "criteria_breakdown" in line for line in recommendation.explanation
+    )
+
+
 def assert_no_forbidden_fields() -> None:
     """Step L-A output must not include API, AHP, or health-risk fields."""
 
@@ -191,6 +206,7 @@ def main() -> None:
     assert_missing_confidence_is_safe()
     assert_temporary_weights_remain_provisional()
     assert_evidence_summary_preserves_sources_and_cautions()
+    assert_criteria_breakdown_is_exposed()
     assert_no_forbidden_fields()
     assert_no_api_or_recommend_route_involved()
     print("recommendation assembly checks ok: Step L-A internal objects only")

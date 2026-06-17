@@ -30,6 +30,31 @@ from app.engines.mcda_normalization import (
     NormalizedMcdaMatrixRow,
 )
 from app.engines.mcda_numeric_projection import McdaNumericProjectionEngine
+from app.engines.evidence_strength import (
+    EvidenceStrengthResult,
+    compute_evidence_strength,
+)
+from app.engines.footprint_feasibility import (
+    FootprintFeasibilityResult,
+    compute_footprint_requirement,
+)
+from app.engines.hydrological_suitability import (
+    HydrologicalSuitabilityResult,
+    compute_hydrological_suitability,
+)
+from app.engines.om_simplicity import (
+    OmSimplicityResult,
+    compute_om_simplicity,
+)
+from app.engines.pollution_source_fit import (
+    PollutionSourceFitResult,
+    compute_pollution_source_fit,
+)
+from app.engines.site_suitability import (
+    SiteSuitabilityResult,
+    classify_family,
+    compute_site_suitability,
+)
 from app.engines.mcda_weights import (
     McdaWeightsBundle,
     McdaWeightsHandler,
@@ -85,6 +110,19 @@ __all__ = [
     "McdaMatrixRow",
     "McdaNormalizationEngine",
     "McdaNumericProjectionEngine",
+    "EvidenceStrengthResult",
+    "compute_evidence_strength",
+    "FootprintFeasibilityResult",
+    "compute_footprint_requirement",
+    "HydrologicalSuitabilityResult",
+    "compute_hydrological_suitability",
+    "OmSimplicityResult",
+    "compute_om_simplicity",
+    "PollutionSourceFitResult",
+    "compute_pollution_source_fit",
+    "SiteSuitabilityResult",
+    "classify_family",
+    "compute_site_suitability",
     "McdaWeightsBundle",
     "McdaWeightsHandler",
     "NormalizedMcdaCriterion",

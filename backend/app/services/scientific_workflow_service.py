@@ -10,7 +10,7 @@ Step L only assembles internal recommendation-shaped objects.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Callable, Mapping
+from typing import Any, Callable, Mapping, Protocol
 
 from app.engines import (
     CandidateFilterBundle,
@@ -67,6 +67,63 @@ VALID_WORKFLOW_STEPS = {
 DEFAULT_WORKFLOW_END_STEP = "E"
 
 MatrixTransform = Callable[[McdaMatrixBundle], McdaMatrixBundle]
+
+# Region/site-attribute fields handed to the C3 site-suitability engine. Site
+# attributes win on conflict because they carry the terrain/land-cover values.
+SITE_CONTEXT_REGION_FIELDS = [
+    "soil_type",
+    "hydrologic_soil_group",
+    "infiltration_class",
+    "sand_pct",
+    "silt_pct",
+    "clay_pct",
+    "rainfall_mm_yr",
+    "aridity_P_PET",
+]
+SITE_CONTEXT_ATTRIBUTE_FIELDS = [
+    "slope_mean",
+    "slope_median",
+    "dom_land_cover",
+    "agri_frac",
+    "builtup_frac",
+    "trees_frac",
+    "range_frac",
+    "stream_order",
+    "drainage_area_km2",
+    "dilution_proxy",
+]
+
+
+class SiteProfileProvider(Protocol):
+    """Small provider interface for resolving a raw site profile by region."""
+
+    def get_site_profile(self, region_id: int) -> dict[str, Any]:
+        """Return raw region, basin, site-attribute, and stream-attribute data."""
+
+
+def _build_site_context(profile: Mapping[str, Any] | None) -> dict[str, Any] | None:
+    """Flatten a raw site profile into the C3 site-context the engine reads.
+
+    Returns ``None`` when no region/site-attribute data is available so the
+    matrix builder simply skips C3 instead of scoring against empty inputs.
+    """
+
+    if not profile:
+        return None
+    region = profile.get("region") or {}
+    site_attributes = profile.get("site_attributes") or {}
+
+    site_context: dict[str, Any] = {}
+    for field_name in SITE_CONTEXT_REGION_FIELDS:
+        if region.get(field_name) is not None:
+            site_context[field_name] = region.get(field_name)
+    for field_name in SITE_CONTEXT_ATTRIBUTE_FIELDS:
+        if site_attributes.get(field_name) is not None:
+            site_context[field_name] = site_attributes.get(field_name)
+
+    if not site_context:
+        return None
+    return site_context
 
 
 def _to_plain_value(value: Any) -> Any:
@@ -153,6 +210,7 @@ class ScientificWorkflowService:
         standards_service: StandardsProvider | None = None,
         nbs_provider: NbsCandidateProvider | None = None,
         plant_provider: PlantMappingProvider | None = None,
+        site_service: SiteProfileProvider | None = None,
         input_engine: InputNormalizationEngine | None = None,
         treatment_classifier: TreatmentNeedClassifier | None = None,
     ) -> None:
@@ -160,6 +218,7 @@ class ScientificWorkflowService:
         self.standards_service = standards_service
         self.nbs_provider = nbs_provider
         self.plant_provider = plant_provider
+        self.site_service = site_service
         self.input_engine = input_engine or InputNormalizationEngine()
         self.treatment_classifier = treatment_classifier or TreatmentNeedClassifier()
 
@@ -169,6 +228,7 @@ class ScientificWorkflowService:
 
         from app.services.nbs_catalog_service import NbsCatalogService
         from app.services.plant_catalog_service import PlantCatalogService
+        from app.services.site_profile_service import SiteProfileService
         from app.services.standards_service import StandardsService
         from app.services.water_data_service import WaterDataService
 
@@ -177,6 +237,7 @@ class ScientificWorkflowService:
             standards_service=StandardsService(session),
             nbs_provider=NbsCatalogService(session),
             plant_provider=PlantCatalogService(session),
+            site_service=SiteProfileService(session),
         )
 
     def run(
@@ -187,6 +248,7 @@ class ScientificWorkflowService:
         supplied_weights: Mapping[str, Any] | None = None,
         weights_source: str | None = None,
         expert_validated: bool = False,
+        use_default_weights: bool = True,
         matrix_transform: MatrixTransform | None = None,
         **fields: Any,
     ) -> ScientificWorkflowResult:
@@ -348,8 +410,10 @@ class ScientificWorkflowService:
                     warnings=warnings,
                 )
 
+            site_context = self._resolve_site_context(input_context, warnings)
             mcda_matrix_bundle = McdaMatrixBuilder(self.nbs_provider).build(
                 candidate_filter_bundle,
+                site_context=site_context,
             )
             if matrix_transform is not None:
                 mcda_matrix_bundle = matrix_transform(mcda_matrix_bundle)
@@ -392,10 +456,31 @@ class ScientificWorkflowService:
                     warnings=warnings,
                 )
 
+            effective_weights = supplied_weights
+            effective_weights_source = weights_source
+            if not effective_weights and use_default_weights and not expert_validated:
+                from app.core.default_weights import (
+                    DEFAULT_WEIGHTS_SOURCE,
+                    select_default_weights,
+                )
+
+                default_weights = select_default_weights(
+                    use_case,
+                    normalized_mcda_matrix_bundle.criteria_names,
+                )
+                if default_weights:
+                    effective_weights = default_weights
+                    effective_weights_source = weights_source or DEFAULT_WEIGHTS_SOURCE
+                    _append_unique(
+                        warnings,
+                        "No weights were supplied; applied provisional default "
+                        "criteria weights (temporary_not_expert_validated).",
+                    )
+
             mcda_weights_bundle = McdaWeightsHandler().prepare_from_normalized_bundle(
                 normalized_mcda_matrix_bundle,
-                supplied_weights=supplied_weights,
-                weights_source=weights_source,
+                supplied_weights=effective_weights,
+                weights_source=effective_weights_source,
                 expert_validated=expert_validated,
             )
             step_completed = "H"
@@ -560,6 +645,38 @@ class ScientificWorkflowService:
                 errors=errors,
                 warnings=warnings,
             )
+
+    def _resolve_site_context(
+        self,
+        input_context: InputContext,
+        warnings: list[str],
+    ) -> dict[str, Any] | None:
+        """Resolve the C3 site context from region_id when a site service exists.
+
+        Returns ``None`` (with a transparent warning) when no site service is
+        wired, no region_id was provided, or the region has no usable site data,
+        so the matrix builder simply leaves C3 unscored instead of guessing.
+        """
+
+        region_id = input_context.normalized_input.get("region_id")
+        if self.site_service is None or region_id is None:
+            if region_id is None:
+                _append_unique(
+                    warnings,
+                    "No region_id was provided, so C3 site_suitability could not "
+                    "be scored from site data.",
+                )
+            return None
+
+        profile = self.site_service.get_site_profile(region_id)
+        site_context = _build_site_context(profile)
+        if site_context is None:
+            _append_unique(
+                warnings,
+                f"No usable site attributes were found for region_id {region_id}; "
+                "C3 site_suitability was left unscored.",
+            )
+        return site_context
 
     @staticmethod
     def _water_data_is_missing(bundle: WaterInputBundle) -> bool:

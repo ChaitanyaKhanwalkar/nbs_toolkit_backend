@@ -7,6 +7,7 @@ deployment wiring.
 """
 
 from fastapi import FastAPI, Response, status
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import api_router
 from app.core.config import get_settings
@@ -19,6 +20,15 @@ configure_logging(settings.log_level)
 app = FastAPI(
     title=settings.app_name,
     version="0.1.0",
+)
+# Allow the Flutter web client (random localhost port / Cloudflare tunnel) to
+# call the API from the browser. No credentials are used, so "*" is safe here.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins_list,
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 app.include_router(api_router, prefix="/api/v1")
 

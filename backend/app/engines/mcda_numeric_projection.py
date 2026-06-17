@@ -38,14 +38,20 @@ class McdaNumericProjectionEngine:
     def project(self, matrix_bundle: McdaMatrixBundle) -> McdaMatrixBundle:
         """Return a copied matrix bundle with safe projected numeric criteria."""
 
-        projected_rows = [_project_row(row) for row in matrix_bundle.rows]
+        # When Step F already produced the real C3 site_suitability from a
+        # resolved site context, do not also project the metadata-completeness
+        # proxy: the two definitions must never mix in one matrix.
+        project_site_proxy = not matrix_bundle.site_context_applied
+        projected_rows = [
+            _project_row(row, project_site_proxy) for row in matrix_bundle.rows
+        ]
         criteria_names = list(matrix_bundle.criteria_names)
         for row in projected_rows:
             for criterion_name in row.criteria_values:
                 _append_once(criteria_names, criterion_name)
 
         warnings = list(matrix_bundle.warnings)
-        if _has_projected_site_suitability(projected_rows):
+        if project_site_proxy and _has_projected_site_suitability(projected_rows):
             _append_once(warnings, SITE_SUITABILITY_NOTE)
 
         return replace(
@@ -56,7 +62,7 @@ class McdaNumericProjectionEngine:
         )
 
 
-def _project_row(row: McdaMatrixRow) -> McdaMatrixRow:
+def _project_row(row: McdaMatrixRow, project_site_proxy: bool = True) -> McdaMatrixRow:
     """Return a copied row with projected numeric criteria added when available."""
 
     criteria_values = dict(row.criteria_values)
@@ -82,12 +88,13 @@ def _project_row(row: McdaMatrixRow) -> McdaMatrixRow:
             "efficiency ranges only; no efficiency values were invented."
         )
 
-    site_suitability = _project_site_suitability(
-        criteria_values.get("climate_site_suitability")
-    )
-    if site_suitability is not None:
-        criteria_values[PROJECTED_SITE_SUITABILITY] = site_suitability
-        notes.append(SITE_SUITABILITY_NOTE)
+    if project_site_proxy:
+        site_suitability = _project_site_suitability(
+            criteria_values.get("climate_site_suitability")
+        )
+        if site_suitability is not None:
+            criteria_values[PROJECTED_SITE_SUITABILITY] = site_suitability
+            notes.append(SITE_SUITABILITY_NOTE)
 
     cost_indicator = criteria_values.get(PROJECTED_COST_INDICATOR)
     if _as_float(cost_indicator) is not None:

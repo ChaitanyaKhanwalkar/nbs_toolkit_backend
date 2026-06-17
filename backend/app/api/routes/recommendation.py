@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.schemas import RecommendationRequest, RecommendationResponse
 from app.services import ScientificWorkflowService
+from app.services.reference_data_service import ReferenceDataService
 
 router = APIRouter(prefix="/recommend", tags=["recommendation"])
 
@@ -26,12 +27,24 @@ def get_scientific_workflow_service(
     return ScientificWorkflowService.from_session(db)
 
 
+def get_reference_data_service(
+    db: Annotated[Session, Depends(get_db)],
+) -> ReferenceDataService:
+    """Build the read-only reference-data service for citation resolution."""
+
+    return ReferenceDataService(db)
+
+
 @router.post("", response_model=RecommendationResponse)
 def run_local_recommendation_workflow(
     request: RecommendationRequest,
     workflow_service: Annotated[
         ScientificWorkflowService,
         Depends(get_scientific_workflow_service),
+    ],
+    reference_service: Annotated[
+        ReferenceDataService,
+        Depends(get_reference_data_service),
     ],
 ) -> dict[str, Any]:
     """Run the staged A-L workflow and return safe recommendation assembly output."""
@@ -47,6 +60,7 @@ def run_local_recommendation_workflow(
                 else None
             ),
             expert_validated=False,
+            use_default_weights=request.use_default_weights,
         )
     except Exception as exc:  # pragma: no cover - defensive API boundary
         return {
@@ -60,18 +74,21 @@ def run_local_recommendation_workflow(
             "weights_status": None,
             "expert_validated": False,
             "provisional_note": None,
+            "citations": [],
         }
 
     payload = result.to_dict()
     assembly_bundle = payload.get("recommendation_assembly_bundle")
     weights_status = _weights_status(payload, assembly_bundle)
     expert_validated = _expert_validated(payload, assembly_bundle)
+    citations = _resolve_citations(assembly_bundle, reference_service)
 
     return {
         "workflow_status": payload.get("workflow_status", "failed"),
         "step_completed": payload.get("step_completed"),
         "use_case": _use_case(payload, request.use_case),
         "recommendation_assembly_bundle": assembly_bundle,
+        "citations": citations,
         "warnings": _warnings(payload, weights_status),
         "errors": list(payload.get("errors") or []),
         "missing_data_messages": _missing_data_messages(payload),
@@ -79,6 +96,28 @@ def run_local_recommendation_workflow(
         "expert_validated": expert_validated,
         "provisional_note": _provisional_note(weights_status),
     }
+
+
+def _resolve_citations(
+    assembly_bundle: dict[str, Any] | None,
+    reference_service: ReferenceDataService,
+) -> list[dict[str, Any]]:
+    """Resolve every source ID referenced by the recommendations into citations."""
+
+    if not assembly_bundle:
+        return []
+    source_ids: list[int] = []
+    for recommendation in assembly_bundle.get("recommendations") or []:
+        evidence_summary = recommendation.get("evidence_summary") or {}
+        for source_id in evidence_summary.get("source_ids") or []:
+            if source_id not in source_ids:
+                source_ids.append(source_id)
+    if not source_ids:
+        return []
+    try:
+        return reference_service.get_citations_for_ids(source_ids)
+    except Exception:  # pragma: no cover - citations are best-effort provenance
+        return []
 
 
 def _use_case(payload: dict[str, Any], fallback: str) -> str | None:

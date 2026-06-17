@@ -57,6 +57,11 @@ class AssembledRecommendation:
     evidence_summary: RecommendationEvidenceSummary = field(
         default_factory=RecommendationEvidenceSummary
     )
+    # Per-criterion contributions (criterion_name, normalized_value, weight,
+    # weighted_value) carried straight from the Step I TOPSIS contributions so
+    # the recommendation can explain which criteria drove its rank (engine spec
+    # sections 8 and 18). A list of dicts to match the frontend breakdown view.
+    criteria_breakdown: list[dict[str, Any]] = field(default_factory=list)
     explanation: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
@@ -226,12 +231,17 @@ def _assembled_recommendation(
         warnings.extend(plant_match.warnings)
         notes.extend(plant_match.notes)
 
+    criteria_breakdown = _criteria_breakdown(candidate)
+
     explanation = [
         f"Rank {candidate.rank} is preserved from Step I TOPSIS ranking.",
         "match_score is copied directly from Step I topsis_closeness.",
         "confidence_score is copied from Step J and kept separate from match_score."
         if confidence is not None
         else "confidence_score is None because no matching Step J result was available.",
+        "criteria_breakdown lists each criterion's normalized 0-1 value behind the rank."
+        if criteria_breakdown
+        else "criteria_breakdown is empty because no normalized criterion contributions were available.",
         "Plant matches are supporting explicit mappings only and do not affect rank.",
     ]
 
@@ -268,6 +278,7 @@ def _assembled_recommendation(
         ),
         plant_matches=list(plant_matches),
         evidence_summary=evidence_summary,
+        criteria_breakdown=criteria_breakdown,
         explanation=explanation,
         warnings=_unique(warnings),
         notes=[
@@ -275,6 +286,16 @@ def _assembled_recommendation(
             *evidence_summary.notes,
         ],
     )
+
+
+def _criteria_breakdown(candidate: TopsisRankedCandidate) -> list[dict[str, Any]]:
+    """Expose each criterion's normalized value, weight, and weighted value."""
+
+    return [
+        contribution.to_dict()
+        for contribution in candidate.criterion_contributions
+        if contribution.criterion_name
+    ]
 
 
 def _confidence_by_nbs_id(

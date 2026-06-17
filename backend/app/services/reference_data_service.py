@@ -56,6 +56,28 @@ class ReferenceDataService:
 
         return _to_dicts(self.sources.list_sources())
 
+    def get_citations_for_ids(
+        self,
+        source_ids: list[int] | set[int] | None,
+    ) -> list[dict[str, Any]]:
+        """Resolve source IDs into citation rows for a response's provenance.
+
+        Unknown or non-integer IDs are skipped (not invented). The result is
+        deduped and ordered by source ID.
+        """
+
+        unique_ids: list[int] = []
+        for source_id in source_ids or []:
+            try:
+                value = int(source_id)
+            except (TypeError, ValueError):
+                continue
+            if value not in unique_ids:
+                unique_ids.append(value)
+        if not unique_ids:
+            return []
+        return _to_dicts(self.sources.get_many_by_ids(unique_ids))
+
     def list_available_water_quality_stations(self) -> list[dict[str, Any]]:
         """Return regions marked as water-quality stations."""
 

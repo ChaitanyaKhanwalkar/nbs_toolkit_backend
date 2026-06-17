@@ -414,6 +414,9 @@ class AssembledRecommendationResponse(RawResponseModel):
     evidence_summary: RecommendationEvidenceSummaryResponse = Field(
         default_factory=RecommendationEvidenceSummaryResponse
     )
+    criteria_breakdown: list[TopsisCriterionContributionResponse] = Field(
+        default_factory=list
+    )
     explanation: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)

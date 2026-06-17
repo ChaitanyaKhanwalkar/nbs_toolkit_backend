@@ -1,10 +1,12 @@
 """Step F engine for preparing raw MCDA decision matrix inputs.
 
 This module turns Step E candidate eligibility results into raw matrix rows for
-future MCDA/TOPSIS work. It only structures existing catalogue, footprint,
-implementation, criteria, and removal-evidence fields. It does not normalize,
-weight, rank, calculate TOPSIS, calculate match/confidence scores, recommend
-plants, classify health risk, or create final recommendations.
+future MCDA/TOPSIS work. It structures existing catalogue, footprint,
+implementation, criteria, and removal-evidence fields. When a resolved site
+context is supplied it also injects the MCDA criterion C3 (site_suitability)
+using the transparent, provisional rules in `site_suitability.py`. It does not
+normalize, weight, rank, calculate TOPSIS, calculate match/confidence scores,
+recommend plants, classify health risk, or create final recommendations.
 """
 
 from dataclasses import asdict, dataclass, field
@@ -19,6 +21,12 @@ from app.engines.candidate_filtering import (
     NbsCandidateProvider,
 )
 from app.engines.input_normalization import normalize_match_key, normalize_text
+from app.engines.evidence_strength import compute_evidence_strength
+from app.engines.footprint_feasibility import compute_footprint_requirement
+from app.engines.hydrological_suitability import compute_hydrological_suitability
+from app.engines.om_simplicity import compute_om_simplicity
+from app.engines.pollution_source_fit import compute_pollution_source_fit
+from app.engines.site_suitability import compute_site_suitability
 
 
 MATRIX_ELIGIBILITY_STATUSES = {ELIGIBLE, DATA_PENDING}
@@ -121,6 +129,10 @@ class McdaMatrixBundle:
     missing_criteria_summary: dict[str, int] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
     weights_status: str = WEIGHTS_NOT_APPLIED
+    # True when a resolved site context produced the C3 site_suitability
+    # criterion; downstream projection then skips the metadata-completeness
+    # site proxy so the two definitions never mix in one matrix.
+    site_context_applied: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         """Return a plain dictionary for tests, services, or future APIs."""
@@ -144,8 +156,18 @@ class McdaMatrixBuilder:
 
         return cls(NbsCatalogService(session))
 
-    def build(self, candidate_bundle: CandidateFilterBundle) -> McdaMatrixBundle:
-        """Build raw matrix inputs without normalization, weights, or ranking."""
+    def build(
+        self,
+        candidate_bundle: CandidateFilterBundle,
+        *,
+        site_context: dict[str, Any] | None = None,
+    ) -> McdaMatrixBundle:
+        """Build raw matrix inputs without normalization, weights, or ranking.
+
+        When ``site_context`` (the resolved region + site attributes) is given,
+        each row also receives the C3 ``site_suitability`` criterion from the
+        provisional, documented rules in ``site_suitability.py``.
+        """
 
         rows: list[McdaMatrixRow] = []
         warnings = list(candidate_bundle.warnings)
@@ -161,7 +183,7 @@ class McdaMatrixBuilder:
                     f"{candidate.eligibility_status}."
                 )
                 continue
-            rows.append(self._build_row(candidate))
+            rows.append(self._build_row(candidate, site_context, candidate_bundle))
 
         if not rows:
             warnings.append(
@@ -178,9 +200,15 @@ class McdaMatrixBuilder:
             missing_criteria_summary=_missing_criteria_summary(rows),
             warnings=warnings,
             weights_status=WEIGHTS_NOT_APPLIED,
+            site_context_applied=site_context is not None,
         )
 
-    def _build_row(self, candidate: CandidateFilterResult) -> McdaMatrixRow:
+    def _build_row(
+        self,
+        candidate: CandidateFilterResult,
+        site_context: dict[str, Any] | None = None,
+        candidate_bundle: CandidateFilterBundle | None = None,
+    ) -> McdaMatrixRow:
         """Build one raw matrix row from candidate and profile data."""
 
         profile = (
@@ -201,9 +229,6 @@ class McdaMatrixBuilder:
             footprint_rows=footprint_rows,
             criteria_rows=criteria_rows,
         )
-        missing_criteria = [
-            name for name in RAW_CRITERIA_NAMES if name not in criteria_values
-        ]
         source_ids = _collect_source_ids(
             candidate.evidence_source_ids,
             candidate.implementation_source_ids,
@@ -213,6 +238,19 @@ class McdaMatrixBuilder:
             footprint_rows,
             criteria_rows,
         )
+        site_notes = _apply_site_aware_criteria(
+            option=option,
+            site_context=site_context,
+            criteria_values=criteria_values,
+            candidate_bundle=candidate_bundle,
+            footprint_rows=footprint_rows,
+            criteria_rows=criteria_rows,
+            implementation_present=bool(implementation_rows),
+            source_ids=source_ids,
+        )
+        missing_criteria = [
+            name for name in RAW_CRITERIA_NAMES if name not in criteria_values
+        ]
         notes = [
             "Step F prepares raw MCDA matrix data only; no normalization, "
             "weights, TOPSIS, ranking, match score, or confidence score was "
@@ -229,6 +267,7 @@ class McdaMatrixBuilder:
                 + ", ".join(missing_sections)
                 + "."
             )
+        notes.extend(site_notes)
 
         return McdaMatrixRow(
             nbs_id=candidate.nbs_id,
@@ -320,6 +359,203 @@ def _criteria_values(
         }
 
     return values
+
+
+def _apply_site_aware_criteria(
+    *,
+    option: dict[str, Any],
+    site_context: dict[str, Any] | None,
+    criteria_values: dict[str, Any],
+    candidate_bundle: CandidateFilterBundle | None,
+    footprint_rows: list[dict[str, Any]],
+    criteria_rows: list[dict[str, Any]],
+    implementation_present: bool,
+    source_ids: list[int],
+) -> list[str]:
+    """Inject the site-aware MCDA criteria (C3-C8) when a site context exists.
+
+    All of C3-C8 are injected together as the location-first enrichment so the
+    staged engine paths (which pass no site context) stay unchanged. Each helper
+    records the numeric criterion plus a structured breakdown for provenance.
+    """
+
+    if site_context is None:
+        return []
+
+    treatment_need_groups = (
+        list(candidate_bundle.treatment_need_groups) if candidate_bundle else []
+    )
+    selected_source_type = (
+        candidate_bundle.selected_source_type if candidate_bundle else None
+    )
+
+    notes: list[str] = []
+    notes += _apply_site_suitability(option, site_context, criteria_values)
+    notes += _apply_hydrological_suitability(option, site_context, criteria_values)
+    notes += _apply_pollution_source_fit(
+        option, site_context, criteria_values, treatment_need_groups
+    )
+    notes += _apply_footprint_feasibility(criteria_values, footprint_rows)
+    notes += _apply_om_simplicity(criteria_values, criteria_rows)
+    notes += _apply_evidence_strength(
+        criteria_values,
+        site_context=site_context,
+        implementation_present=implementation_present,
+        source_ids=source_ids,
+        selected_source_type=selected_source_type,
+    )
+    return notes
+
+
+def _apply_pollution_source_fit(
+    option: dict[str, Any],
+    site_context: dict[str, Any] | None,
+    criteria_values: dict[str, Any],
+    treatment_need_groups: list[str],
+) -> list[str]:
+    """Inject the C5 pollution_source_fit criterion."""
+
+    result = compute_pollution_source_fit(option, site_context, treatment_need_groups)
+    if result.pollution_source_fit is not None:
+        criteria_values["pollution_source_fit"] = result.pollution_source_fit
+    criteria_values["pollution_source_fit_breakdown"] = {
+        "pollution_context": result.pollution_context,
+        "context_source": result.context_source,
+        "family_class": result.family_class,
+        "status": result.status,
+        "cautions": result.cautions,
+        "used_inputs": result.used_inputs,
+        "missing_inputs": result.missing_inputs,
+    }
+    return list(result.notes)
+
+
+def _apply_footprint_feasibility(
+    criteria_values: dict[str, Any],
+    footprint_rows: list[dict[str, Any]],
+) -> list[str]:
+    """Inject the C6 footprint_requirement (cost) criterion."""
+
+    result = compute_footprint_requirement(footprint_rows)
+    if result.footprint_requirement is not None:
+        criteria_values["footprint_requirement"] = result.footprint_requirement
+    criteria_values["footprint_requirement_breakdown"] = {
+        "area_per_pe_used": result.area_per_pe_used,
+        "basis": result.basis,
+        "status": result.status,
+        "used_inputs": result.used_inputs,
+        "missing_inputs": result.missing_inputs,
+    }
+    return list(result.notes)
+
+
+def _apply_om_simplicity(
+    criteria_values: dict[str, Any],
+    criteria_rows: list[dict[str, Any]],
+) -> list[str]:
+    """Inject the C7 om_simplicity (benefit) criterion."""
+
+    result = compute_om_simplicity(criteria_rows)
+    if result.om_simplicity is not None:
+        criteria_values["om_simplicity"] = result.om_simplicity
+    criteria_values["om_simplicity_breakdown"] = {
+        "om_level": result.om_level,
+        "status": result.status,
+        "used_inputs": result.used_inputs,
+        "missing_inputs": result.missing_inputs,
+    }
+    return list(result.notes)
+
+
+def _apply_evidence_strength(
+    criteria_values: dict[str, Any],
+    *,
+    site_context: dict[str, Any] | None,
+    implementation_present: bool,
+    source_ids: list[int],
+    selected_source_type: str | None,
+) -> list[str]:
+    """Inject the C8 evidence_strength (benefit) criterion."""
+
+    result = compute_evidence_strength(
+        removal_evidence=criteria_values.get("removal_evidence"),
+        source_ids=source_ids,
+        implementation_sourced=implementation_present,
+        site_context=site_context,
+        selected_source_type=selected_source_type,
+    )
+    criteria_values["evidence_strength"] = result.evidence_strength
+    criteria_values["evidence_strength_breakdown"] = {
+        "water_quality_level": result.water_quality_level,
+        "removal_sourced": result.removal_sourced,
+        "site_data_present": result.site_data_present,
+        "implementation_sourced": result.implementation_sourced,
+        "status": result.status,
+        "used_inputs": result.used_inputs,
+    }
+    return list(result.notes)
+
+
+def _apply_site_suitability(
+    option: dict[str, Any],
+    site_context: dict[str, Any] | None,
+    criteria_values: dict[str, Any],
+) -> list[str]:
+    """Inject the C3 site_suitability criterion when a site context is present.
+
+    Returns transparent notes for the row. The numeric ``site_suitability`` is
+    only added when at least one sub-score could be computed; the structured
+    breakdown is always recorded for provenance.
+    """
+
+    if site_context is None:
+        return []
+
+    result = compute_site_suitability(option, site_context)
+    if result.site_suitability is not None:
+        criteria_values["site_suitability"] = result.site_suitability
+    criteria_values["site_suitability_breakdown"] = {
+        "soil_fit": result.soil_fit,
+        "slope_fit": result.slope_fit,
+        "climate_fit": result.climate_fit,
+        "land_cover_fit": result.land_cover_fit,
+        "family_class": result.family_class,
+        "status": result.status,
+        "used_site_fields": result.used_site_fields,
+        "missing_inputs": result.missing_inputs,
+    }
+    return list(result.notes)
+
+
+def _apply_hydrological_suitability(
+    option: dict[str, Any],
+    site_context: dict[str, Any] | None,
+    criteria_values: dict[str, Any],
+) -> list[str]:
+    """Inject the C4 hydrological_suitability criterion when a site context is present.
+
+    Returns transparent notes for the row. The numeric ``hydrological_suitability``
+    is only added when a site flow scale could be read; the structured breakdown
+    (including whether a dilution proxy was used) is always recorded.
+    """
+
+    if site_context is None:
+        return []
+
+    result = compute_hydrological_suitability(option, site_context)
+    if result.hydrological_suitability is not None:
+        criteria_values["hydrological_suitability"] = result.hydrological_suitability
+    criteria_values["hydrological_suitability_breakdown"] = {
+        "flow_scale": result.flow_scale,
+        "flow_capacity": result.flow_capacity,
+        "flow_metric_used": result.flow_metric_used,
+        "proxy_used": result.proxy_used,
+        "family_class": result.family_class,
+        "status": result.status,
+        "used_site_fields": result.used_site_fields,
+        "missing_inputs": result.missing_inputs,
+    }
+    return list(result.notes)
 
 
 def _criteria_names(rows: list[McdaMatrixRow]) -> list[str]:

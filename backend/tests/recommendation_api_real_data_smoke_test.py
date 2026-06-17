@@ -79,6 +79,22 @@ def assert_real_data_recommendation_response() -> None:
         assert recommendation["confidence_score"] is not None
         assert recommendation["confidence_score"] != recommendation["match_score"]
         assert "plant_matches" in recommendation
+        assert recommendation["criteria_breakdown"]
+
+    # Provenance: source IDs referenced by the recommendations should resolve to
+    # real citation rows from the sources table.
+    referenced_ids = {
+        source_id
+        for recommendation in bundle["recommendations"]
+        for source_id in recommendation["evidence_summary"]["source_ids"]
+    }
+    citations = payload["citations"]
+    assert isinstance(citations, list)
+    if referenced_ids:
+        assert citations, "Recommendations referenced source IDs but no citations resolved."
+        citation_ids = {citation["id"] for citation in citations}
+        assert citation_ids <= referenced_ids
+        assert any(citation.get("citation") for citation in citations)
 
     print(
         "real-data recommendation API smoke checks ok: "
