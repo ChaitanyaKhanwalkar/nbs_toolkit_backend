@@ -49,7 +49,9 @@ If local development needs configuration, use a local-only example file or docum
 
 ## 3. Run The Backend Locally
 
-The backend now has a small FastAPI app with health checks only. It does not implement recommendation logic.
+The backend now has a FastAPI app with health routes, read-only reference/data
+routes, CORS for the Flutter web client, and a local `POST /api/v1/recommend`
+wrapper around the staged scientific workflow.
 
 Use these PowerShell commands from the workspace root:
 
@@ -64,10 +66,11 @@ Copy-Item .env.example .env
 
 Open `backend/.env` and set `DATABASE_URL`.
 
-For local SQLite development, keep the example value:
+For local SQLite development, keep the example value pointing at the canonical
+database:
 
 ```text
-DATABASE_URL="sqlite:///./narmada_nbs_local.db"
+DATABASE_URL="sqlite:///../canonical db/narmada_nbs_canonical.db"
 ```
 
 For local or development PostgreSQL, use a non-production connection string:
@@ -114,8 +117,19 @@ Azure and does not write scientific records.
 
 ## Scientific Workflow Test Commands
 
-Run these commands from `backend/` when checking the staged scientific workflow
-and schema serialization layers:
+Run the full script-style test suite from `backend/` when checking the staged
+scientific workflow, schema serialization layers, API routes, and canonical DB
+read paths:
+
+```powershell
+$env:PYTHONPATH = (Get-Location).Path
+Get-ChildItem tests -Filter *.py | Sort-Object Name | ForEach-Object {
+    python $_.FullName
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+}
+```
+
+Or run focused commands from `backend/` when you only need a subset:
 
 ```cmd
 set PYTHONPATH=%CD%
@@ -194,7 +208,7 @@ Use `max_step="L"` only when you intentionally want the staged A-L internal
 workflow. The A-L path runs A-K first, then assembles internal recommendation
 objects through Step L. Step L sets `match_score` equal to `topsis_closeness`,
 keeps `confidence_score` separate, preserves rank and `weights_status`, and
-still does not create a `/recommend` endpoint.
+does not itself create a `/recommend` endpoint.
 
 The local `/api/v1/recommend` endpoint is a thin FastAPI wrapper around
 `ScientificWorkflowService.run(..., max_step="L")`. It returns the internal

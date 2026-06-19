@@ -2,6 +2,7 @@
 
 from app.repositories.base_repository import BaseRepository
 from app.repositories.basin_repository import BasinRepository
+from app.repositories.engine_data_repository import EngineDataRepository
 from app.repositories.nbs_repository import NbsRepository
 from app.repositories.plant_repository import PlantRepository
 from app.repositories.pollution_repository import PollutionRepository
@@ -15,6 +16,7 @@ from app.repositories.water_repository import WaterRepository
 __all__ = [
     "BaseRepository",
     "BasinRepository",
+    "EngineDataRepository",
     "NbsRepository",
     "PlantRepository",
     "PollutionRepository",

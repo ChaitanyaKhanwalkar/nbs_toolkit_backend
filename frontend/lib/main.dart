@@ -47,6 +47,7 @@ class _NbsToolkitShellState extends State<NbsToolkitShell> {
   RecommendationResponse? _response;
   RecommendationItem? _selectedItem;
   String? _errorMessage;
+  String _entryMode = 'Measured Water Quality';
 
   void _show(AppView view) {
     setState(() {
@@ -55,41 +56,25 @@ class _NbsToolkitShellState extends State<NbsToolkitShell> {
     });
   }
 
-  Future<void> _runRecommendation(
-    double bod,
-    double tss,
-    double nitrateN,
-    double ph,
-  ) async {
-    setState(() {
-      _errorMessage = null;
-      _view = AppView.loading;
-    });
-
+  Future<void> _runAnalysis(AnalysisInput input) async {
+    setState(() { _errorMessage = null; _view = AppView.loading; });
     try {
-      final response = await _api.runRecommendation(
-        bod: bod,
-        tss: tss,
-        nitrateN: nitrateN,
-        ph: ph,
+      final response = await _api.runContextualRecommendation(
+        observations: input.observations,
+        regionId: input.regionId,
+        station: input.station,
+        context: input.context,
       );
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _response = response;
-        _selectedItem = null;
-        _view = AppView.results;
-      });
+      if (!mounted) return;
+      setState(() { _response = response; _selectedItem = null; _view = AppView.results; });
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _errorMessage = error.toString();
-        _view = AppView.entry;
-      });
+      if (!mounted) return;
+      setState(() { _errorMessage = error.toString(); _view = AppView.entry; });
     }
+  }
+
+  void _openEntry(String mode) {
+    setState(() { _entryMode = mode; _errorMessage = null; _view = AppView.entry; });
   }
 
   void _openDetail(RecommendationItem item) {
@@ -118,11 +103,16 @@ class _NbsToolkitShellState extends State<NbsToolkitShell> {
     return switch (_view) {
       AppView.splash => SplashScreen(onStart: () => _show(AppView.home)),
       AppView.home => HomeDashboard(
-          onStartRecommendation: () => _show(AppView.entry),
+          onStartRecommendation: () => _openEntry('Measured Water Quality'),
+          onSelectSite: () => _openEntry('Select Narmada Site / Station'),
+          onPollutionScreening: () => _openEntry('Pollution Source Screening'),
+          onUploadWater: () => _openEntry('Upload Water Data'),
           onAbout: _openAbout,
         ),
-      AppView.entry => WaterQualityEntryScreen(
-          onRun: _runRecommendation,
+      AppView.entry => AnalysisSetupScreen(
+          api: _api,
+          mode: _entryMode,
+          onRun: _runAnalysis,
           onBack: () => _show(AppView.home),
           errorMessage: _errorMessage,
         ),

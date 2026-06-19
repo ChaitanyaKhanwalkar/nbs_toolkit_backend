@@ -4,6 +4,8 @@ Use this repository to fetch raw river segment and station-stream attributes.
 It does not calculate hydrological suitability or recommendation scores.
 """
 
+from typing import Any
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -47,8 +49,50 @@ class RiverRepository(BaseRepository):
         *,
         station: str | None = None,
         region_id: int | None = None,
-    ) -> list[SiteStreamAttribute]:
+    ) -> list[SiteStreamAttribute] | list[dict[str, Any]]:
         """Return station-stream attributes by station or region."""
+
+        if not self.relation_exists("site_stream_attributes"):
+            filters = []
+            params: dict[str, Any] = {}
+            if station:
+                filters.append("station = :station")
+                params["station"] = station
+            if region_id is not None:
+                filters.append("region_id = :region_id")
+                params["region_id"] = region_id
+            if not filters:
+                return []
+            where_clause = " AND ".join(filters)
+            return self.fetch_mappings(
+                f"""
+                SELECT
+                    id,
+                    region_id,
+                    gauge_id,
+                    station,
+                    NULL AS ghi_stn_id,
+                    NULL AS cwc_river,
+                    stream_order,
+                    stream_order_strahler AS ord_clas,
+                    NULL AS ord_flow,
+                    nat_discharge_cms AS river_discharge_cms,
+                    NULL AS upland_skm,
+                    drainage_area_km2 AS catch_skm,
+                    NULL AS nearest_distance_deg,
+                    NULL AS nearest_distance_m,
+                    NULL AS station_lon,
+                    NULL AS station_lat,
+                    NULL AS nearest_lon,
+                    NULL AS nearest_lat,
+                    nearest_hyriv_id AS hybas_l12,
+                    source_id
+                FROM site_attributes
+                WHERE {where_clause}
+                ORDER BY id
+                """,
+                params,
+            )
 
         filters = []
         if station:

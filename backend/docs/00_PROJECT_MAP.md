@@ -9,9 +9,9 @@ The backend is organized in layers. Each folder has one main job, so future code
 Read these files first:
 
 1. `AGENTS.md` - project rules and non-negotiable safety boundaries.
-2. `backend/docs/01_EXISTING_BACKEND_AUDIT.md` - explains old MVP logic versus the future research logic.
-3. `backend/docs/02_TARGET_BACKEND_STRUCTURE.md` - explains the target layered backend.
-4. `backend/docs/SCIENTIFIC_RECOMMENDATION_ENGINE.md` - defines the future scientific recommendation logic.
+2. `HANDOFF (1).md` - records the current canonical database state and next-step order.
+3. `canonical db/DATA_DICTIONARY_canonical.md` - describes the canonical database tables and views.
+4. `backend/docs/SCIENTIFIC_RECOMMENDATION_ENGINE.md` - defines the scientific recommendation logic.
 5. `backend/docs/03_DEVELOPMENT_WORKFLOW.md` - explains how to work safely without touching production.
 
 ## backend/
@@ -28,9 +28,11 @@ Most backend code will eventually live here, split into smaller folders by respo
 
 ## backend/app/main.py
 
-The future entry point for the API server.
+The entry point for the API server.
 
-At this stage it is only a placeholder. It does not create production routes, connect to Azure, or implement recommendation logic.
+It creates health routes, CORS middleware, and versioned API routes under
+`/api/v1`. Scientific workflow logic lives in services/engines; this file does
+not contain scoring logic or deployment secrets.
 
 ## backend/app/core/
 
@@ -66,16 +68,17 @@ Database table models belong here.
 
 Change database model definitions in this folder later.
 
-Models should match the approved schema files:
+Models and repository query shapes should match the canonical database package:
 
-- `schema.sql`
-- `schema_river_network_patch.sql`
+- `canonical db/narmada_nbs_canonical.db`
+- `canonical db/DATA_DICTIONARY_canonical.md`
+- `HANDOFF (1).md`
 
 Models describe table shape and relationships. They should not query the database directly and should not rank NbS options.
 
 The current model files are grouped one table per file, such as `source.py`,
 `water_observation.py`, and `river_network.py`. Pending tables that are not in
-the schema yet, such as `criteria_weights` and `health_risk`, are documented in
+the canonical schema yet, such as `health_risk`, are documented in
 `backend/docs/04_PENDING_TABLES.md` instead of being created as active models.
 
 ## backend/app/schemas/
@@ -123,6 +126,10 @@ API routes should not query raw tables directly.
 The current repository files are read-only. They return ORM objects, lists,
 simple dictionaries, `None`, or empty lists. They do not write to the database
 and do not contain recommendation scoring, ranking, or exceedance calculations.
+Where the canonical database normalized old text columns into IDs, repositories
+prefer canonical views/joins such as `v_removal`, `v_nbs_profile`,
+`v_plant_use`, and `v_standards`, while retaining old-schema fallbacks for
+tests and legacy snapshots.
 
 ## backend/app/services/
 
@@ -144,9 +151,10 @@ not calculate exceedance, health risk, AHP weights, TOPSIS rankings, or
 recommendations.
 
 `scientific_workflow_service.py` is an internal coordinator for Scientific
-Engine Steps A-E by default and A-J when explicitly requested. It runs the
-staged engines in order and returns their intermediate bundles only; it does
-not expose an endpoint or create final recommendations.
+Engine Steps A-E by default and A-L when explicitly requested. It runs the
+staged engines in order and returns their intermediate bundles. The local
+`/api/v1/recommend` route explicitly calls `max_step="L"` and returns the
+internal recommendation assembly bundle with provisional-weight warnings.
 
 ## backend/app/engines/
 
@@ -178,11 +186,10 @@ internal recommendation-shaped objects and copies `match_score` from
 plants, and assemble internal outputs, but do not create API routes or classify
 health risk.
 
-Later engine modules may handle:
-
-- implementation-plan attachment after internal recommendation assembly
-
-Do not implement recommendation code yet. The rules are defined in `backend/docs/SCIENTIFIC_RECOMMENDATION_ENGINE.md`.
+Later engine modules may handle severity-weighted pollutant-gap closure (C1),
+treatment-train logic, and health-risk integration once the gated data is
+available. The rules are defined in
+`backend/docs/SCIENTIFIC_RECOMMENDATION_ENGINE.md`.
 
 ## backend/app/api/
 
@@ -199,13 +206,11 @@ Routes should be thin. Their job is to:
 
 Routes should not directly query database tables and should not contain scientific ranking logic.
 
-The current API routes are read-only raw data endpoints mounted under
-`/api/v1`. They expose reference data, site profiles, water observations,
-standards, NbS catalogue records, plants, pollution context, river context, and
-data availability checks.
-
-There is intentionally no `/recommend` endpoint yet. Do not add recommendation
-routes until the approved scientific engine work begins.
+The current API routes are mounted under `/api/v1`. GET routes expose reference
+data, site profiles, water observations, standards, NbS catalogue records,
+plants, pollution context, river context, and data availability checks.
+`POST /api/v1/recommend` is the only versioned POST route; it is a thin local
+wrapper around `ScientificWorkflowService.run(..., max_step="L")`.
 
 ## backend/app/data_ingestion/
 
@@ -266,7 +271,9 @@ Change request and response shapes in `backend/app/schemas/`.
 
 Change scientific workflow orchestration in `backend/app/services/`.
 
-Change scientific calculations and recommendation logic in `backend/app/engines/`, but only after the readiness gate in `backend/docs/02_TARGET_BACKEND_STRUCTURE.md` is satisfied.
+Change scientific calculations and recommendation logic in `backend/app/engines/`,
+following `backend/docs/SCIENTIFIC_RECOMMENDATION_ENGINE.md` and the current
+next-step order in `HANDOFF (1).md`.
 
 ## Conflict Note
 
@@ -279,8 +286,9 @@ No old code was found inside `backend/app/` during this documentation pass. If o
 This scaffold and documentation were aligned after reading:
 
 - `AGENTS.md`
-- `backend/docs/01_EXISTING_BACKEND_AUDIT.md`
-- `backend/docs/02_TARGET_BACKEND_STRUCTURE.md`
+- `HANDOFF (1).md`
+- `canonical db/DATA_DICTIONARY_canonical.md`
+- `canonical db/DATA_SOURCING_LOG.md`
 - `backend/docs/SCIENTIFIC_RECOMMENDATION_ENGINE.md`
 - `research/main_v2/files/DATA_DICTIONARY.md`
 - `research/main_v2/files/schema.sql`

@@ -13,6 +13,8 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Mapping, Protocol
 
 from app.engines import (
+    ApplicabilityFilterBundle,
+    ApplicabilityFilterEngine,
     CandidateFilterBundle,
     CandidateFilteringEngine,
     ConfidenceScoringBundle,
@@ -65,6 +67,18 @@ VALID_WORKFLOW_STEPS = {
     "L",
 }
 DEFAULT_WORKFLOW_END_STEP = "E"
+CANONICAL_WEIGHTS_SOURCE = "canonical_criteria_weights"
+CANONICAL_WEIGHTS_NOTE = (
+    "Interim ranking -- AHP weights provisional, pending expert calibration."
+)
+CANONICAL_TO_ENGINE_CRITERIA = {
+    "treatment_fit": "removal_evidence_score",
+    "site_suitability": "site_suitability",
+    "pollution_source_fit": "pollution_source_fit",
+    "dilution": "hydrological_suitability",
+    "footprint": "footprint_requirement",
+    "om_realism": "om_simplicity",
+}
 
 MatrixTransform = Callable[[McdaMatrixBundle], McdaMatrixBundle]
 
@@ -150,6 +164,67 @@ def _extend_unique(items: list[str], values: list[str] | tuple[str, ...] | None)
         _append_unique(items, value)
 
 
+def _database_weights_for_normalized_bundle(
+    provider: Any,
+    use_case: str | None,
+    criteria_names: list[str],
+    warnings: list[str],
+) -> dict[str, float]:
+    """Map canonical DB criteria weights onto current normalized criteria."""
+
+    if not use_case or not hasattr(provider, "list_criteria_weights"):
+        return {}
+
+    db_rows = provider.list_criteria_weights(use_case)
+    if not db_rows:
+        return {}
+
+    available_criteria = set(criteria_names)
+    mapped_weights: dict[str, float] = {}
+    skipped: list[str] = []
+    for row in db_rows:
+        db_name = str(row.get("criterion_name") or "").strip()
+        engine_name = CANONICAL_TO_ENGINE_CRITERIA.get(db_name)
+        if not engine_name:
+            skipped.append(db_name or str(row.get("criterion_code") or "unknown"))
+            continue
+        if engine_name not in available_criteria:
+            skipped.append(f"{db_name}->{engine_name}")
+            continue
+        weight = _as_float(row.get("weight"))
+        if weight is None:
+            skipped.append(db_name)
+            continue
+        mapped_weights[engine_name] = weight
+
+    if skipped:
+        _append_unique(
+            warnings,
+            "Canonical criteria_weights had criteria not yet present in the "
+            "current option-level matrix: "
+            + ", ".join(skipped)
+            + ".",
+        )
+    if mapped_weights:
+        _append_unique(
+            warnings,
+            "Loaded provisional canonical criteria_weights for TOPSIS; final "
+            "AHP weights are pending expert calibration.",
+        )
+    return mapped_weights
+
+
+def _as_float(value: Any) -> float | None:
+    """Convert a value to float without accepting booleans."""
+
+    if isinstance(value, bool):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
 @dataclass(slots=True)
 class ScientificWorkflowResult:
     """Staged result returned by the internal Scientific Workflow service."""
@@ -168,6 +243,7 @@ class ScientificWorkflowResult:
     confidence_scoring_bundle: ConfidenceScoringBundle | None = None
     plant_matching_bundle: PlantMatchingBundle | None = None
     recommendation_assembly_bundle: RecommendationAssemblyBundle | None = None
+    applicability_filter_bundle: ApplicabilityFilterBundle | None = None
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
@@ -182,6 +258,9 @@ class ScientificWorkflowResult:
             "pollutant_gap_bundle": _to_plain_value(self.pollutant_gap_bundle),
             "treatment_need_bundle": _to_plain_value(self.treatment_need_bundle),
             "candidate_filter_bundle": _to_plain_value(self.candidate_filter_bundle),
+            "applicability_filter_bundle": _to_plain_value(
+                self.applicability_filter_bundle
+            ),
             "mcda_matrix_bundle": _to_plain_value(self.mcda_matrix_bundle),
             "normalized_mcda_matrix_bundle": _to_plain_value(self.normalized_mcda_matrix_bundle),
             "mcda_weights_bundle": _to_plain_value(self.mcda_weights_bundle),
@@ -211,6 +290,7 @@ class ScientificWorkflowService:
         nbs_provider: NbsCandidateProvider | None = None,
         plant_provider: PlantMappingProvider | None = None,
         site_service: SiteProfileProvider | None = None,
+        engine_data_provider: Any | None = None,
         input_engine: InputNormalizationEngine | None = None,
         treatment_classifier: TreatmentNeedClassifier | None = None,
     ) -> None:
@@ -219,6 +299,7 @@ class ScientificWorkflowService:
         self.nbs_provider = nbs_provider
         self.plant_provider = plant_provider
         self.site_service = site_service
+        self.engine_data_provider = engine_data_provider
         self.input_engine = input_engine or InputNormalizationEngine()
         self.treatment_classifier = treatment_classifier or TreatmentNeedClassifier()
 
@@ -231,6 +312,7 @@ class ScientificWorkflowService:
         from app.services.site_profile_service import SiteProfileService
         from app.services.standards_service import StandardsService
         from app.services.water_data_service import WaterDataService
+        from app.repositories import EngineDataRepository
 
         return cls(
             water_service=WaterDataService(session),
@@ -238,6 +320,7 @@ class ScientificWorkflowService:
             nbs_provider=NbsCatalogService(session),
             plant_provider=PlantCatalogService(session),
             site_service=SiteProfileService(session),
+            engine_data_provider=EngineDataRepository(session),
         )
 
     def run(
@@ -270,6 +353,7 @@ class ScientificWorkflowService:
         pollutant_gap_bundle: PollutantGapBundle | None = None
         treatment_need_bundle: TreatmentNeedBundle | None = None
         candidate_filter_bundle: CandidateFilterBundle | None = None
+        applicability_filter_bundle: ApplicabilityFilterBundle | None = None
         mcda_matrix_bundle: McdaMatrixBundle | None = None
         normalized_mcda_matrix_bundle: NormalizedMcdaMatrixBundle | None = None
         mcda_weights_bundle: McdaWeightsBundle | None = None
@@ -411,6 +495,21 @@ class ScientificWorkflowService:
                 )
 
             site_context = self._resolve_site_context(input_context, warnings)
+            if self.engine_data_provider is not None:
+                applicability_filter_bundle, candidate_filter_bundle = (
+                    ApplicabilityFilterEngine(self.engine_data_provider).apply(
+                        candidate_filter_bundle,
+                        input_context=input_context,
+                        site_context=site_context,
+                    )
+                )
+                _extend_unique(warnings, applicability_filter_bundle.warnings)
+            else:
+                _append_unique(
+                    warnings,
+                    "No engine data provider was available, so A0 applicability "
+                    "rules were not applied before MCDA/TOPSIS.",
+                )
             mcda_matrix_bundle = McdaMatrixBuilder(self.nbs_provider).build(
                 candidate_filter_bundle,
                 site_context=site_context,
@@ -431,6 +530,7 @@ class ScientificWorkflowService:
                     pollutant_gap_bundle=pollutant_gap_bundle,
                     treatment_need_bundle=treatment_need_bundle,
                     candidate_filter_bundle=candidate_filter_bundle,
+                    applicability_filter_bundle=applicability_filter_bundle,
                     mcda_matrix_bundle=mcda_matrix_bundle,
                     errors=errors,
                     warnings=warnings,
@@ -450,6 +550,7 @@ class ScientificWorkflowService:
                     pollutant_gap_bundle=pollutant_gap_bundle,
                     treatment_need_bundle=treatment_need_bundle,
                     candidate_filter_bundle=candidate_filter_bundle,
+                    applicability_filter_bundle=applicability_filter_bundle,
                     mcda_matrix_bundle=mcda_matrix_bundle,
                     normalized_mcda_matrix_bundle=normalized_mcda_matrix_bundle,
                     errors=errors,
@@ -458,6 +559,21 @@ class ScientificWorkflowService:
 
             effective_weights = supplied_weights
             effective_weights_source = weights_source
+            if (
+                not effective_weights
+                and not expert_validated
+                and self.engine_data_provider is not None
+            ):
+                effective_weights = _database_weights_for_normalized_bundle(
+                    self.engine_data_provider,
+                    use_case,
+                    normalized_mcda_matrix_bundle.criteria_names,
+                    warnings,
+                )
+                if effective_weights:
+                    effective_weights_source = CANONICAL_WEIGHTS_SOURCE
+                    _append_unique(warnings, CANONICAL_WEIGHTS_NOTE)
+
             if not effective_weights and use_default_weights and not expert_validated:
                 from app.core.default_weights import (
                     DEFAULT_WEIGHTS_SOURCE,
@@ -494,6 +610,7 @@ class ScientificWorkflowService:
                     pollutant_gap_bundle=pollutant_gap_bundle,
                     treatment_need_bundle=treatment_need_bundle,
                     candidate_filter_bundle=candidate_filter_bundle,
+                    applicability_filter_bundle=applicability_filter_bundle,
                     mcda_matrix_bundle=mcda_matrix_bundle,
                     normalized_mcda_matrix_bundle=normalized_mcda_matrix_bundle,
                     mcda_weights_bundle=mcda_weights_bundle,
@@ -516,6 +633,7 @@ class ScientificWorkflowService:
                     pollutant_gap_bundle=pollutant_gap_bundle,
                     treatment_need_bundle=treatment_need_bundle,
                     candidate_filter_bundle=candidate_filter_bundle,
+                    applicability_filter_bundle=applicability_filter_bundle,
                     mcda_matrix_bundle=mcda_matrix_bundle,
                     normalized_mcda_matrix_bundle=normalized_mcda_matrix_bundle,
                     mcda_weights_bundle=mcda_weights_bundle,
@@ -543,6 +661,7 @@ class ScientificWorkflowService:
                     pollutant_gap_bundle=pollutant_gap_bundle,
                     treatment_need_bundle=treatment_need_bundle,
                     candidate_filter_bundle=candidate_filter_bundle,
+                    applicability_filter_bundle=applicability_filter_bundle,
                     mcda_matrix_bundle=mcda_matrix_bundle,
                     normalized_mcda_matrix_bundle=normalized_mcda_matrix_bundle,
                     mcda_weights_bundle=mcda_weights_bundle,
@@ -565,6 +684,7 @@ class ScientificWorkflowService:
                     pollutant_gap_bundle=pollutant_gap_bundle,
                     treatment_need_bundle=treatment_need_bundle,
                     candidate_filter_bundle=candidate_filter_bundle,
+                    applicability_filter_bundle=applicability_filter_bundle,
                     mcda_matrix_bundle=mcda_matrix_bundle,
                     normalized_mcda_matrix_bundle=normalized_mcda_matrix_bundle,
                     mcda_weights_bundle=mcda_weights_bundle,
@@ -589,6 +709,7 @@ class ScientificWorkflowService:
                     pollutant_gap_bundle=pollutant_gap_bundle,
                     treatment_need_bundle=treatment_need_bundle,
                     candidate_filter_bundle=candidate_filter_bundle,
+                    applicability_filter_bundle=applicability_filter_bundle,
                     mcda_matrix_bundle=mcda_matrix_bundle,
                     normalized_mcda_matrix_bundle=normalized_mcda_matrix_bundle,
                     mcda_weights_bundle=mcda_weights_bundle,
@@ -615,6 +736,7 @@ class ScientificWorkflowService:
                 pollutant_gap_bundle=pollutant_gap_bundle,
                 treatment_need_bundle=treatment_need_bundle,
                 candidate_filter_bundle=candidate_filter_bundle,
+                applicability_filter_bundle=applicability_filter_bundle,
                 mcda_matrix_bundle=mcda_matrix_bundle,
                 normalized_mcda_matrix_bundle=normalized_mcda_matrix_bundle,
                 mcda_weights_bundle=mcda_weights_bundle,
@@ -635,6 +757,7 @@ class ScientificWorkflowService:
                 pollutant_gap_bundle=pollutant_gap_bundle,
                 treatment_need_bundle=treatment_need_bundle,
                 candidate_filter_bundle=candidate_filter_bundle,
+                applicability_filter_bundle=applicability_filter_bundle,
                 mcda_matrix_bundle=mcda_matrix_bundle,
                 normalized_mcda_matrix_bundle=normalized_mcda_matrix_bundle,
                 mcda_weights_bundle=mcda_weights_bundle,

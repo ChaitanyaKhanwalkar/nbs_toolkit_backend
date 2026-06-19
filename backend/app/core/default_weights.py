@@ -5,7 +5,7 @@ WHY THIS FILE EXISTS
 The TOPSIS step (Step I) cannot rank candidates without criteria weights. The
 final, scientifically authoritative weights must come from the supervisor's AHP
 (Analytic Hierarchy Process) pairwise comparisons, which are *not yet available*
-(see the ``criteria_weights`` table and `backend/docs/04_PENDING_TABLES.md`).
+(see the provisional ``criteria_weights`` table and `backend/docs/04_PENDING_TABLES.md`).
 
 So the model is *operational now* for the demo, this file holds **transparent,
 neutral, literature-informed PROVISIONAL weights**. They are labelled
@@ -16,7 +16,7 @@ HOW TO REPLACE THEM LATER (NO CODE CHANGES NEEDED ELSEWHERE)
 -----------------------------------------------------------
 1. When the supervisor provides real AHP weights per use case, edit ONLY the
    ``DEFAULT_TEMPORARY_CRITERIA_WEIGHTS`` mapping below (or load them into the
-   future ``criteria_weights`` table and point ``get_default_weights`` at it).
+   canonical ``criteria_weights`` table for train-level ranking).
 2. When the weights become expert-validated, the caller passes
    ``expert_validated=True`` so the status flips. Nothing else changes.
 

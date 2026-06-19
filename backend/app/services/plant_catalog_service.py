@@ -4,6 +4,7 @@ This service returns stored plant rows and plant-to-NbS mappings. It does not
 assign final plant recommendations.
 """
 
+from collections.abc import Mapping
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -17,6 +18,8 @@ def _to_dict(row: Base | None) -> dict[str, Any] | None:
 
     if row is None:
         return None
+    if isinstance(row, Mapping):
+        return dict(row)
     return {column.name: getattr(row, column.name) for column in row.__table__.columns}
 
 

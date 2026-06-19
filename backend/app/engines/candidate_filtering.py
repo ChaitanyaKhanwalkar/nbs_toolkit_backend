@@ -120,6 +120,8 @@ class CandidateFilterResult:
     nbs_id: int | None
     nbs_name: str | None
     eligibility_status: str
+    nbs_family: str | None = None
+    nbs_family_id: int | None = None
     supported_treatment_needs: list[str] = field(default_factory=list)
     unsupported_treatment_needs: list[str] = field(default_factory=list)
     data_pending_reasons: list[str] = field(default_factory=list)
@@ -312,6 +314,8 @@ class CandidateFilteringEngine:
         return CandidateFilterResult(
             nbs_id=nbs_id,
             nbs_name=normalize_text(profile_option.get("solution") if profile_option else None),
+            nbs_family=normalize_text(profile_option.get("family") if profile_option else None),
+            nbs_family_id=_as_int(profile_option.get("family_id") if profile_option else None),
             eligibility_status=_eligibility_status(
                 supported,
                 exclusion_reasons,
@@ -530,6 +534,17 @@ def _as_float(value: Any) -> float | None:
         return None
     try:
         return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _as_int(value: Any) -> int | None:
+    """Convert a value to int without accepting booleans."""
+
+    if isinstance(value, bool):
+        return None
+    try:
+        return int(value)
     except (TypeError, ValueError):
         return None
 

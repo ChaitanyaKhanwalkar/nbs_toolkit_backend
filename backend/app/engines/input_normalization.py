@@ -109,6 +109,11 @@ class InputNormalizationEngine:
             errors,
             warnings,
         )
+        context = (
+            dict(original_input.get("context"))
+            if isinstance(original_input.get("context"), Mapping)
+            else {}
+        )
 
         normalized_input = {
             "region_id": _as_optional_int(original_input.get("region_id"), "region_id", errors),
@@ -119,6 +124,7 @@ class InputNormalizationEngine:
             "use_case_original": normalize_text(use_case_original),
             "measured_observations": measured_observations,
             "selected_parameters": selected_parameters,
+            "context": context,
         }
 
         validation_status = "valid" if not errors else "invalid"

@@ -1,5 +1,12 @@
 # NbS Toolkit Frontend
 
+The dashboard supports measured entry, canonical Narmada station selection,
+pollution-source screening, and CSV upload (`parameter,value,unit`). Results
+show treatment trains with separate match/confidence scores, drinking,
+irrigation, and inland-discharge verdicts, applicability caveats, criteria,
+sequence, and evidence IDs. Ranking remains provisional pending expert AHP
+calibration.
+
 Flutter prototype for the NbS Toolkit decision-support dashboard.
 
 The app posts measured water-quality values to:

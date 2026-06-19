@@ -6,6 +6,9 @@ __pycache__/
 
 # Local Python environment
 backend/.venv/
+backend/.venv_canonical/
+.idea/
+*.iml
 backend/.env
 
 # Local SQLite data files

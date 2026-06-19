@@ -3,12 +3,13 @@
 Implements the MCDA criterion **C7 — O&M simplicity** from
 `backend/docs/SCIENTIFIC_RECOMMENDATION_ENGINE.md` (section 12.7).
 
-It reads the qualitative O&M level from real `nbs_criteria` rows (a criterion
-whose name mentions maintenance / O&M / operation) and maps that documented
-level word to the spec's transparent score table. Simpler O&M scores higher
-(benefit). The text->score table is a documented default; the underlying level
-word is real catalogue data, not invented. Missing O&M information leaves the
-criterion unscored with a confidence-lowering note.
+It reads the qualitative O&M level from catalogue criteria-like rows. In the
+canonical database those rows are generated from `nbs_design.skill_om_intensity`
+by the repository layer; older databases may still provide `nbs_criteria`.
+Simpler O&M scores higher (benefit). The text->score table is a documented
+default; the underlying level word is real catalogue/design data, not invented.
+Missing O&M information leaves the criterion unscored with a confidence-lowering
+note.
 """
 
 from __future__ import annotations
@@ -99,7 +100,7 @@ def compute_om_simplicity(
             om_simplicity=score,
             om_level=level_key,
             status=OM_STATUS_SOURCED,
-            used_inputs=["nbs_criteria.value_qual"],
+            used_inputs=["nbs_design.skill_om_intensity"],
             missing_inputs=[],
             notes=notes,
         )

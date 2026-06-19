@@ -55,34 +55,32 @@ def assert_recommend_route_appears_in_openapi() -> None:
 def assert_recommend_is_only_versioned_post_route() -> None:
     """No unrelated versioned routes should gain non-GET methods."""
 
-    versioned_routes = [
-        route
-        for route in app.routes
-        if getattr(route, "path", "").startswith("/api/v1")
-    ]
+    versioned_routes = {
+        path: set(methods)
+        for path, methods in app.openapi()["paths"].items()
+        if path.startswith("/api/v1")
+    }
     assert versioned_routes, "No /api/v1 routes are registered."
 
-    for route in versioned_routes:
-        path = getattr(route, "path", "")
-        methods = getattr(route, "methods", set())
-        if path == "/api/v1/recommend":
-            assert methods == {"POST"}, f"{path} methods changed: {methods}"
+    for path, methods in versioned_routes.items():
+        if path in {"/api/v1/recommend", "/api/v1/water/upload"}:
+            assert methods == {"post"}, f"{path} methods changed: {methods}"
         else:
-            assert methods == {"GET"}, f"{path} exposes unexpected methods: {methods}"
+            assert methods == {"get"}, f"{path} exposes unexpected methods: {methods}"
 
 
 def assert_existing_literal_route_order_still_safe() -> None:
     """Existing literal routes should still be registered as normal GET routes."""
 
     paths_by_method = {
-        (getattr(route, "path", ""), tuple(sorted(getattr(route, "methods", set()))))
-        for route in app.routes
+        (path, tuple(sorted(methods)))
+        for path, methods in app.openapi()["paths"].items()
     }
 
-    assert ("/api/v1/nbs/options", ("GET",)) in paths_by_method
-    assert ("/api/v1/plants/nbs/{nbs_id}", ("GET",)) in paths_by_method
-    assert ("/api/v1/standards/use-cases", ("GET",)) in paths_by_method
-    assert ("/api/v1/recommend", ("POST",)) in paths_by_method
+    assert ("/api/v1/nbs/options", ("get",)) in paths_by_method
+    assert ("/api/v1/plants/nbs/{nbs_id}", ("get",)) in paths_by_method
+    assert ("/api/v1/standards/use-cases", ("get",)) in paths_by_method
+    assert ("/api/v1/recommend", ("post",)) in paths_by_method
 
 
 def _find_forbidden_keys(value: Any, forbidden_fields: set[str]) -> set[str]:

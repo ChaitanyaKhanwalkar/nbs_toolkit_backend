@@ -10,7 +10,7 @@ The active models use each table's `id` column as the SQLAlchemy ORM identity
 key. The current base schema lists most `id` columns as plain `INTEGER`, but
 the ORM needs a primary key to map rows.
 
-Pending tables such as `criteria_weights` and `health_risk` are documented in
+Pending tables such as `health_risk` are documented in
 `backend/docs/04_PENDING_TABLES.md` until their schemas are approved.
 
 Import smoke test from the `backend/` folder after installing requirements:

@@ -118,6 +118,8 @@ class CandidateFilterResultResponse(RawResponseModel):
     nbs_id: int | None = None
     nbs_name: str | None = None
     eligibility_status: str
+    nbs_family: str | None = None
+    nbs_family_id: int | None = None
     supported_treatment_needs: list[str] = Field(default_factory=list)
     unsupported_treatment_needs: list[str] = Field(default_factory=list)
     data_pending_reasons: list[str] = Field(default_factory=list)
@@ -140,6 +142,49 @@ class CandidateFilterBundleResponse(RawResponseModel):
     data_pending_count: int = 0
     results: list[CandidateFilterResultResponse] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+
+
+class ApplicabilityRuleHitResponse(RawResponseModel):
+    """Serialized output for one A0 applicability rule match."""
+
+    rule_id: str
+    rule_type: str
+    severity: str
+    action: str
+    factor_name: str
+    user_message: str
+    technical_reason: str
+    score_modifier: float | None = None
+    confidence_modifier: float | None = None
+    target_level: str | None = None
+
+
+class CandidateApplicabilityResultResponse(RawResponseModel):
+    """Serialized A0 applicability result for one candidate."""
+
+    nbs_id: int | None = None
+    nbs_name: str | None = None
+    applicability_status: str
+    triggered_rules: list[ApplicabilityRuleHitResponse] = Field(default_factory=list)
+    user_messages: list[str] = Field(default_factory=list)
+    caveats: list[str] = Field(default_factory=list)
+    technical_reasons: list[str] = Field(default_factory=list)
+    score_modifier_total: float = 0.0
+    confidence_modifier_total: float = 0.0
+
+
+class ApplicabilityFilterBundleResponse(RawResponseModel):
+    """Serialized output from A0 applicability filtering."""
+
+    use_case: str
+    result_count: int = 0
+    allowed_count: int = 0
+    rejected_count: int = 0
+    conditional_count: int = 0
+    results: list[CandidateApplicabilityResultResponse] = Field(default_factory=list)
+    rejected_options: list[CandidateApplicabilityResultResponse] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
 
 
 class McdaMatrixRowResponse(RawResponseModel):
@@ -469,6 +514,7 @@ class ScientificWorkflowResultResponse(RawResponseModel):
     pollutant_gap_bundle: PollutantGapBundleResponse | None = None
     treatment_need_bundle: TreatmentNeedBundleResponse | None = None
     candidate_filter_bundle: CandidateFilterBundleResponse | None = None
+    applicability_filter_bundle: ApplicabilityFilterBundleResponse | None = None
     mcda_matrix_bundle: McdaMatrixBundleResponse | None = None
     normalized_mcda_matrix_bundle: NormalizedMcdaMatrixBundleResponse | None = None
     mcda_weights_bundle: McdaWeightsBundleResponse | None = None

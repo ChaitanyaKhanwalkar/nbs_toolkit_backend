@@ -34,14 +34,16 @@ The backend must be:
 ## Data Truth
 
 The current authoritative data assets are:
-- narmada_nbs_with_river_network.db
-- schema.sql
-- schema_river_network_patch.sql
-- DATA_DICTIONARY.md
-- river_network_narmada_clean.csv
-- site_stream_attributes_clean.csv
+- canonical db/narmada_nbs_canonical.db
+- canonical db/DATA_DICTIONARY_canonical.md
+- canonical db/DATA_SOURCING_LOG.md
+- HANDOFF (1).md
+- canonical db/narmada_nbs_canonical_csvs.zip
+- canonical db/narmada_nbs_canonical_csvs/
 
-Older simple CSVs are legacy/reference only.
+Older database/schema assets such as narmada_nbs_with_river_network.db,
+schema.sql, schema_river_network_patch.sql, and the older simple CSVs are
+legacy/reference only unless the handoff explicitly says otherwise.
 
 ## Target Backend Structure
 

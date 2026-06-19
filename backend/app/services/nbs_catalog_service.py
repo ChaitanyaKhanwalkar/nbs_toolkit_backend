@@ -4,6 +4,7 @@ This service combines stored NbS option, removal-efficiency, implementation,
 footprint, and criteria rows. It does not rank or filter candidates.
 """
 
+from collections.abc import Mapping
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -17,6 +18,8 @@ def _to_dict(row: Base | None) -> dict[str, Any] | None:
 
     if row is None:
         return None
+    if isinstance(row, Mapping):
+        return dict(row)
     return {column.name: getattr(row, column.name) for column in row.__table__.columns}
 
 

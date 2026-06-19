@@ -16,6 +16,15 @@ from app.services import SiteProfileService
 router = APIRouter(prefix="/sites", tags=["sites"])
 
 
+@router.get("/options")
+def list_site_options(
+    db: Annotated[Session, Depends(get_db)],
+) -> list[dict[str, object]]:
+    """Return canonical stations for frontend selection controls."""
+
+    return SiteProfileService(db).list_site_options()
+
+
 @router.get("/{region_id}", response_model=SiteProfileResponse)
 def get_site_profile(
     region_id: int,

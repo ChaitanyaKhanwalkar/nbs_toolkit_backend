@@ -4,6 +4,19 @@ Append a dated entry at the end of every work session. This is not busywork: it 
 Methods / reproducibility trail for the internship report and the paper. Capture the *why*,
 not just the *what*. Newest entries at the top.
 
+## 2026-06-19 - Canonical train recommendation flow
+
+- Added DB-driven A0 applicability filtering before TOPSIS, including high-order
+  in-channel relocation rules and industrial ETP/CETP pretreatment caveats.
+- Added treatment-train C1-C8 criterion assembly; C5 remains reserved with no
+  invented health-risk value.
+- Added provisional DB-weighted TOPSIS, separate dynamic confidence, all-three
+  use-case verdicts, train sequences, components, plants, caveats, and evidence.
+- Added non-persistent CSV upload analysis and canonical station options routes.
+- Connected Flutter site, pollution screening, and CSV upload workflows and
+  replaced option cards with expandable treatment-train results.
+- Verification: 13 pytest checks passed; legacy script suite rerun separately.
+
 Template:
 
 ## YYYY-MM-DD — <short title>
@@ -12,6 +25,15 @@ Template:
 **Sources added:** any datasets/papers/standards wired in (with citation).
 **Gaps / NULLs logged:** values left empty for lack of a source.
 **Blockers / next:** what's stuck, what's next.
+
+---
+
+## 2026-06-18 - Stabilize backend on canonical database
+**Done:** Re-pointed local backend configuration to `canonical db/narmada_nbs_canonical.db`; added canonical-aware repository read paths for normalized water observations, standards, sources, NbS options/removal/implementation/O&M design, and folded site-stream attributes; kept old-schema fallbacks for in-memory tests and legacy snapshots. Added `httpx2>=0.28` for current FastAPI/Starlette TestClient support. Updated AGENTS and backend docs to make the canonical DB and handoff the current source of truth.
+**Why:** `HANDOFF (1).md` showed the engine was still running on the stale 95-removal/56-source pre-regrounding DB. The fix was to evolve the data-access layer onto the canonical 167-removal/104-source DB, not rebuild the engine.
+**Sources added:** none. Existing canonical database/source package only.
+**Gaps / NULLs logged:** No scientific values, AHP weights, health-risk data, or removal efficiencies were invented. C2 health risk remains blocked; AHP weights remain `temporary_not_expert_validated`; extension `narmada_*` tables remain staging until join keys are verified. C1 still needs the planned severity-weighted pollutant-gap closure rebuild.
+**Blockers / next:** Decide how to commit/package `canonical db/` and `HANDOFF (1).md`; regenerate PostgreSQL schema before Azure; then build C1 and hard-safety/applicability filters in the handoff order. Verification: all backend test scripts passed with `.venv_canonical`; real-data `/api/v1/recommend` returned 24 ranked Step L recommendations against canonical DB.
 
 ---
 

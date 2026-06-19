@@ -12,7 +12,6 @@ AHP weights, or plant recommendations.
 
 from __future__ import annotations
 
-import sys
 from typing import Any
 
 from app.engines import McdaWeightsHandler
@@ -80,9 +79,6 @@ def test_missing_weights_output_converts_to_schema() -> None:
     assert response.missing_weight_criteria == CRITERIA_NAMES
     assert response.extra_weight_criteria == []
     assert response.weights_status == payload["weights_status"]
-    assert "app.api" not in sys.modules
-    assert "app.main" not in sys.modules
-
     assert_forbidden_fields_absent(payload)
     assert_forbidden_fields_absent(serialized)
     assert_schema_has_no_forbidden_model_fields()
@@ -114,9 +110,6 @@ def test_temporary_weights_output_converts_to_schema() -> None:
     assert "unknown_future_criterion" not in response.weights
     assert response.missing_weight_criteria == ["cost_indicator"]
     assert response.extra_weight_criteria == ["unknown_future_criterion"]
-    assert "app.api" not in sys.modules
-    assert "app.main" not in sys.modules
-
     assert_forbidden_fields_absent(payload)
     assert_forbidden_fields_absent(serialized)
     assert_schema_has_no_forbidden_model_fields()

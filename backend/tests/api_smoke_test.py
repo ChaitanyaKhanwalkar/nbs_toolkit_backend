@@ -153,19 +153,17 @@ def check_missing_resources(client: TestClient) -> None:
 def check_read_only_guarantee() -> None:
     """Confirm raw-data API routes stay GET-only."""
 
-    versioned_routes = [
-        route
-        for route in app.routes
-        if getattr(route, "path", "").startswith("/api/v1")
-    ]
+    versioned_routes = {
+        path: set(methods)
+        for path, methods in app.openapi()["paths"].items()
+        if path.startswith("/api/v1")
+    }
     assert versioned_routes, "No /api/v1 routes are registered."
-    for route in versioned_routes:
-        path = getattr(route, "path", "")
-        methods = getattr(route, "methods", set())
-        if path == "/api/v1/recommend":
-            assert methods == {"POST"}, f"{path} exposes unexpected methods: {methods}"
+    for path, methods in versioned_routes.items():
+        if path in {"/api/v1/recommend", "/api/v1/water/upload"}:
+            assert methods == {"post"}, f"{path} exposes unexpected methods: {methods}"
         else:
-            assert methods == {"GET"}, f"{path} exposes non-GET methods: {methods}"
+            assert methods == {"get"}, f"{path} exposes non-GET methods: {methods}"
 
 
 def check_openapi(client: TestClient) -> None:

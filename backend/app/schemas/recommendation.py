@@ -65,6 +65,12 @@ class RecommendationResponse(RawResponseModel):
     workflow_status: str
     step_completed: str | None = None
     use_case: str | None = None
+    location_profile: dict[str, Any] | None = None
+    input_summary: dict[str, Any] = Field(default_factory=dict)
+    contaminant_gaps: list[dict[str, Any]] = Field(default_factory=list)
+    ranked_trains: list[dict[str, Any]] = Field(default_factory=list)
+    rejected_options: list[dict[str, Any]] = Field(default_factory=list)
+    train_usecase_matrix: list[dict[str, Any]] = Field(default_factory=list)
     recommendation_assembly_bundle: RecommendationAssemblyBundleResponse | None = None
     citations: list[CitationResponse] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)

@@ -12,6 +12,12 @@ from app.engines.candidate_filtering import (
     CandidateFilteringEngine,
     CandidateFilterResult,
 )
+from app.engines.applicability_filter import (
+    ApplicabilityFilterBundle,
+    ApplicabilityFilterEngine,
+    CandidateApplicabilityResult,
+    ApplicabilityRuleHit,
+)
 from app.engines.confidence_scoring import (
     CandidateConfidenceResult,
     ConfidenceFactor,
@@ -99,6 +105,10 @@ __all__ = [
     "CandidateFilterBundle",
     "CandidateFilteringEngine",
     "CandidateFilterResult",
+    "ApplicabilityFilterBundle",
+    "ApplicabilityFilterEngine",
+    "CandidateApplicabilityResult",
+    "ApplicabilityRuleHit",
     "CandidateConfidenceResult",
     "ConfidenceFactor",
     "ConfidenceScoringBundle",

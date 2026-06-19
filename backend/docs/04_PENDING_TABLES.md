@@ -8,17 +8,17 @@ approved and added to `schema.sql` or a reviewed migration.
 
 ## criteria_weights
 
-Status: pending expert/AHP workflow.
+Status: implemented with 21 `UNVERIFIED_PROVISIONAL` rows.
 
 Why it matters:
 
-- Future recommendation ranking may use AHP-derived weights.
-- The current schema files do not define this table.
-- Fake or default expert weights must not be invented.
+- Interim train ranking uses the canonical DB rows for C1-C4 and C6-C8.
+- C5 health risk remains reserved and unweighted.
+- The weights are not expert-final and must stay visibly provisional.
 
 Next safe step:
 
-- Wait for supervisor-approved AHP outputs and an approved schema/migration.
+- Replace the provisional rows after supervisor-approved pairwise AHP outputs.
 
 ## health_risk
 

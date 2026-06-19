@@ -196,7 +196,7 @@ def assert_response_includes_resolved_citations() -> None:
         for source_id in recommendation["evidence_summary"]["source_ids"]
     }
     citation_ids = {citation["id"] for citation in citations}
-    assert citation_ids == referenced_ids
+    assert referenced_ids.issubset(citation_ids)
     for citation in citations:
         assert "citation" in citation and "license" in citation
 

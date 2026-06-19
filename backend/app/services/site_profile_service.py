@@ -4,6 +4,7 @@ This service combines region, basin, site attribute, and stream attribute data
 where available. It does not score suitability or hydrological risk.
 """
 
+from collections.abc import Mapping
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -17,6 +18,8 @@ def _to_dict(row: Base | None) -> dict[str, Any] | None:
 
     if row is None:
         return None
+    if isinstance(row, Mapping):
+        return dict(row)
     return {column.name: getattr(row, column.name) for column in row.__table__.columns}
 
 
@@ -59,3 +62,8 @@ class SiteProfileService:
             "site_stream_attributes": _to_dicts(profile["stream_attributes"]),
             "missing_sections": missing_sections,
         }
+
+    def list_site_options(self) -> list[dict[str, Any]]:
+        """Return compact station rows for site-selection controls."""
+
+        return self.sites.list_site_options()

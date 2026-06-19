@@ -5,6 +5,7 @@ water-quality stations, and standards use cases. It only prepares raw data for
 future APIs; it does not make scientific choices.
 """
 
+from collections.abc import Mapping
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -23,6 +24,8 @@ def _to_dict(row: Base | None) -> dict[str, Any] | None:
 
     if row is None:
         return None
+    if isinstance(row, Mapping):
+        return dict(row)
     return {column.name: getattr(row, column.name) for column in row.__table__.columns}
 
 
