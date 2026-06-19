@@ -15,6 +15,8 @@ class RecommendationResponse {
     required this.expertValidated,
     required this.provisionalNote,
     required this.recommendationCount,
+    required this.rankedTrains,
+    required this.rejectedOptions,
   });
 
   final String workflowStatus;
@@ -32,6 +34,8 @@ class RecommendationResponse {
   final bool expertValidated;
   final String? provisionalNote;
   final int recommendationCount;
+  final List<TrainRecommendation> rankedTrains;
+  final List<Map<String, dynamic>> rejectedOptions;
 
   /// Resolved citations indexed by source ID for quick lookup in the UI.
   Map<int, Citation> get citationsById {
@@ -42,6 +46,7 @@ class RecommendationResponse {
     final bundleJson = json['recommendation_assembly_bundle'];
     final exceedanceRows = json['exceedances'];
     final citationRows = json['citations'];
+    final trainRows = json['ranked_trains'];
     return RecommendationResponse(
       workflowStatus: _stringValue(json['workflow_status']),
       stepCompleted: _nullableString(json['step_completed']),
@@ -73,8 +78,120 @@ class RecommendationResponse {
           (bundleJson is Map<String, dynamic>
               ? _intValue(bundleJson['recommendation_count'])
               : 0),
+      rankedTrains: trainRows is List
+          ? trainRows
+              .whereType<Map<String, dynamic>>()
+              .map(TrainRecommendation.fromJson)
+              .toList()
+          : <TrainRecommendation>[],
+      rejectedOptions: (json['rejected_options'] as List?)
+              ?.whereType<Map<String, dynamic>>()
+              .toList() ??
+          <Map<String, dynamic>>[],
     );
   }
+}
+
+class TrainRecommendation {
+  TrainRecommendation({
+    required this.trainId,
+    required this.name,
+    required this.rank,
+    required this.matchScore,
+    required this.confidenceScore,
+    required this.confidenceLabel,
+    required this.useCaseVerdicts,
+    required this.criteriaBreakdown,
+    required this.applicabilityStatus,
+    required this.whyRecommended,
+    required this.caveats,
+    required this.treatmentSequence,
+    required this.nbsComponents,
+    required this.suitablePlants,
+    required this.sourceIds,
+    required this.implementationRole,
+    required this.pretreatmentRequirements,
+    required this.dataGaps,
+    required this.implementationGuidance,
+    required this.sourceLocationGuidance,
+    required this.plantingGuidance,
+  });
+
+  final int trainId;
+  final String name;
+  final int rank;
+  final double? matchScore;
+  final double? confidenceScore;
+  final String? confidenceLabel;
+  final Map<String, String> useCaseVerdicts;
+  final List<Map<String, dynamic>> criteriaBreakdown;
+  final String applicabilityStatus;
+  final List<String> whyRecommended;
+  final List<String> caveats;
+  final List<Map<String, dynamic>> treatmentSequence;
+  final List<Map<String, dynamic>> nbsComponents;
+  final List<Map<String, dynamic>> suitablePlants;
+  final List<int> sourceIds;
+  final String? implementationRole;
+  final List<String> pretreatmentRequirements;
+  final List<String> dataGaps;
+  final List<String> implementationGuidance;
+  final List<String> sourceLocationGuidance;
+  final String? plantingGuidance;
+
+  factory TrainRecommendation.fromJson(Map<String, dynamic> json) {
+    final verdictRows = json['all_use_case_verdicts'];
+    return TrainRecommendation(
+      trainId: _intValue(json['train_id']),
+      name: _stringValue(json['name'], fallback: 'Treatment train'),
+      rank: _intValue(json['rank']),
+      matchScore: _nullableDouble(json['match_score']),
+      confidenceScore: _nullableDouble(json['confidence_score']),
+      confidenceLabel: _nullableString(json['confidence_label']),
+      useCaseVerdicts: verdictRows is Map<String, dynamic>
+          ? verdictRows.map(
+              (key, value) => MapEntry(
+                key,
+                value is Map<String, dynamic>
+                    ? _stringValue(value['verdict'], fallback: 'unknown')
+                    : 'unknown',
+              ),
+            )
+          : <String, String>{},
+      criteriaBreakdown: (json['criteria_breakdown'] as List?)
+              ?.whereType<Map<String, dynamic>>()
+              .toList() ??
+          <Map<String, dynamic>>[],
+      applicabilityStatus: _stringValue(
+        (json['applicability_result'] as Map<String, dynamic>?)?['status'],
+        fallback: 'unknown',
+      ),
+      whyRecommended: _stringList(json['why_recommended']),
+      caveats: _stringList(json['caveats']),
+      treatmentSequence: (json['treatment_sequence'] as List?)
+              ?.whereType<Map<String, dynamic>>()
+              .toList() ??
+          <Map<String, dynamic>>[],
+      nbsComponents: (json['nbs_components'] as List?)
+              ?.whereType<Map<String, dynamic>>()
+              .toList() ??
+          <Map<String, dynamic>>[],
+      suitablePlants: (json['suitable_plants'] as List?)
+              ?.whereType<Map<String, dynamic>>()
+              .toList() ??
+          <Map<String, dynamic>>[],
+      sourceIds: _intList(json['evidence_source_ids']),
+      implementationRole: _nullableString(json['implementation_role']),
+      pretreatmentRequirements: _stringList(json['pretreatment_requirements']),
+      dataGaps: _stringList(json['data_gaps']),
+      implementationGuidance: _stringList(json['implementation_guidance']),
+      sourceLocationGuidance: _stringList(json['source_location_guidance']),
+      plantingGuidance: _nullableString(json['planting_guidance']),
+    );
+  }
+
+  String get matchPercent => _percent(matchScore);
+  String get confidencePercent => _percent(confidenceScore);
 }
 
 class Exceedance {

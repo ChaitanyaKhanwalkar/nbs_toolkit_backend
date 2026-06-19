@@ -12,6 +12,11 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.engines.train_recommendation import (
+    PROVISIONAL_WARNING,
+    TrainRecommendationEngine,
+)
+from app.repositories import EngineDataRepository
 from app.schemas import RecommendationRequest, RecommendationResponse
 from app.services import ScientificWorkflowService
 from app.services.reference_data_service import ReferenceDataService
@@ -35,6 +40,14 @@ def get_reference_data_service(
     return ReferenceDataService(db)
 
 
+def get_engine_data_repository(
+    db: Annotated[Session, Depends(get_db)],
+) -> EngineDataRepository:
+    """Build the read-only engine-data repository for canonical train views."""
+
+    return EngineDataRepository(db)
+
+
 @router.post("", response_model=RecommendationResponse)
 def run_local_recommendation_workflow(
     request: RecommendationRequest,
@@ -45,6 +58,10 @@ def run_local_recommendation_workflow(
     reference_service: Annotated[
         ReferenceDataService,
         Depends(get_reference_data_service),
+    ],
+    engine_data: Annotated[
+        EngineDataRepository,
+        Depends(get_engine_data_repository),
     ],
 ) -> dict[str, Any]:
     """Run the staged A-L workflow and return safe recommendation assembly output."""
@@ -67,6 +84,12 @@ def run_local_recommendation_workflow(
             "workflow_status": "failed",
             "step_completed": None,
             "use_case": request.use_case,
+            "location_profile": None,
+            "input_summary": {},
+            "contaminant_gaps": [],
+            "ranked_trains": [],
+            "rejected_options": [],
+            "train_usecase_matrix": [],
             "recommendation_assembly_bundle": None,
             "warnings": ["The recommendation workflow failed safely."],
             "errors": [f"Recommendation workflow failed: {exc}"],
@@ -81,15 +104,48 @@ def run_local_recommendation_workflow(
     assembly_bundle = payload.get("recommendation_assembly_bundle")
     weights_status = _weights_status(payload, assembly_bundle)
     expert_validated = _expert_validated(payload, assembly_bundle)
-    citations = _resolve_citations(assembly_bundle, reference_service)
+    train_usecase_matrix = engine_data.list_engine_usecase_matrix()
+    train_result = TrainRecommendationEngine(engine_data).rank(
+        use_case=_use_case(payload, request.use_case) or request.use_case,
+        contaminant_gaps=_contaminant_gaps(payload),
+        context=request.context,
+        region_id=request.region_id,
+        input_source_type=(payload.get("water_input_bundle") or {}).get(
+            "selected_source_type"
+        ),
+    )
+    citations = _resolve_citations(
+        assembly_bundle,
+        reference_service,
+        train_result["ranked_trains"],
+    )
 
     return {
-        "workflow_status": payload.get("workflow_status", "failed"),
+        "workflow_status": _workflow_status(
+            payload,
+            request.context,
+            train_result["ranked_trains"],
+        ),
         "step_completed": payload.get("step_completed"),
         "use_case": _use_case(payload, request.use_case),
+        "location_profile": _location_profile(payload),
+        "input_summary": _input_summary(payload),
+        "contaminant_gaps": _contaminant_gaps(payload),
+        "ranked_trains": train_result["ranked_trains"],
+        "rejected_options": [
+            *_rejected_options(payload),
+            *train_result["rejected_options"],
+        ],
+        "train_usecase_matrix": train_usecase_matrix,
         "recommendation_assembly_bundle": assembly_bundle,
         "citations": citations,
-        "warnings": _warnings(payload, weights_status),
+        "warnings": _unique(
+            [
+                *_warnings(payload, weights_status),
+                *train_result["warnings"],
+                *_context_guidance_warnings(payload, request.context),
+            ]
+        ),
         "errors": list(payload.get("errors") or []),
         "missing_data_messages": _missing_data_messages(payload),
         "weights_status": weights_status,
@@ -101,15 +157,18 @@ def run_local_recommendation_workflow(
 def _resolve_citations(
     assembly_bundle: dict[str, Any] | None,
     reference_service: ReferenceDataService,
+    ranked_trains: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     """Resolve every source ID referenced by the recommendations into citations."""
 
-    if not assembly_bundle:
-        return []
     source_ids: list[int] = []
-    for recommendation in assembly_bundle.get("recommendations") or []:
+    for recommendation in (assembly_bundle or {}).get("recommendations") or []:
         evidence_summary = recommendation.get("evidence_summary") or {}
         for source_id in evidence_summary.get("source_ids") or []:
+            if source_id not in source_ids:
+                source_ids.append(source_id)
+    for train in ranked_trains or []:
+        for source_id in train.get("evidence_source_ids") or []:
             if source_id not in source_ids:
                 source_ids.append(source_id)
     if not source_ids:
@@ -118,6 +177,83 @@ def _resolve_citations(
         return reference_service.get_citations_for_ids(source_ids)
     except Exception:  # pragma: no cover - citations are best-effort provenance
         return []
+
+
+def _location_profile(payload: dict[str, Any]) -> dict[str, Any] | None:
+    """Return currently known location identifiers without inventing site data."""
+
+    input_context = payload.get("input_context") or {}
+    normalized_input = input_context.get("normalized_input") or {}
+    profile = {
+        "region_id": normalized_input.get("region_id"),
+        "basin_id": normalized_input.get("basin_id"),
+        "station": normalized_input.get("station"),
+    }
+    return profile if any(value is not None for value in profile.values()) else None
+
+
+def _workflow_status(
+    payload: dict[str, Any],
+    context: dict[str, Any],
+    ranked_trains: list[dict[str, Any]],
+) -> str:
+    """Label location/source-only output as guidance rather than failure."""
+
+    mode = context.get("workflow_mode")
+    if (
+        payload.get("workflow_status") == "data_missing"
+        and mode in {"site_context_only", "pollution_source_screening"}
+        and ranked_trains
+    ):
+        return "context_guidance"
+    return payload.get("workflow_status", "failed")
+
+
+def _context_guidance_warnings(
+    payload: dict[str, Any],
+    context: dict[str, Any],
+) -> list[str]:
+    """Explain the scientific boundary of context-only workflows."""
+
+    if (
+        payload.get("workflow_status") == "data_missing"
+        and context.get("workflow_mode")
+        in {"site_context_only", "pollution_source_screening"}
+    ):
+        return [
+            "Context guidance only: measured water-quality data are required "
+            "for treatment pass/fail conclusions."
+        ]
+    return []
+
+
+def _input_summary(payload: dict[str, Any]) -> dict[str, Any]:
+    """Summarize user input and selected water source for the frontend."""
+
+    input_context = payload.get("input_context") or {}
+    normalized_input = input_context.get("normalized_input") or {}
+    water_bundle = payload.get("water_input_bundle") or {}
+    return {
+        "use_case": normalized_input.get("use_case"),
+        "selected_source_type": water_bundle.get("selected_source_type"),
+        "observation_count": water_bundle.get("observation_count", 0),
+        "selected_parameters": normalized_input.get("selected_parameters") or [],
+        "context": normalized_input.get("context") or {},
+    }
+
+
+def _contaminant_gaps(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """Expose Step C pollutant gap rows as contaminant gaps."""
+
+    gap_bundle = payload.get("pollutant_gap_bundle") or {}
+    return list(gap_bundle.get("results") or [])
+
+
+def _rejected_options(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """Expose A0 rejected options with rule reasons."""
+
+    applicability_bundle = payload.get("applicability_filter_bundle") or {}
+    return list(applicability_bundle.get("rejected_options") or [])
 
 
 def _use_case(payload: dict[str, Any], fallback: str) -> str | None:
@@ -196,10 +332,7 @@ def _provisional_note(weights_status: str | None) -> str | None:
     """Return a visible note when temporary weights drove the ranking."""
 
     if weights_status == "temporary_not_expert_validated":
-        return (
-            "This response used temporary criteria weights. Treat ranking and "
-            "match_score as provisional until expert-validated weights are available."
-        )
+        return PROVISIONAL_WARNING
     if weights_status == "weights_missing":
         return (
             "No criteria weights were supplied, so TOPSIS ranking and assembled "

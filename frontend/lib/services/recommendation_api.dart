@@ -5,6 +5,40 @@ import 'package:http/http.dart' as http;
 
 import '../models/recommendation_models.dart';
 
+class SiteOption {
+  SiteOption({
+    required this.regionId,
+    required this.station,
+    this.streamOrder,
+    this.dischargeCms,
+    this.drainageAreaKm2,
+  });
+
+  final int regionId;
+  final String station;
+  final int? streamOrder;
+  final double? dischargeCms;
+  final double? drainageAreaKm2;
+
+  factory SiteOption.fromJson(Map<String, dynamic> json) => SiteOption(
+        regionId: (json['region_id'] as num).toInt(),
+        station: json['station']?.toString() ?? 'Station',
+        streamOrder: (json['stream_order_strahler'] as num?)?.toInt(),
+        dischargeCms: (json['nat_discharge_cms'] as num?)?.toDouble(),
+        drainageAreaKm2: (json['drainage_area_km2'] as num?)?.toDouble(),
+      );
+}
+
+class UploadedWaterCsv {
+  UploadedWaterCsv({
+    required this.observations,
+    required this.unknownParameters,
+  });
+
+  final List<Map<String, dynamic>> observations;
+  final List<String> unknownParameters;
+}
+
 class RecommendationApi {
   RecommendationApi({
     http.Client? client,
@@ -27,6 +61,23 @@ class RecommendationApi {
     required double nitrateN,
     required double ph,
   }) async {
+    return runContextualRecommendation(
+      observations: [
+        {'parameter': 'bod', 'value': bod, 'unit': 'mg_l', 'source_id': 101},
+        {'parameter': 'tss', 'value': tss, 'unit': 'mg_l', 'source_id': 101},
+        {'parameter': 'nitrate_n', 'value': nitrateN, 'unit': 'mg_l', 'source_id': 102},
+        {'parameter': 'ph', 'value': ph, 'unit': 'ph_units', 'source_id': 102},
+      ],
+    );
+  }
+
+  Future<RecommendationResponse> runContextualRecommendation({
+    required List<Map<String, dynamic>> observations,
+    int? regionId,
+    String? station,
+    String useCase = 'discharge_inland',
+    Map<String, dynamic> context = const {},
+  }) async {
     final uri = Uri.parse('$_baseUrl/api/v1/recommend');
     late final http.Response response;
     try {
@@ -34,12 +85,16 @@ class RecommendationApi {
           .post(
             uri,
             headers: const {'Content-Type': 'application/json'},
-            body: jsonEncode(_requestBody(
-              bod: bod,
-              tss: tss,
-              nitrateN: nitrateN,
-              ph: ph,
-            )),
+            body: jsonEncode({
+              'use_case': useCase,
+              'selected_parameters': [
+                for (final row in observations) row['parameter'],
+              ],
+              'measured_observations': observations,
+              if (regionId != null) 'region_id': regionId,
+              if (station != null) 'station': station,
+              'context': context,
+            }),
           )
           .timeout(const Duration(seconds: 35));
     } on RecommendationApiException {
@@ -81,32 +136,63 @@ class RecommendationApi {
     return parsed;
   }
 
-  Map<String, dynamic> _requestBody({
-    required double bod,
-    required double tss,
-    required double nitrateN,
-    required double ph,
-  }) {
-    return {
-      'use_case': 'discharge_inland',
-      'selected_parameters': ['bod', 'tss', 'nitrate_n', 'ph'],
-      'measured_observations': [
-        {'parameter': 'bod', 'value': bod, 'unit': 'mg_l', 'source_id': 101},
-        {'parameter': 'tss', 'value': tss, 'unit': 'mg_l', 'source_id': 101},
-        {
-          'parameter': 'nitrate_n',
-          'value': nitrateN,
-          'unit': 'mg_l',
-          'source_id': 102,
-        },
-        {'parameter': 'ph', 'value': ph, 'unit': 'ph_units', 'source_id': 102},
-      ],
-      // No weights are sent on purpose: the backend supplies transparent,
-      // provisional default criteria weights (single source of truth in
-      // backend/app/core/default_weights.py) so there is one place to swap in
-      // the supervisor's expert AHP weights later.
-    };
+  Future<List<SiteOption>> listSites() async {
+    final response = await _client
+        .get(Uri.parse('$_baseUrl/api/v1/sites/options'))
+        .timeout(const Duration(seconds: 20));
+    if (response.statusCode != 200) {
+      throw RecommendationApiException('Could not load Narmada sites.');
+    }
+    final decoded = jsonDecode(response.body);
+    return decoded is List
+        ? decoded
+            .whereType<Map<String, dynamic>>()
+            .map(SiteOption.fromJson)
+            .toList()
+        : <SiteOption>[];
   }
+
+  Future<int> pollutionSourceCount(int regionId) async {
+    final response = await _client
+        .get(Uri.parse('$_baseUrl/api/v1/pollution/regions/$regionId'))
+        .timeout(const Duration(seconds: 20));
+    if (response.statusCode != 200) {
+      return 0;
+    }
+    final decoded = jsonDecode(response.body);
+    final rows = decoded is Map<String, dynamic> ? decoded['pollution_sources'] : null;
+    return rows is List ? rows.length : 0;
+  }
+
+  Future<UploadedWaterCsv> uploadWaterCsv({
+    required List<int> bytes,
+    required String filename,
+    String useCase = 'discharge_inland',
+  }) async {
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$_baseUrl/api/v1/water/upload?use_case=$useCase'),
+    )..files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename));
+    final streamed = await _client.send(request).timeout(const Duration(seconds: 30));
+    final response = await http.Response.fromStream(streamed);
+    if (response.statusCode != 200) {
+      throw RecommendationApiException('CSV upload failed: ${response.body}');
+    }
+    final decoded = jsonDecode(response.body);
+    final rows = decoded is Map<String, dynamic> ? decoded['observations'] : null;
+    final unknown = decoded is Map<String, dynamic>
+        ? decoded['unknown_parameters']
+        : null;
+    return UploadedWaterCsv(
+      observations: rows is List
+          ? rows.whereType<Map<String, dynamic>>().toList()
+          : <Map<String, dynamic>>[],
+      unknownParameters: unknown is List
+          ? unknown.map((value) => value.toString()).toList()
+          : <String>[],
+    );
+  }
+
 }
 
 String _cleanBaseUrl(String rawBaseUrl) {

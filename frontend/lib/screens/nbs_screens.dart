@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 
 import '../models/recommendation_models.dart';
+import '../services/recommendation_api.dart';
 import '../theme/nbs_theme.dart';
 import '../widgets/app_card.dart';
 
@@ -132,10 +134,16 @@ class HomeDashboard extends StatelessWidget {
     super.key,
     required this.onStartRecommendation,
     required this.onAbout,
+    required this.onSelectSite,
+    required this.onPollutionScreening,
+    required this.onUploadWater,
   });
 
   final VoidCallback onStartRecommendation;
   final VoidCallback onAbout;
+  final VoidCallback onSelectSite;
+  final VoidCallback onPollutionScreening;
+  final VoidCallback onUploadWater;
 
   @override
   Widget build(BuildContext context) {
@@ -165,23 +173,26 @@ class HomeDashboard extends StatelessWidget {
                   onTap: onStartRecommendation,
                   emphasized: true,
                 ),
-                const _ActionCard(
+                _ActionCard(
                   title: 'Select Narmada Site/Station',
-                  description: 'Next build',
+                  description: 'Choose a canonical station and load its river context.',
                   icon: Icons.place_outlined,
                   color: NbsColors.riverTeal,
+                  onTap: onSelectSite,
                 ),
-                const _ActionCard(
+                _ActionCard(
                   title: 'Pollution Source Screening',
-                  description: 'Next build',
+                  description: 'Screen domestic, agricultural, or industrial context.',
                   icon: Icons.manage_search_outlined,
                   color: NbsColors.wetlandGreen,
+                  onTap: onPollutionScreening,
                 ),
-                const _ActionCard(
+                _ActionCard(
                   title: 'Upload Water Data',
-                  description: 'Next build',
+                  description: 'Upload parameter, value, unit CSV data for gap analysis.',
                   icon: Icons.upload_file_outlined,
                   color: NbsColors.warningAmber,
+                  onTap: onUploadWater,
                 ),
               ];
               return GridView.count(
@@ -199,6 +210,413 @@ class HomeDashboard extends StatelessWidget {
           const _StatusPanel(),
         ],
       ),
+    );
+  }
+}
+
+class _ManualParameter {
+  const _ManualParameter(this.controller, this.parameter, this.unit);
+
+  final TextEditingController controller;
+  final String parameter;
+  final String unit;
+}
+
+class AnalysisInput {
+  AnalysisInput({
+    required this.observations,
+    required this.regionId,
+    required this.station,
+    required this.context,
+  });
+
+  final List<Map<String, dynamic>> observations;
+  final int? regionId;
+  final String? station;
+  final Map<String, dynamic> context;
+}
+
+class AnalysisSetupScreen extends StatefulWidget {
+  const AnalysisSetupScreen({
+    super.key,
+    required this.api,
+    required this.mode,
+    required this.onRun,
+    required this.onBack,
+    this.errorMessage,
+  });
+
+  final RecommendationApi api;
+  final String mode;
+  final ValueChanged<AnalysisInput> onRun;
+  final VoidCallback onBack;
+  final String? errorMessage;
+
+  @override
+  State<AnalysisSetupScreen> createState() => _AnalysisSetupScreenState();
+}
+
+class _AnalysisSetupScreenState extends State<AnalysisSetupScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _bod = TextEditingController();
+  final _cod = TextEditingController();
+  final _tss = TextEditingController();
+  final _ammonia = TextEditingController();
+  final _nitrate = TextEditingController();
+  final _phosphate = TextEditingController();
+  final _ph = TextEditingController();
+  final _do = TextEditingController();
+  final _tds = TextEditingController();
+  final _ec = TextEditingController();
+  final _turbidity = TextEditingController();
+  final _faecalColiform = TextEditingController();
+  List<SiteOption> _sites = [];
+  SiteOption? _site;
+  String _source = 'domestic_sewage';
+  String _position = 'off_channel_or_stp_polishing';
+  List<Map<String, dynamic>>? _uploaded;
+  List<String> _uploadUnknownParameters = [];
+  String? _uploadName;
+  int? _pollutionCount;
+  String? _localError;
+  bool _loadingSites = true;
+  bool _uploading = false;
+
+  bool get _isMeasuredMode => widget.mode == 'Measured Water Quality';
+  bool get _isSiteMode => widget.mode.startsWith('Select Narmada');
+  bool get _isPollutionMode => widget.mode == 'Pollution Source Screening';
+  bool get _isUploadMode => widget.mode == 'Upload Water Data';
+
+  @override
+  void initState() {
+    super.initState();
+    widget.api.listSites().then((value) {
+      if (mounted) setState(() { _sites = value; _loadingSites = false; });
+    }).catchError((_) {
+      if (mounted) setState(() => _loadingSites = false);
+    });
+  }
+
+  @override
+  void dispose() {
+    _bod.dispose();
+    _cod.dispose();
+    _tss.dispose();
+    _ammonia.dispose();
+    _nitrate.dispose();
+    _phosphate.dispose();
+    _ph.dispose();
+    _do.dispose();
+    _tds.dispose();
+    _ec.dispose();
+    _turbidity.dispose();
+    _faecalColiform.dispose();
+    super.dispose();
+  }
+
+  Future<void> _chooseCsv() async {
+    final picked = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['csv'],
+      withData: true,
+    );
+    final file = picked?.files.single;
+    if (file?.bytes == null) {
+      return;
+    }
+    setState(() => _uploading = true);
+    try {
+      final result = await widget.api.uploadWaterCsv(
+        bytes: file!.bytes!,
+        filename: file.name,
+      );
+      if (mounted) {
+        setState(() {
+          _uploaded = result.observations;
+          _uploadUnknownParameters = result.unknownParameters;
+          _uploadName = file.name;
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _uploading = false);
+      }
+    }
+  }
+
+  Future<void> _selectSite(SiteOption? value) async {
+    setState(() { _site = value; _pollutionCount = null; });
+    if (value != null) {
+      final count = await widget.api.pollutionSourceCount(value.regionId);
+      if (mounted && _site?.regionId == value.regionId) {
+        setState(() => _pollutionCount = count);
+      }
+    }
+  }
+
+  void _submit() {
+    setState(() => _localError = null);
+    if (_isSiteMode && _site == null) {
+      setState(() => _localError = 'Select a Narmada site/station first.');
+      return;
+    }
+    if (_isUploadMode && _uploaded == null) {
+      setState(() => _localError = 'Upload a CSV first, or use the Measured Water Quality workflow for manual entry.');
+      return;
+    }
+    if (_isMeasuredMode && !(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
+    final observations = _uploaded ??
+        (_isMeasuredMode ? _manualObservations() : <Map<String, dynamic>>[]);
+    if (_isMeasuredMode && observations.isEmpty) {
+      setState(() => _localError = 'Enter at least one measured parameter.');
+      return;
+    }
+    if (_isUploadMode && _uploaded!.isEmpty) {
+      setState(() => _localError = 'The CSV contains no numeric observations. Blank values are unknown, but at least one measured value is needed.');
+      return;
+    }
+    widget.onRun(AnalysisInput(
+      observations: observations,
+      regionId: _site?.regionId,
+      station: _site?.station,
+      context: <String, dynamic>{
+        'workflow_mode': _workflowModeKey,
+        if (!_isSiteMode) 'pollution_source_type': _source,
+        if (!_isSiteMode) 'intervention_position': _position,
+        if (_isSiteMode && _site?.streamOrder != null)
+          'stream_order': _site!.streamOrder,
+      },
+    ));
+  }
+
+  String get _workflowModeKey {
+    if (_isSiteMode) return 'site_context_only';
+    if (_isPollutionMode) return 'pollution_source_screening';
+    if (_isUploadMode) return 'uploaded_water_quality';
+    return 'manual_measured_water_quality';
+  }
+
+  List<Map<String, dynamic>> _manualObservations() {
+    final fields = [
+      _ManualParameter(_bod, 'bod', 'mg_l'),
+      _ManualParameter(_cod, 'cod', 'mg_l'),
+      _ManualParameter(_tss, 'tss', 'mg_l'),
+      _ManualParameter(_ammonia, 'ammonia_n', 'mg_l'),
+      _ManualParameter(_nitrate, 'nitrate_n', 'mg_l'),
+      _ManualParameter(_phosphate, 'phosphate_p', 'mg_l'),
+      _ManualParameter(_ph, 'ph', 'ph_units'),
+      _ManualParameter(_do, 'do', 'mg_l'),
+      _ManualParameter(_tds, 'tds', 'mg_l'),
+      _ManualParameter(_ec, 'ec', 'us_cm'),
+      _ManualParameter(_turbidity, 'turbidity', 'ntu'),
+      _ManualParameter(_faecalColiform, 'faecal_coliform', 'mpn_100ml'),
+    ];
+    return [
+      for (final field in fields)
+        if (field.controller.text.trim().isNotEmpty)
+          {
+            'parameter': field.parameter,
+            'value': double.parse(field.controller.text.trim()),
+            'unit': field.unit,
+          },
+    ];
+  }
+
+  String get _modeSubtitle {
+    if (_isSiteMode) return 'Pick a Narmada monitoring station to run a location-context recommendation.';
+    if (_isPollutionMode) return 'Screen source pressure and implementation position before detailed design.';
+    if (_isUploadMode) return 'Upload a CSV with parameter, value, and unit columns for a broader water-quality panel.';
+    return 'Enter measured lab/field values. Leave optional fields blank if not available.';
+  }
+
+  String get _runButtonLabel {
+    if (_isSiteMode) return 'Run Site Context Recommendation';
+    if (_isPollutionMode) return 'Run Pollution Screening';
+    if (_isUploadMode) return 'Run CSV-Based Recommendation';
+    return 'Run Recommendation';
+  }
+
+  String get _sourceScreeningGuidance {
+    switch (_source) {
+      case 'industrial_or_mixed_industrial':
+        return 'Source-risk focus: characterize industrial chemistry and provide ETP/CETP treatment, including neutralization where required. NbS can then serve as polishing, buffer, or source-control support.';
+      case 'high_agriculture_only_no_water_data':
+        return 'Source-risk focus: control nutrients, erosion, and sediment at farm and drainage scale first. Consider only intercepted off-channel runoff for polishing.';
+      default:
+        return 'Source-risk focus: provide screening and primary/biological treatment for collected sewage, then assess NbS units for secondary treatment and polishing.';
+    }
+  }
+
+  Widget _siteSelector() => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          DropdownButtonFormField<SiteOption>(
+            initialValue: _site,
+            decoration: InputDecoration(labelText: _loadingSites ? 'Loading stations...' : 'Narmada site / station', prefixIcon: const Icon(Icons.place_outlined)),
+            items: [for (final site in _sites) DropdownMenuItem(value: site, child: Text('${site.station} (region ${site.regionId})'))],
+            onChanged: _selectSite,
+          ),
+          if (_pollutionCount != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text('$_pollutionCount canonical pollution-source records found for this region.')),
+          if (_site != null) ...[
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              if (_site!.streamOrder != null) _ContextChip(label: 'Stream order', value: '${_site!.streamOrder}'),
+              if (_site!.dischargeCms != null) _ContextChip(label: 'Natural discharge', value: '${_site!.dischargeCms!.toStringAsFixed(1)} m3/s'),
+              if (_site!.drainageAreaKm2 != null) _ContextChip(label: 'Drainage area', value: '${_site!.drainageAreaKm2!.toStringAsFixed(0)} km2'),
+            ]),
+          ],
+        ],
+      );
+
+  Widget _sourceAndPositionSelectors() => Row(children: [
+        Expanded(child: DropdownButtonFormField<String>(initialValue: _source, decoration: const InputDecoration(labelText: 'Pollution source context'), items: const [
+          DropdownMenuItem(value: 'domestic_sewage', child: Text('Domestic sewage')),
+          DropdownMenuItem(value: 'high_agriculture_only_no_water_data', child: Text('Agricultural runoff')),
+          DropdownMenuItem(value: 'industrial_or_mixed_industrial', child: Text('Industrial / mixed industrial')),
+        ], onChanged: (value) => setState(() => _source = value!))),
+        const SizedBox(width: 12),
+        Expanded(child: DropdownButtonFormField<String>(initialValue: _position, decoration: const InputDecoration(labelText: 'Intervention position'), items: const [
+          DropdownMenuItem(value: 'off_channel_or_stp_polishing', child: Text('Off-channel / STP polishing')),
+          DropdownMenuItem(value: 'in_channel', child: Text('In-channel')),
+          DropdownMenuItem(value: 'standalone_primary_treatment', child: Text('Standalone primary treatment')),
+        ], onChanged: (value) => setState(() => _position = value!))),
+      ]);
+
+  Widget _uploadPanel() => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          OutlinedButton.icon(onPressed: _uploading ? null : _chooseCsv, icon: const Icon(Icons.upload_file), label: Text(_uploading ? 'Analyzing CSV...' : _uploadName ?? 'Upload Water CSV')),
+          const SizedBox(height: 8),
+          Text('CSV format: parameter,value,unit. Example: bod,80,mg_l', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: NbsColors.mutedGrey)),
+          const SizedBox(height: 6),
+          Text('Accepted parameters include BOD, COD, TSS, pH, NH4-N, nitrate-N, phosphate-P, DO, EC, TDS, turbidity, and faecal coliform. Blank values are retained as unknown and never converted to zero.', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: NbsColors.mutedGrey)),
+          if (_uploaded != null) Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text('${_uploaded!.length} numeric observations ready; ${_uploadUnknownParameters.length} blank parameters marked unknown.'),
+          ),
+        ],
+      );
+
+  Widget _manualPanel() {
+    final fields = [
+      _NumberField(controller: _bod, label: 'BOD', suffix: 'mg/L', helper: 'Organic load', requiredField: false),
+      _NumberField(controller: _cod, label: 'COD', suffix: 'mg/L', helper: 'Chemical oxygen demand', requiredField: false),
+      _NumberField(controller: _tss, label: 'TSS', suffix: 'mg/L', helper: 'Suspended solids', requiredField: false),
+      _NumberField(controller: _ammonia, label: 'NH4-N', suffix: 'mg/L', helper: 'Ammoniacal nitrogen', requiredField: false),
+      _NumberField(controller: _nitrate, label: 'Nitrate-N', suffix: 'mg/L', helper: 'As nitrogen', requiredField: false),
+      _NumberField(controller: _phosphate, label: 'PO4-P / TP', suffix: 'mg/L', helper: 'Phosphorus', requiredField: false),
+      _NumberField(controller: _ph, label: 'pH', suffix: '', helper: 'Acidity / alkalinity', requiredField: false),
+      _NumberField(controller: _do, label: 'DO', suffix: 'mg/L', helper: 'Dissolved oxygen', requiredField: false),
+      _NumberField(controller: _tds, label: 'TDS', suffix: 'mg/L', helper: 'Dissolved solids', requiredField: false),
+      _NumberField(controller: _ec, label: 'EC', suffix: 'uS/cm', helper: 'Conductivity', requiredField: false),
+      _NumberField(controller: _turbidity, label: 'Turbidity', suffix: 'NTU', helper: 'Clarity indicator', requiredField: false),
+      _NumberField(controller: _faecalColiform, label: 'Faecal coliform', suffix: 'MPN/100mL', helper: 'Pathogen indicator', requiredField: false),
+    ];
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('Measured water-quality panel', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+      const SizedBox(height: 6),
+      Text('The engine uses all filled parameters. Optional blanks are treated as unknown, not zero.', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: NbsColors.mutedGrey)),
+      const SizedBox(height: 10),
+      LayoutBuilder(builder: (context, constraints) {
+        final isWide = constraints.maxWidth > 900;
+        return GridView.count(
+          crossAxisCount: isWide ? 3 : 1,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+          childAspectRatio: isWide ? 3.2 : 4.6,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          children: fields,
+        );
+      }),
+    ]);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppScaffold(
+      title: 'Recommendation inputs',
+      actions: [IconButton(onPressed: widget.onBack, icon: const Icon(Icons.close))],
+      child: Form(
+        key: _formKey,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(widget.mode, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900)),
+          const SizedBox(height: 6),
+          Text(_modeSubtitle, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: NbsColors.mutedGrey)),
+          const SizedBox(height: 16),
+          if (!_isPollutionMode) ...[
+            _siteSelector(),
+            const SizedBox(height: 14),
+          ],
+          if (!_isSiteMode) ...[
+            _sourceAndPositionSelectors(),
+            const SizedBox(height: 18),
+          ],
+          if (_isUploadMode) ...[
+            _uploadPanel(),
+            const SizedBox(height: 18),
+          ],
+          if (_isMeasuredMode) ...[
+            _manualPanel(),
+            const SizedBox(height: 18),
+          ],
+          if (_isSiteMode) ...[
+            _InfoNote(
+              icon: Icons.account_tree_outlined,
+              text: 'This workflow uses station, stream-order, and basin context. Add lab values from the Measured Water Quality workflow when available.',
+            ),
+            const SizedBox(height: 18),
+          ],
+          if (_isPollutionMode) ...[
+            _InfoNote(
+              icon: Icons.warning_amber_outlined,
+              text: _sourceScreeningGuidance,
+            ),
+            const SizedBox(height: 18),
+          ],
+          if (widget.errorMessage != null || _localError != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(_localError ?? widget.errorMessage!, style: const TextStyle(color: Colors.red))),
+          FilledButton.icon(onPressed: _submit, icon: const Icon(Icons.science_outlined), label: Text(_runButtonLabel)),
+        ]),
+      ),
+    );
+  }
+}
+
+class _ContextChip extends StatelessWidget {
+  const _ContextChip({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Chip(
+        avatar: const Icon(Icons.info_outline, size: 16),
+        label: Text('$label: $value'),
+      );
+}
+
+class _InfoNote extends StatelessWidget {
+  const _InfoNote({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: NbsColors.riverTeal.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: NbsColors.riverTeal.withValues(alpha: 0.18)),
+      ),
+      child: Row(children: [
+        Icon(icon, color: NbsColors.riverTeal),
+        const SizedBox(width: 10),
+        Expanded(child: Text(text)),
+      ]),
     );
   }
 }
@@ -479,9 +897,9 @@ class ResultsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bundle = response.recommendationAssemblyBundle;
-    final recommendations = bundle?.recommendations ?? [];
-    final topRecommendation =
-        recommendations.isNotEmpty ? recommendations.first : null;
+    final trains = response.rankedTrains;
+    final topTrain = trains.isNotEmpty ? trains.first : null;
+    final sourceLocationGuidance = _sourceLocationGuidance(trains);
 
     return AppScaffold(
       title: 'Recommendation results',
@@ -503,16 +921,15 @@ class ResultsScreen extends StatelessWidget {
           _ResultsHero(
             response: response,
             bundle: bundle,
-            topRecommendation: topRecommendation,
+            topRecommendation: topTrain,
           ),
           const SizedBox(height: 14),
           if (response.weightsStatus == 'temporary_not_expert_validated') ...[
             const _AlertBanner.compact(
-              icon: Icons.warning_amber_outlined,
-              color: NbsColors.warningAmber,
-              title: 'Provisional Ranking',
-              message:
-                  'Criteria weights are temporary and not expert validated.',
+              icon: Icons.info_outline,
+              color: NbsColors.researchBlue,
+              title: 'Criteria-weighted ranking',
+              message: 'Method: A0 applicability screening followed by TOPSIS. See Method for details.',
             ),
             const SizedBox(height: 14),
           ],
@@ -539,14 +956,18 @@ class ResultsScreen extends StatelessWidget {
               child: _ReadableBulletList(values: response.globalGaps),
             ),
           ],
+          if (sourceLocationGuidance.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            _DetailSection(
+              title: 'First-line source and location guidance',
+              child: _ReadableBulletList(values: sourceLocationGuidance),
+            ),
+          ],
           const SizedBox(height: 16),
-          for (final item in recommendations)
+          for (final train in trains)
             Padding(
               padding: const EdgeInsets.only(bottom: 10),
-              child: RecommendationCard(
-                item: item,
-                onViewDetail: () => onViewDetail(item),
-              ),
+              child: TrainRecommendationCard(train: train),
             ),
           const SizedBox(height: 8),
           OutlinedButton.icon(
@@ -554,6 +975,141 @@ class ResultsScreen extends StatelessWidget {
             icon: const Icon(Icons.restart_alt),
             label: const Text('Run Another Recommendation'),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class TrainRecommendationCard extends StatelessWidget {
+  const TrainRecommendationCard({super.key, required this.train});
+
+  final TrainRecommendation train;
+
+  @override
+  Widget build(BuildContext context) {
+    final verdictColors = {
+      'pass': NbsColors.wetlandGreen,
+      'marginal': NbsColors.warningAmber,
+      'fail': Colors.red.shade700,
+      'unknown': NbsColors.mutedGrey,
+    };
+    return AppCard(
+      padding: EdgeInsets.zero,
+      borderColor: train.applicabilityStatus == 'conditional'
+          ? NbsColors.warningAmber.withValues(alpha: 0.45)
+          : NbsColors.researchBlue.withValues(alpha: 0.16),
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.all(14),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        leading: _RankBlock(rank: train.rank),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(train.name, style: const TextStyle(fontWeight: FontWeight.w900)),
+            if (train.implementationRole != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                train.implementationRole!,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: NbsColors.riverTeal,
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ],
+          ],
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Wrap(spacing: 8, runSpacing: 8, children: [
+            _MetricChip(label: 'Match', value: train.matchPercent, color: NbsColors.researchBlue),
+            _MetricChip(label: 'Confidence', value: train.confidencePercent, color: NbsColors.wetlandGreen),
+            for (final entry in train.useCaseVerdicts.entries)
+              _MetricChip(
+                label: '${_titleFromSnake(entry.key)} suitability',
+                value: _titleFromSnake(entry.value),
+                color: verdictColors[entry.value] ?? NbsColors.mutedGrey,
+              ),
+          ]),
+        ),
+        children: [
+          if (train.applicabilityStatus == 'conditional')
+            const _AlertBanner.compact(
+              icon: Icons.warning_amber_outlined,
+              color: NbsColors.warningAmber,
+              title: 'Conditional recommendation',
+              message: 'Apply only with the placement, pretreatment, or site checks listed below.',
+            ),
+          const SizedBox(height: 12),
+          _TextBlockList(title: 'Why this train is recommended', values: train.whyRecommended, emptyText: 'No explanation returned.'),
+          const SizedBox(height: 12),
+          _TextBlockList(
+            title: 'Pretreatment required',
+            values: train.pretreatmentRequirements,
+            emptyText: 'No additional pretreatment requirement is recorded for this train.',
+          ),
+          const SizedBox(height: 12),
+          _TextBlockList(
+            title: 'Implementation guidance',
+            values: train.implementationGuidance,
+            emptyText: 'Follow the ordered treatment sequence and complete site-specific hydraulic design.',
+          ),
+          if (train.caveats.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _TextBlockList(
+              title: 'Conditions and scientific cautions',
+              values: train.caveats,
+              emptyText: 'No active conditions.',
+            ),
+          ],
+          const SizedBox(height: 12),
+          _TextBlockList(
+            title: 'Treatment sequence',
+            values: [for (final step in train.treatmentSequence) '${step['step_order']}. ${step['step_label']} (${step['role'] ?? 'step'})'],
+            emptyText: 'No treatment sequence returned.',
+          ),
+          const SizedBox(height: 12),
+          _TextBlockList(
+            title: 'Relevant NbS components',
+            values: [
+              for (final component in train.nbsComponents)
+                '${component['name'] ?? 'Catalogue component'}${component['family'] == null ? '' : ' - ${component['family']}'}',
+            ],
+            emptyText: 'No linked NbS component is recorded for this train.',
+          ),
+          const SizedBox(height: 12),
+          _TextBlockList(
+            title: 'Plant support',
+            values: [
+              for (final plant in train.suitablePlants)
+                '${plant['plant_species'] ?? 'Mapped species'}${plant['native_status'] == null ? '' : ' (${plant['native_status']})'}',
+            ],
+            emptyText: train.plantingGuidance ?? 'Planting guidance requires local validation.',
+          ),
+          if (train.suitablePlants.isNotEmpty && train.plantingGuidance != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              train.plantingGuidance!,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: NbsColors.mutedGrey),
+            ),
+          ],
+          const SizedBox(height: 12),
+          _TextBlockList(
+            title: 'Data gaps',
+            values: train.dataGaps,
+            emptyText: 'No train-specific data gap was reported for the current comparison.',
+          ),
+          const SizedBox(height: 12),
+          _TextBlockList(
+            title: 'Scientific criteria',
+            values: [
+              for (final item in train.criteriaBreakdown)
+                '${item['criterion_code']} ${_titleFromSnake(item['criterion_name']?.toString() ?? '')}: ${item['data_status'] == 'known' ? ((item['normalized_value'] as num?)?.toDouble() ?? 0).toStringAsFixed(3) : 'unknown (neutral imputation for ranking)'}',
+            ],
+            emptyText: 'No criteria returned.',
+          ),
+          const SizedBox(height: 12),
+          _SourceIdWrap(sourceIds: train.sourceIds),
         ],
       ),
     );
@@ -724,17 +1280,17 @@ class DetailScreen extends StatelessWidget {
                 StatusPill(label: 'Rank', value: '#${item.rank ?? '-'}'),
                 StatusPill(label: 'NbS ID', value: '${item.nbsId ?? '-'}'),
                 StatusPill(
-                  label: 'Weights',
+                  label: 'Method',
                   value: _displayStatus(item.weightsStatus),
                   color: item.expertValidated
                       ? NbsColors.wetlandGreen
                       : NbsColors.warningAmber,
                 ),
                 StatusPill(
-                  label: 'Expert validation',
+                  label: 'Method calibration',
                   value: item.expertValidated
-                      ? 'Expert validated'
-                      : 'Expert validation pending',
+                      ? 'Calibrated'
+                      : 'Documented',
                   color: item.expertValidated
                       ? NbsColors.wetlandGreen
                       : NbsColors.warningAmber,
@@ -795,8 +1351,8 @@ class DetailScreen extends StatelessWidget {
                     'Match score is TOPSIS closeness.',
                     'Confidence is calculated separately and does not change rank.',
                     'Plant matches do not affect rank.',
-                    'Site suitability is provisional metadata completeness only.',
-                    'Temporary weights are not expert validated.',
+                    'Site suitability reflects available metadata and active applicability rules.',
+                    'Detailed calibration notes are available in the Method panel.',
                   ],
                 ),
               ],
@@ -954,13 +1510,13 @@ class MethodAboutScreen extends StatelessWidget {
           _MethodCard(
             title: 'Confidence',
             body:
-                'Confidence is calculated separately from ranking. It reflects data quality, evidence completeness, criteria coverage, provisional weights, and caution flags.',
+                'Confidence is calculated separately from ranking. It reflects data quality, evidence completeness, criteria coverage, and active caution flags.',
           ),
           SizedBox(height: 12),
           _MethodCard(
             title: 'Current limitations',
             body:
-                'Criteria weights are temporary and not expert validated. Health-risk classification, AHP expert weighting, and broader site validation remain pending.',
+                'Current criteria weights support research-stage comparison and remain subject to expert calibration. Health-risk classification requires separate expert data.',
           ),
           SizedBox(height: 12),
           _MethodCard(
@@ -1305,11 +1861,11 @@ class _RiverIntelligenceHero extends StatelessWidget {
                   _HeroChip(label: 'Narmada demo', color: NbsColors.riverTeal),
                   _HeroChip(label: 'TOPSIS', color: NbsColors.researchBlue),
                   _HeroChip(
-                    label: 'Provisional weights',
+                    label: 'Criteria-weighted',
                     color: NbsColors.warningAmber,
                   ),
                   _HeroChip(
-                    label: 'Local prototype',
+                    label: 'Narmada intelligence',
                     color: NbsColors.wetlandGreen,
                   ),
                 ],
@@ -1479,7 +2035,7 @@ class _ResultsHero extends StatelessWidget {
 
   final RecommendationResponse response;
   final RecommendationAssemblyBundle? bundle;
-  final RecommendationItem? topRecommendation;
+  final TrainRecommendation? topRecommendation;
 
   @override
   Widget build(BuildContext context) {
@@ -1509,7 +2065,7 @@ class _ResultsHero extends StatelessWidget {
                     Text(
                       topRecommendation == null
                           ? 'No ranked recommendations were returned for this run.'
-                          : 'Top recommendation: ${topRecommendation!.nbsName}',
+                          : 'Top treatment train: ${topRecommendation!.name}',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: NbsColors.mutedGrey,
                             height: 1.35,
@@ -1517,7 +2073,7 @@ class _ResultsHero extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'The count may change because only options with evidence for detected treatment needs are ranked.',
+                      'A0 applicability screening runs before criteria-weighted TOPSIS ranking.',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: NbsColors.mutedGrey,
                           ),
@@ -1538,10 +2094,22 @@ class _ResultsHero extends StatelessWidget {
             runSpacing: 10,
             children: [
               _DashboardMetricCard(
-                label: 'Eligible ranked NbS options',
-                value: '${response.recommendationCount}',
+                label: 'Eligible treatment trains',
+                value: '${response.rankedTrains.length}',
                 icon: Icons.format_list_numbered,
                 color: NbsColors.deepNavy,
+              ),
+              _DashboardMetricCard(
+                label: 'Filtered out',
+                value: '${response.rejectedOptions.length}',
+                icon: Icons.filter_alt_off_outlined,
+                color: Colors.red.shade700,
+              ),
+              _DashboardMetricCard(
+                label: 'Conditional',
+                value: '${response.rankedTrains.where((row) => row.applicabilityStatus == 'conditional').length}',
+                icon: Icons.rule_folder_outlined,
+                color: NbsColors.warningAmber,
               ),
               _DashboardMetricCard(
                 label: 'Top match',
@@ -1580,24 +2148,13 @@ class _ResultsMetricStrip extends StatelessWidget {
       children: [
         StatusPill(
           label: 'Workflow',
-          value: response.stepCompleted ?? 'Unknown',
+          value: 'A0 → TOPSIS',
           color: NbsColors.riverTeal,
         ),
         StatusPill(
           label: 'Weights',
-          value: _displayStatus(response.weightsStatus),
-          color: response.expertValidated
-              ? NbsColors.wetlandGreen
-              : NbsColors.warningAmber,
-        ),
-        StatusPill(
-          label: 'Expert validation',
-          value: response.expertValidated
-              ? 'Expert validated'
-              : 'Expert validation pending',
-          color: response.expertValidated
-              ? NbsColors.wetlandGreen
-              : NbsColors.warningAmber,
+          value: 'Criteria-weighted',
+          color: NbsColors.researchBlue,
         ),
         StatusPill(
           label: 'Confidence method',
@@ -1763,8 +2320,8 @@ class _ReportHeader extends StatelessWidget {
                     ),
                     _HeroChip(
                       label: item.expertValidated
-                          ? 'Expert validated'
-                          : 'Expert validation pending',
+                          ? 'Method calibrated'
+                          : 'Scientific method',
                       color: item.expertValidated
                           ? NbsColors.wetlandGreen
                           : NbsColors.warningAmber,
@@ -1806,17 +2363,12 @@ class _StatusPanel extends StatelessWidget {
                 value: 'Connected',
                 color: NbsColors.wetlandGreen,
               ),
-              StatusPill(label: 'Dataset', value: 'Narmada demo'),
-              StatusPill(label: 'Method', value: 'TOPSIS'),
+              StatusPill(label: 'Dataset', value: 'Narmada canonical'),
+              StatusPill(label: 'Method', value: 'Criteria-weighted TOPSIS'),
               StatusPill(
-                label: 'Weights',
-                value: 'Provisional',
-                color: NbsColors.warningAmber,
-              ),
-              StatusPill(
-                label: 'Expert validation',
-                value: 'Pending',
-                color: NbsColors.warningAmber,
+                label: 'Evidence',
+                value: 'Source linked',
+                color: NbsColors.riverTeal,
               ),
             ],
           ),
@@ -1961,12 +2513,14 @@ class _NumberField extends StatelessWidget {
     required this.label,
     required this.suffix,
     required this.helper,
+    this.requiredField = true,
   });
 
   final TextEditingController controller;
   final String label;
   final String suffix;
   final String helper;
+  final bool requiredField;
 
   @override
   Widget build(BuildContext context) {
@@ -1985,7 +2539,11 @@ class _NumberField extends StatelessWidget {
         ),
       ),
       validator: (value) {
-        final parsed = double.tryParse(value?.trim() ?? '');
+        final raw = value?.trim() ?? '';
+        if (raw.isEmpty && !requiredField) {
+          return null;
+        }
+        final parsed = double.tryParse(raw);
         if (parsed == null) {
           return 'Enter a numeric value';
         }
@@ -2470,7 +3028,7 @@ class _MethodCard extends StatelessWidget {
 
 String _displayStatus(String? value) {
   return switch (value) {
-    'temporary_not_expert_validated' => 'Temporary weights',
+    'temporary_not_expert_validated' => 'Criteria-weighted',
     'expert_validated' => 'Expert validated',
     'weights_missing' => 'Weights missing',
     'invalid_weights' => 'Invalid weights',
@@ -2486,6 +3044,14 @@ String _displayMethod(String? value) {
     null || '' => 'Unknown',
     _ => _titleFromSnake(value),
   };
+}
+
+List<String> _sourceLocationGuidance(List<TrainRecommendation> trains) {
+  final values = <String>[];
+  for (final train in trains.take(3)) {
+    values.addAll(train.sourceLocationGuidance);
+  }
+  return _uniqueStrings(values);
 }
 
 String _displayConfidenceLabel(String? value) {
@@ -2508,7 +3074,7 @@ String _titleFromSnake(String value) {
 
 String _readableText(String value) {
   return value
-      .replaceAll('temporary_not_expert_validated', 'temporary weights')
+      .replaceAll('temporary_not_expert_validated', 'criteria-weighted method')
       .replaceAll('topsis_closeness', 'TOPSIS closeness')
       .replaceAll('match_score', 'match score')
       .replaceAll('confidence_score', 'confidence score')
