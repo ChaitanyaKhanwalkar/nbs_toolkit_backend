@@ -17,6 +17,7 @@ class RecommendationResponse {
     required this.recommendationCount,
     required this.rankedTrains,
     required this.rejectedOptions,
+    required this.inputSummary,
   });
 
   final String workflowStatus;
@@ -36,6 +37,7 @@ class RecommendationResponse {
   final int recommendationCount;
   final List<TrainRecommendation> rankedTrains;
   final List<Map<String, dynamic>> rejectedOptions;
+  final RecommendationInputSummary inputSummary;
 
   /// Resolved citations indexed by source ID for quick lookup in the UI.
   Map<int, Citation> get citationsById {
@@ -88,6 +90,39 @@ class RecommendationResponse {
               ?.whereType<Map<String, dynamic>>()
               .toList() ??
           <Map<String, dynamic>>[],
+      inputSummary: RecommendationInputSummary.fromJson(
+        json['input_summary'] is Map<String, dynamic>
+            ? json['input_summary'] as Map<String, dynamic>
+            : const <String, dynamic>{},
+      ),
+    );
+  }
+}
+
+class RecommendationInputSummary {
+  RecommendationInputSummary({
+    required this.observationCount,
+    required this.selectedParameters,
+    required this.context,
+  });
+
+  final int observationCount;
+  final List<String> selectedParameters;
+  final Map<String, dynamic> context;
+
+  String? get workflowMode => _nullableString(context['workflow_mode']);
+
+  bool get isContextOnly =>
+      workflowMode == 'site_context_only' ||
+      workflowMode == 'pollution_source_screening';
+
+  factory RecommendationInputSummary.fromJson(Map<String, dynamic> json) {
+    return RecommendationInputSummary(
+      observationCount: _intValue(json['observation_count']),
+      selectedParameters: _stringList(json['selected_parameters']),
+      context: json['context'] is Map<String, dynamic>
+          ? json['context'] as Map<String, dynamic>
+          : <String, dynamic>{},
     );
   }
 }
@@ -115,6 +150,8 @@ class TrainRecommendation {
     required this.implementationGuidance,
     required this.sourceLocationGuidance,
     required this.plantingGuidance,
+    required this.allUseCasesUnknown,
+    required this.useCaseAssessmentStatus,
   });
 
   final int trainId;
@@ -138,6 +175,8 @@ class TrainRecommendation {
   final List<String> implementationGuidance;
   final List<String> sourceLocationGuidance;
   final String? plantingGuidance;
+  final bool allUseCasesUnknown;
+  final String? useCaseAssessmentStatus;
 
   factory TrainRecommendation.fromJson(Map<String, dynamic> json) {
     final verdictRows = json['all_use_case_verdicts'];
@@ -187,6 +226,10 @@ class TrainRecommendation {
       implementationGuidance: _stringList(json['implementation_guidance']),
       sourceLocationGuidance: _stringList(json['source_location_guidance']),
       plantingGuidance: _nullableString(json['planting_guidance']),
+      allUseCasesUnknown: json['all_use_cases_unknown'] == true,
+      useCaseAssessmentStatus: _nullableString(
+        json['use_case_assessment_status'],
+      ),
     );
   }
 

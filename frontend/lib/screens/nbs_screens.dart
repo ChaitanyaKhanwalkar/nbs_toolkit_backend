@@ -900,6 +900,23 @@ class ResultsScreen extends StatelessWidget {
     final trains = response.rankedTrains;
     final topTrain = trains.isNotEmpty ? trains.first : null;
     final sourceLocationGuidance = _sourceLocationGuidance(trains);
+    final contextOnly = response.inputSummary.isContextOnly;
+    final hasMeasuredData = response.inputSummary.observationCount > 0;
+    final dataGaps = _uniqueStrings([
+      ...response.globalGaps,
+      ...response.missingDataMessages,
+      if (topTrain != null) ...topTrain.dataGaps,
+      if (topTrain?.allUseCasesUnknown == true)
+        'The top contextual option needs water-quality data or additional evidence before use-case suitability can be assessed.',
+      if (contextOnly)
+        'Measured water-quality data are required for treatment pass/fail conclusions.',
+    ]);
+    final whyReasons = _topRecommendationReasons(
+      response,
+      topTrain,
+      sourceLocationGuidance,
+    );
+    final nextData = _nextDataToCollect(response, topTrain, dataGaps);
 
     return AppScaffold(
       title: 'Recommendation results',
@@ -923,39 +940,25 @@ class ResultsScreen extends StatelessWidget {
             bundle: bundle,
             topRecommendation: topTrain,
           ),
-          const SizedBox(height: 14),
-          if (response.weightsStatus == 'temporary_not_expert_validated') ...[
-            const _AlertBanner.compact(
-              icon: Icons.info_outline,
-              color: NbsColors.researchBlue,
-              title: 'Criteria-weighted ranking',
-              message: 'Method: A0 applicability screening followed by TOPSIS. See Method for details.',
-            ),
-            const SizedBox(height: 14),
-          ],
+          const SizedBox(height: 12),
           _ResultsMetricStrip(
             response: response,
             bundle: bundle,
           ),
-          if (response.exceedances.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            _DetailSection(
-              title: 'Detected standard exceedances',
-              child: _ReadableBulletList(
-                values: [
-                  for (final exceedance in response.exceedances)
-                    exceedance.summary,
-                ],
-              ),
+          const SizedBox(height: 10),
+          _DataConfidenceGuide(
+            confidenceLabel: topTrain?.confidenceLabel,
+            methodLabel: _confidenceMethodLabel(response, bundle),
+            dataLimited: contextOnly || !hasMeasuredData,
+          ),
+          const SizedBox(height: 14),
+          _DetailSection(
+            title: 'Why this recommendation?',
+            child: _ReadableBulletList(
+              values: whyReasons,
+              emptyText: 'A top recommendation was not available for explanation.',
             ),
-          ],
-          if (response.globalGaps.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            _DetailSection(
-              title: 'Data gaps and limitations',
-              child: _ReadableBulletList(values: response.globalGaps),
-            ),
-          ],
+          ),
           if (sourceLocationGuidance.isNotEmpty) ...[
             const SizedBox(height: 14),
             _DetailSection(
@@ -963,13 +966,126 @@ class ResultsScreen extends StatelessWidget {
               child: _ReadableBulletList(values: sourceLocationGuidance),
             ),
           ],
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
+          const _DetailSection(
+            title: 'Treatment train ranking',
+            child: Text(
+              'The app ranks 8 treatment-train options. Individual NbS components and plant guidance are shown within each train and in the catalogue sections.',
+            ),
+          ),
+          if (trains.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _DetailSection(
+              title: 'Why not the others?',
+              child: _TopTrainComparison(trains: trains.take(3).toList()),
+            ),
+          ],
+          const SizedBox(height: 10),
           for (final train in trains)
             Padding(
               padding: const EdgeInsets.only(bottom: 10),
-              child: TrainRecommendationCard(train: train),
+              child: TrainRecommendationCard(
+                train: train,
+                contextOnly: contextOnly,
+                hasMeasuredData: hasMeasuredData,
+              ),
             ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
+          _DetailSection(
+            title: 'NbS components',
+            child: topTrain == null
+                ? const Text('No top treatment train is available for component review.')
+                : _TextBlockList(
+                    title: 'Components within ${topTrain.name}',
+                    values: [
+                      for (final component in topTrain.nbsComponents)
+                        '${component['name'] ?? 'Catalogue component'}${component['family'] == null ? '' : ' - ${component['family']}'}',
+                    ],
+                    emptyText: 'No linked NbS component is recorded for this train.',
+                  ),
+          ),
+          const SizedBox(height: 14),
+          _DetailSection(
+            title: 'Planting guidance',
+            child: topTrain == null
+                ? const Text('Planting guidance requires a selected treatment train.')
+                : _TopTrainPlantingGuidance(train: topTrain),
+          ),
+          const SizedBox(height: 14),
+          _DetailSection(
+            title: 'Data gaps',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (response.exceedances.isNotEmpty) ...[
+                  _TextBlockList(
+                    title: 'Detected standard exceedances',
+                    values: [
+                      for (final exceedance in response.exceedances)
+                        exceedance.summary,
+                    ],
+                    emptyText: 'No exceedances were returned.',
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                _ReadableBulletList(
+                  values: dataGaps,
+                  emptyText: 'No current data gap was reported for the top comparison.',
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          _DetailSection(
+            title: 'Next data to collect',
+            child: _ReadableBulletList(
+              values: nextData,
+              emptyText: 'No additional data action was identified from the current payload.',
+            ),
+          ),
+          const SizedBox(height: 14),
+          _DetailSection(
+            title: 'Implementation pathway',
+            child: topTrain == null
+                ? const Text('A treatment train is required to assemble an implementation pathway.')
+                : _ImplementationPathway(
+                    response: response,
+                    train: topTrain,
+                  ),
+          ),
+          const SizedBox(height: 14),
+          _DetailSection(
+            title: 'Treatment sequence',
+            child: topTrain == null
+                ? const Text('No treatment sequence is available.')
+                : _TreatmentSequenceVisual(
+                    response: response,
+                    train: topTrain,
+                  ),
+          ),
+          const SizedBox(height: 14),
+          _DetailSection(
+            title: 'Method and evidence',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _ReadableBulletList(values: [
+                  'A0 applicability screening checks placement and safety constraints before ranking.',
+                  'Method: criteria-weighted TOPSIS.',
+                  'Confidence: ${_confidenceMethodLabel(response, bundle)}.',
+                  'Confidence is reported separately and does not determine TOPSIS rank.',
+                ]),
+                const SizedBox(height: 12),
+                _SourceIdWrap(sourceIds: topTrain?.sourceIds ?? const []),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          const _DetailSection(
+            title: 'NbS visualisation and learning',
+            child: _LearningPlaceholder(),
+          ),
+          const SizedBox(height: 14),
           OutlinedButton.icon(
             onPressed: onNewRun,
             icon: const Icon(Icons.restart_alt),
@@ -982,9 +1098,16 @@ class ResultsScreen extends StatelessWidget {
 }
 
 class TrainRecommendationCard extends StatelessWidget {
-  const TrainRecommendationCard({super.key, required this.train});
+  const TrainRecommendationCard({
+    super.key,
+    required this.train,
+    required this.contextOnly,
+    required this.hasMeasuredData,
+  });
 
   final TrainRecommendation train;
+  final bool contextOnly;
+  final bool hasMeasuredData;
 
   @override
   Widget build(BuildContext context) {
@@ -1024,11 +1147,26 @@ class TrainRecommendationCard extends StatelessWidget {
           child: Wrap(spacing: 8, runSpacing: 8, children: [
             _MetricChip(label: 'Match', value: train.matchPercent, color: NbsColors.researchBlue),
             _MetricChip(label: 'Confidence', value: train.confidencePercent, color: NbsColors.wetlandGreen),
+            if (train.allUseCasesUnknown)
+              const _MetricChip(
+                label: 'Data gap',
+                value: 'Needs data for use-case assessment',
+                color: NbsColors.warningAmber,
+              ),
             for (final entry in train.useCaseVerdicts.entries)
-              _MetricChip(
-                label: '${_titleFromSnake(entry.key)} suitability',
-                value: _titleFromSnake(entry.value),
-                color: verdictColors[entry.value] ?? NbsColors.mutedGrey,
+              Tooltip(
+                message: entry.value == 'unknown'
+                    ? 'This use case cannot be concluded without measured water-quality data or evidence.'
+                    : '${_titleFromSnake(entry.key)} suitability from available canonical evidence.',
+                child: _MetricChip(
+                  label: '${_titleFromSnake(entry.key)} suitability',
+                  value: _suitabilityLabel(
+                    entry.value,
+                    contextOnly: contextOnly,
+                    hasMeasuredData: hasMeasuredData,
+                  ),
+                  color: verdictColors[entry.value] ?? NbsColors.mutedGrey,
+                ),
               ),
           ]),
         ),
@@ -1112,6 +1250,248 @@ class TrainRecommendationCard extends StatelessWidget {
           _SourceIdWrap(sourceIds: train.sourceIds),
         ],
       ),
+    );
+  }
+}
+
+class _DataConfidenceGuide extends StatelessWidget {
+  const _DataConfidenceGuide({
+    required this.confidenceLabel,
+    required this.methodLabel,
+    required this.dataLimited,
+  });
+
+  final String? confidenceLabel;
+  final String methodLabel;
+  final bool dataLimited;
+
+  @override
+  Widget build(BuildContext context) {
+    final explanation = dataLimited
+        ? 'Data-limited confidence: source/site context is available, but measured water-quality values are missing.'
+        : switch (confidenceLabel) {
+      'high' => 'Measured data, context, and supporting evidence are substantially available.',
+      'medium' => 'Partial measured data, context, or supporting evidence are available.',
+      _ => 'Source/site context only or measured values and evidence are incomplete.',
+    };
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: NbsColors.wetlandGreen.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: NbsColors.wetlandGreen.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.speed_outlined, color: NbsColors.wetlandGreen),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              '$methodLabel: $explanation',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(height: 1.4),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TopTrainComparison extends StatelessWidget {
+  const _TopTrainComparison({required this.trains});
+
+  final List<TrainRecommendation> trains;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: DataTable(
+        dataRowMinHeight: 64,
+        dataRowMaxHeight: 92,
+        columnSpacing: 18,
+        columns: const [
+          DataColumn(label: Text('Rank')),
+          DataColumn(label: Text('Treatment train')),
+          DataColumn(label: Text('Match')),
+          DataColumn(label: Text('Confidence')),
+          DataColumn(label: Text('Role')),
+          DataColumn(label: Text('Main strength')),
+          DataColumn(label: Text('Main limitation')),
+        ],
+        rows: [
+          for (final train in trains)
+            DataRow(cells: [
+              DataCell(Text('${train.rank}')),
+              DataCell(SizedBox(width: 160, child: Text(train.name))),
+              DataCell(Text(train.matchPercent)),
+              DataCell(Text(train.confidencePercent)),
+              DataCell(SizedBox(width: 190, child: Text(train.implementationRole ?? 'Role requires review'))),
+              DataCell(SizedBox(width: 220, child: Text(_trainStrength(train)))),
+              DataCell(SizedBox(width: 220, child: Text(_trainLimitation(train)))),
+            ]),
+        ],
+      ),
+    );
+  }
+}
+
+class _ImplementationPathway extends StatelessWidget {
+  const _ImplementationPathway({required this.response, required this.train});
+
+  final RecommendationResponse response;
+  final TrainRecommendation train;
+
+  @override
+  Widget build(BuildContext context) {
+    final steps = _implementationSteps(response, train);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var index = 0; index < steps.length; index++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 28,
+                  height: 28,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: NbsColors.riverTeal.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text('${index + 1}', style: const TextStyle(fontWeight: FontWeight.w800)),
+                ),
+                const SizedBox(width: 10),
+                Expanded(child: Text(steps[index])),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _TreatmentSequenceVisual extends StatelessWidget {
+  const _TreatmentSequenceVisual({required this.response, required this.train});
+
+  final RecommendationResponse response;
+  final TrainRecommendation train;
+
+  @override
+  Widget build(BuildContext context) {
+    final labels = _treatmentSequenceLabels(response, train);
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        for (var index = 0; index < labels.length; index++) ...[
+          Chip(
+            avatar: Icon(index == labels.length - 1 ? Icons.monitor_heart_outlined : Icons.water_drop_outlined, size: 16),
+            label: Text(labels[index]),
+          ),
+          if (index != labels.length - 1)
+            const Icon(Icons.arrow_forward, size: 18, color: NbsColors.mutedGrey),
+        ],
+      ],
+    );
+  }
+}
+
+class _TopTrainPlantingGuidance extends StatelessWidget {
+  const _TopTrainPlantingGuidance({required this.train});
+
+  final TrainRecommendation train;
+
+  @override
+  Widget build(BuildContext context) {
+    if (train.suitablePlants.isEmpty) {
+      return Text(
+        train.plantingGuidance ?? 'Planting guidance requires local validation.',
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final plant in train.suitablePlants) ...[
+          Text(
+            plant['plant_species']?.toString() ?? 'Mapped plant species',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            [
+              if (plant['native_status'] != null)
+                'Status: ${_titleFromSnake(plant['native_status'].toString())}',
+              if (plant['ecological_role'] != null)
+                'Function: ${plant['ecological_role']}',
+              if (plant['nbs'] != null)
+                'Mapped placement: ${plant['nbs']}',
+              if (plant['basis'] != null) 'Evidence note: ${plant['basis']}',
+            ].join('\n'),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: NbsColors.mutedGrey,
+                  height: 1.4,
+                ),
+          ),
+          const SizedBox(height: 10),
+        ],
+        Text(
+          'Planting suggestions support treatment performance, habitat, stabilization, and maintenance. Final species selection should be locally validated before implementation.',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: NbsColors.deepNavy,
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LearningPlaceholder extends StatelessWidget {
+  const _LearningPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    const items = [
+      (Icons.account_tree_outlined, 'Treatment sequence', 'Interactive train flow can build on the sequence shown above.'),
+      (Icons.layers_outlined, 'Schematic / cross-section', 'Reserved for a vetted component schematic or engineering cross-section.'),
+      (Icons.info_outline, 'Component explanation', 'Reserved for component-level function, operation, and maintenance learning.'),
+      (Icons.menu_book_outlined, 'Curated references', 'Reserved for reviewed implementation photos, sources, and learning links.'),
+    ];
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        for (final item in items)
+          Container(
+            width: 245,
+            constraints: const BoxConstraints(minHeight: 118),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: NbsColors.researchBlue.withValues(alpha: 0.04),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: NbsColors.researchBlue.withValues(alpha: 0.14)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(item.$1, size: 20, color: NbsColors.researchBlue),
+                const SizedBox(height: 8),
+                Text(item.$2, style: const TextStyle(fontWeight: FontWeight.w800)),
+                const SizedBox(height: 5),
+                Text(item.$3, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: NbsColors.mutedGrey)),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }
@@ -1329,7 +1709,7 @@ class DetailScreen extends StatelessWidget {
                     ),
                     StatusPill(
                       label: 'Confidence method',
-                      value: _displayMethod(item.confidenceMethod),
+                      value: _displayConfidenceMethod(item.confidenceMethod),
                     ),
                   ],
                 ),
@@ -2054,7 +2434,7 @@ class _ResultsHero extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Ranking dashboard',
+                      'Executive recommendation',
                       style:
                           Theme.of(context).textTheme.headlineSmall?.copyWith(
                                 color: NbsColors.deepNavy,
@@ -2073,9 +2453,12 @@ class _ResultsHero extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'A0 applicability screening runs before criteria-weighted TOPSIS ranking.',
+                      topRecommendation == null
+                          ? 'Review the reported data gaps before trying another run.'
+                          : '${topRecommendation!.implementationRole ?? 'Treatment train'}${topRecommendation!.whyRecommended.isEmpty ? '' : ' - ${topRecommendation!.whyRecommended.first}'}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: NbsColors.mutedGrey,
+                            height: 1.35,
                           ),
                     ),
                   ],
@@ -2158,7 +2541,7 @@ class _ResultsMetricStrip extends StatelessWidget {
         ),
         StatusPill(
           label: 'Confidence method',
-          value: _displayMethod(bundle?.confidenceMethod),
+          value: _confidenceMethodLabel(response, bundle),
           color: NbsColors.wetlandGreen,
         ),
       ],
@@ -2315,7 +2698,7 @@ class _ReportHeader extends StatelessWidget {
                       color: NbsColors.researchBlue,
                     ),
                     _HeroChip(
-                      label: _displayMethod(item.confidenceMethod),
+                      label: _displayConfidenceMethod(item.confidenceMethod),
                       color: NbsColors.wetlandGreen,
                     ),
                     _HeroChip(
@@ -3026,6 +3409,172 @@ class _MethodCard extends StatelessWidget {
   }
 }
 
+List<String> _topRecommendationReasons(
+  RecommendationResponse response,
+  TrainRecommendation? train,
+  List<String> sourceLocationGuidance,
+) {
+  if (train == null) {
+    return const [];
+  }
+  final reasons = <String>[
+    for (final exceedance in response.exceedances.take(2))
+      'Pollutant gap: ${exceedance.summary}',
+    if (sourceLocationGuidance.isNotEmpty)
+      'Context: ${sourceLocationGuidance.first}',
+    if (train.implementationRole != null)
+      'Intended role: ${train.implementationRole}.',
+    ...train.whyRecommended.take(2),
+    if (train.pretreatmentRequirements.isNotEmpty)
+      'Pretreatment: ${train.pretreatmentRequirements.first}',
+    if (train.caveats.isNotEmpty)
+      'Key limitation: ${train.caveats.first}',
+    if (train.caveats.isEmpty && train.dataGaps.isNotEmpty)
+      'Key limitation: ${train.dataGaps.first}',
+  ];
+  final unique = _uniqueStrings(reasons);
+  if (unique.length < 4) {
+    unique.add(
+      'Relative result: match ${train.matchPercent} with ${train.confidencePercent} confidence from available data and evidence.',
+    );
+  }
+  return unique.take(6).toList();
+}
+
+String _trainStrength(TrainRecommendation train) {
+  if (train.whyRecommended.isNotEmpty) {
+    return train.whyRecommended.first;
+  }
+  final supported = train.useCaseVerdicts.entries
+      .where((entry) => entry.value == 'pass' || entry.value == 'marginal')
+      .map((entry) => _titleFromSnake(entry.key))
+      .toList();
+  if (supported.isNotEmpty) {
+    return 'Available evidence supports ${supported.join(', ')} assessment.';
+  }
+  return 'Highest relative fit among currently eligible trains.';
+}
+
+String _trainLimitation(TrainRecommendation train) {
+  if (train.allUseCasesUnknown) {
+    return 'Needs data for use-case assessment.';
+  }
+  if (train.caveats.isNotEmpty) {
+    return train.caveats.first;
+  }
+  if (train.dataGaps.isNotEmpty) {
+    return train.dataGaps.first;
+  }
+  return 'Site-specific design and monitoring validation remain required.';
+}
+
+List<String> _nextDataToCollect(
+  RecommendationResponse response,
+  TrainRecommendation? train,
+  List<String> currentGaps,
+) {
+  final selected = response.inputSummary.selectedParameters
+      .map((value) => value.toLowerCase())
+      .toSet();
+  final context = response.inputSummary.context;
+  final source = context['pollution_source_type']?.toString() ?? '';
+  final items = <String>[];
+
+  if (response.inputSummary.observationCount == 0) {
+    items.add(
+      'Collect measured BOD, COD, TSS, pH, nutrients, and other source-relevant water-quality values before treatment pass/fail assessment.',
+    );
+  } else {
+    if (!selected.contains('cod')) {
+      items.add('COD is absent from the current input; measure it to clarify organic load and pretreatment demand.');
+    }
+    if (!selected.any((value) => value == 'ammonia_n' || value == 'nh4_n') ||
+        !selected.any((value) => value == 'phosphate_p' || value == 'tp')) {
+      items.add('NH4-N and PO4-P/TP are incomplete in the current input; collect them for nutrient-treatment design.');
+    }
+    if (response.useCase == 'drinking' && !selected.contains('faecal_coliform')) {
+      items.add('Faecal coliform is absent from the current input; measure it for drinking or reuse risk assessment.');
+    }
+  }
+  if (source.contains('industrial')) {
+    items.add('Confirm ETP/CETP availability, industrial chemistry, and upstream pH-neutralization requirements.');
+  }
+  if (source.contains('agriculture')) {
+    items.add('Confirm runoff collection points, seasonal drainage, nutrient sources, erosion pathways, and edge-of-field control locations.');
+  }
+  if (response.inputSummary.workflowMode == 'site_context_only') {
+    items.add('Confirm seasonal flow/discharge, drain or tributary entry points, land availability, and site slope before layout design.');
+  }
+  for (final gap in currentGaps.take(2)) {
+    items.add('Resolve reported gap: $gap');
+  }
+  if (train != null && train.suitablePlants.isEmpty) {
+    items.add('Validate locally suitable non-invasive planting and maintenance requirements for the selected components.');
+  }
+  return _uniqueStrings(items).take(6).toList();
+}
+
+List<String> _implementationSteps(
+  RecommendationResponse response,
+  TrainRecommendation train,
+) {
+  final context = response.inputSummary.context;
+  final source = context['pollution_source_type']?.toString() ?? '';
+  final highOrder = context['intervention_position'] == 'in_channel' ||
+      ((context['stream_order'] as num?)?.toDouble() ?? 0) >= 5;
+  late final String step2;
+  if (source.contains('industrial')) {
+    final needsNeutralization = train.pretreatmentRequirements.any(
+      (value) => value.toLowerCase().contains('neutral'),
+    );
+    step2 = 'Step 2: Provide ETP/CETP treatment${needsNeutralization ? ' and pH neutralization' : ''} before any NbS unit.';
+  } else if (source.contains('agriculture')) {
+    step2 = 'Step 2: Implement source control and edge-of-field nutrient, erosion, and sediment measures first.';
+  } else if (highOrder) {
+    step2 = 'Step 2: Intercept drains or tributaries and establish off-channel treatment before polishing NbS.';
+  } else {
+    step2 = train.pretreatmentRequirements.isEmpty
+        ? 'Step 2: Confirm source control and any required primary treatment.'
+        : 'Step 2: Provide ${train.pretreatmentRequirements.first}';
+  }
+  return [
+    'Step 1: Confirm source, location, flow, seasonal context, and measured water quality.',
+    step2,
+    'Step 3: Implement ${train.name} as ${train.implementationRole?.toLowerCase() ?? 'the selected treatment role'}.',
+    'Step 4: Validate media, hydraulic design, non-invasive planting, land, and maintenance access locally.',
+    'Step 5: Monitor influent, intermediate stages, effluent, hydraulic condition, and maintenance performance.',
+  ];
+}
+
+List<String> _treatmentSequenceLabels(
+  RecommendationResponse response,
+  TrainRecommendation train,
+) {
+  final context = response.inputSummary.context;
+  final source = context['pollution_source_type']?.toString() ?? '';
+  final labels = <String>[];
+  if (source.contains('industrial')) {
+    labels.addAll(['Industrial source', 'ETP / CETP']);
+    if (train.pretreatmentRequirements.any((value) => value.toLowerCase().contains('neutral'))) {
+      labels.add('pH neutralization');
+    }
+  } else if (source.contains('agriculture')) {
+    labels.addAll(['Source control', 'Collected runoff']);
+  } else if (context['intervention_position'] == 'in_channel' ||
+      ((context['stream_order'] as num?)?.toDouble() ?? 0) >= 5) {
+    labels.addAll(['Drain / tributary interception', 'Off-channel inlet']);
+  } else {
+    labels.add('Source');
+  }
+  labels.addAll(
+    train.treatmentSequence
+        .map((step) => step['step_label']?.toString() ?? '')
+        .where((label) => label.isNotEmpty),
+  );
+  labels.add('Monitoring');
+  return _uniqueStrings(labels);
+}
+
 String _displayStatus(String? value) {
   return switch (value) {
     'temporary_not_expert_validated' => 'Criteria-weighted',
@@ -3044,6 +3593,44 @@ String _displayMethod(String? value) {
     null || '' => 'Unknown',
     _ => _titleFromSnake(value),
   };
+}
+
+String _displayConfidenceMethod(String? value) {
+  return switch (value) {
+    'rule_based_v1' => 'Rule-based confidence',
+    null || '' => 'Data-limited confidence',
+    _ => _titleFromSnake(value),
+  };
+}
+
+String _confidenceMethodLabel(
+  RecommendationResponse response,
+  RecommendationAssemblyBundle? bundle,
+) {
+  if (response.inputSummary.isContextOnly) {
+    return 'Context-based confidence';
+  }
+  if (response.inputSummary.observationCount == 0) {
+    return 'Data-limited confidence';
+  }
+  return _displayConfidenceMethod(bundle?.confidenceMethod);
+}
+
+String _suitabilityLabel(
+  String verdict, {
+  required bool contextOnly,
+  required bool hasMeasuredData,
+}) {
+  if (verdict != 'unknown') {
+    return _titleFromSnake(verdict);
+  }
+  if (contextOnly) {
+    return 'Not assessed';
+  }
+  if (!hasMeasuredData) {
+    return 'Needs water-quality data';
+  }
+  return 'Evidence gap';
 }
 
 List<String> _sourceLocationGuidance(List<TrainRecommendation> trains) {

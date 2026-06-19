@@ -101,6 +101,16 @@ class TrainRecommendationEngine:
                     footprints.get(train_id, []),
                 ),
             }
+            all_use_cases_unknown = all(
+                verdict.get("verdict") == "unknown"
+                for verdict in item["all_use_case_verdicts"].values()
+            )
+            item["all_use_cases_unknown"] = all_use_cases_unknown
+            item["use_case_assessment_status"] = (
+                "needs_data_for_use_case_assessment"
+                if all_use_cases_unknown
+                else "partially_or_fully_assessed"
+            )
             if applicability["status"] == "rejected":
                 rejected.append(
                     {
@@ -159,6 +169,7 @@ class TrainRecommendationEngine:
         _apply_topsis(candidates, weights)
         candidates.sort(
             key=lambda row: (
+                bool(row.get("all_use_cases_unknown")),
                 -(row.get("match_score") or 0.0),
                 row.get("train_id") or 0,
             )
@@ -658,6 +669,15 @@ def _implementation_explanation(
     workflow_mode = normalize_match_key(context.get("workflow_mode"))
     steps = row.get("treatment_sequence") or []
     roles = {normalize_match_key(step.get("role")) for step in steps}
+    stream_order = _float(context.get("stream_order"))
+    high_order_or_in_channel = position == "in_channel" or (
+        stream_order is not None and stream_order >= 5
+    )
+    has_wetland_or_pond = any(
+        any(token in normalize_match_key(component.get("family") or component.get("name"))
+            for token in ("wetland", "pond", "lagoon"))
+        for component in row.get("nbs_components") or []
+    )
 
     if source_type == "industrial_or_mixed_industrial":
         implementation_role = "Polishing or buffer after ETP/CETP pretreatment"
@@ -669,6 +689,12 @@ def _implementation_explanation(
         implementation_role = "On-site disposal following primary treatment"
     else:
         implementation_role = "Secondary treatment and polishing"
+    if (
+        workflow_mode == "site_context_only"
+        and high_order_or_in_channel
+        and has_wetland_or_pond
+    ):
+        implementation_role = "Off-channel treatment or polishing only"
 
     pretreatment = [
         str(step.get("step_label"))
@@ -701,6 +727,10 @@ def _implementation_explanation(
             data_gaps.append(
                 f"{str(use_case).replace('_', ' ').title()} evidence is incomplete for: {unknown}."
             )
+    if row.get("all_use_cases_unknown"):
+        data_gaps.append(
+            "Use-case suitability is not assessed because measured water-quality data or canonical performance evidence are incomplete."
+        )
 
     guidance = []
     source_guidance: list[str] = []
@@ -729,7 +759,7 @@ def _implementation_explanation(
             "Use vegetated buffer/filter strips, grassed waterways, contour bunding, and sediment traps where land, slope, and drainage layout allow."
         )
         source_guidance.append(
-            "Send collected runoff to off-channel polishing only after field and edge-of-field controls are considered."
+            "Source control and edge-of-field measures are first priority. Train ranking applies only to collected runoff or drainage water requiring off-channel polishing."
         )
     if "stormwater" in source_text or "urban" in source_text or "drain" in source_text:
         source_guidance.append(
@@ -748,10 +778,7 @@ def _implementation_explanation(
         guidance.append(
             "Prioritize farm-level nutrient and sediment controls; use treatment units only for intercepted, off-channel runoff where site checks support them."
         )
-    stream_order = _float(context.get("stream_order"))
-    if position == "in_channel" or (
-        stream_order is not None and stream_order >= 5
-    ):
+    if high_order_or_in_channel:
         mainstem_message = (
             "Avoid in-channel treatment cells on mainstem/high-order rivers; use off-channel treatment, drain interception, STP/CETP polishing, tributary buffers, or upstream source control."
         )
@@ -764,6 +791,10 @@ def _implementation_explanation(
     )
 
     plants = row.get("suitable_plants") or []
+    if not plants:
+        data_gaps.append(
+            "No catalogue-backed non-invasive plant mapping is available; planting guidance requires local validation."
+        )
     planting_guidance = (
         "Only catalogue-mapped, non-invasive species are shown; confirm local availability and planting design before implementation."
         if plants

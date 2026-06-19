@@ -51,6 +51,22 @@ def test_ranked_trains_have_dynamic_confidence_and_three_use_cases() -> None:
     )
 
 
+def test_all_unknown_use_case_trains_follow_assessed_trains() -> None:
+    result = _rank()
+    flags = [row["all_use_cases_unknown"] for row in result["ranked_trains"]]
+    assert all(
+        not flags[index] or flags[index + 1]
+        for index in range(len(flags) - 1)
+    )
+    for row in result["ranked_trains"]:
+        expected = (
+            "needs_data_for_use_case_assessment"
+            if row["all_use_cases_unknown"]
+            else "partially_or_fully_assessed"
+        )
+        assert row["use_case_assessment_status"] == expected
+
+
 def test_high_order_in_channel_moves_component_trains_to_conditional() -> None:
     result = _rank(context={"intervention_position": "in_channel"})
     wetland_or_pond = [
@@ -215,6 +231,18 @@ def test_source_location_guidance_is_separate_from_train_ranking() -> None:
     assert "measured water-quality data" in guidance
     assert "off-channel" in guidance
     assert "in-channel" in guidance
+    wetland_like = [
+        row
+        for row in result["ranked_trains"]
+        if any(
+            component.get("family") in {"Constructed Wetlands", "Ponds & Lagoons"}
+            for component in row["nbs_components"]
+        )
+    ]
+    assert all(
+        row["implementation_role"] == "Off-channel treatment or polishing only"
+        for row in wetland_like
+    )
 
 
 def test_ranked_train_plants_exclude_invasive_catalogue_rows() -> None:
