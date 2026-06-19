@@ -103,11 +103,13 @@ class RecommendationInputSummary {
   RecommendationInputSummary({
     required this.observationCount,
     required this.selectedParameters,
+    required this.dataUsed,
     required this.context,
   });
 
   final int observationCount;
   final List<String> selectedParameters;
+  final List<Map<String, dynamic>> dataUsed;
   final Map<String, dynamic> context;
 
   String? get workflowMode => _nullableString(context['workflow_mode']);
@@ -120,6 +122,10 @@ class RecommendationInputSummary {
     return RecommendationInputSummary(
       observationCount: _intValue(json['observation_count']),
       selectedParameters: _stringList(json['selected_parameters']),
+      dataUsed: (json['data_used'] as List?)
+              ?.whereType<Map<String, dynamic>>()
+              .toList() ??
+          <Map<String, dynamic>>[],
       context: json['context'] is Map<String, dynamic>
           ? json['context'] as Map<String, dynamic>
           : <String, dynamic>{},

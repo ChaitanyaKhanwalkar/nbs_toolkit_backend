@@ -299,6 +299,150 @@ def test_csv_upload_treats_blank_values_as_unknown() -> None:
     assert all(row["parameter"] != "tss" for row in payload["observations"])
 
 
+def _upload_csv(csv_text: str):
+    """Upload one in-memory CSV through the public route."""
+
+    return TestClient(app).post(
+        "/api/v1/water/upload?use_case=discharge_inland",
+        files={"file": ("water.csv", BytesIO(csv_text.encode()), "text/csv")},
+    )
+
+
+def test_csv_upload_accepts_optional_units_and_case_insensitive_headers() -> None:
+    response = _upload_csv(
+        " Parameter , VALUE , Unit \nBOD,30,mg/L\nCOD,100,mg/L\npH,7.2,\n"
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert [row["parameter"] for row in payload["observations_used"]] == [
+        "bod",
+        "cod",
+        "ph",
+    ]
+    assert payload["csv_validation_summary"]["rows_used"] == 3
+    assert payload["csv_validation_summary"]["is_valid"] is True
+    assert [row["unit"] for row in payload["observations_used"][:2]] == [
+        "mg_l",
+        "mg_l",
+    ]
+
+
+def test_csv_upload_accepts_minimal_parameter_value_format() -> None:
+    response = _upload_csv("parameter,value\nBOD,30\n")
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["observations_used"][0]["parameter"] == "bod"
+    assert payload["observations_used"][0]["unit"] == ""
+
+
+def test_csv_upload_normalizes_common_parameter_aliases() -> None:
+    response = _upload_csv(
+        "parameter,value,unit\nBiological Oxygen Demand,35,mg/L\n"
+        "chemical oxygen demand,120,mg/L\nNH4-N,8,mg/L\nNO3,4,mg/L\n"
+        "total phosphorus,2,mg/L\nFC,100,MPN/100mL\n"
+    )
+    assert response.status_code == 200, response.text
+    assert [row["parameter"] for row in response.json()["observations_used"]] == [
+        "bod",
+        "cod",
+        "ammonia_n",
+        "nitrate_n",
+        "phosphate_p",
+        "faecal_coliform",
+    ]
+
+
+def test_csv_upload_skips_non_numeric_and_unknown_rows_with_warnings() -> None:
+    response = _upload_csv(
+        "parameter,value,unit\nBOD,abc,mg/L\nrandom thing,123,mg/L\npH,7.1,\n"
+    )
+    assert response.status_code == 200, response.text
+    summary = response.json()["csv_validation_summary"]
+    assert summary["rows_used"] == 1
+    assert summary["non_numeric_values"] == ["Row 2: BOD=abc"]
+    assert summary["unknown_parameters"] == ["Row 3: random thing"]
+    assert len(summary["warnings"]) == 2
+
+
+def test_csv_upload_counts_blank_rows_parameters_and_values() -> None:
+    response = _upload_csv(
+        "parameter,value,unit\n,,\n,30,mg/L\nTSS,,mg/L\nBOD,30,mg/L\n"
+    )
+    assert response.status_code == 200, response.text
+    summary = response.json()["csv_validation_summary"]
+    assert summary["blank_rows"] == 1
+    assert summary["blank_parameters"] == 1
+    assert summary["blank_values"] == 1
+    assert response.json()["unknown_parameters"] == ["tss"]
+
+
+def test_csv_upload_reports_no_usable_values_without_crashing() -> None:
+    response = _upload_csv(
+        "parameter,value,unit\nBOD,abc,mg/L\nrandom thing,123,mg/L\nTSS,,mg/L\n"
+    )
+    assert response.status_code == 200, response.text
+    summary = response.json()["csv_validation_summary"]
+    assert summary["is_valid"] is False
+    assert summary["rows_used"] == 0
+    assert "No usable water-quality values found." in summary["errors"]
+
+
+def test_csv_upload_wrong_headers_return_structured_validation_error() -> None:
+    response = _upload_csv("name,amount\nBOD,30\n")
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert "parameter and value columns" in detail["message"]
+    assert detail["csv_validation_summary"]["missing_headers"] == [
+        "parameter",
+        "value",
+    ]
+
+
+def test_csv_template_units_feed_pollutant_gaps_and_change_ranking_inputs() -> None:
+    client = TestClient(app)
+
+    def recommend(csv_text: str) -> tuple[dict, dict]:
+        upload = _upload_csv(csv_text)
+        assert upload.status_code == 200, upload.text
+        uploaded = upload.json()
+        recommendation = client.post(
+            "/api/v1/recommend",
+            json={
+                "use_case": "discharge_inland",
+                "selected_parameters": [
+                    row["parameter"] for row in uploaded["observations_used"]
+                ],
+                "measured_observations": uploaded["observations_used"],
+                "context": {
+                    "workflow_mode": "uploaded_water_quality",
+                    "pollution_source_type": "domestic_sewage",
+                    "intervention_position": "off_channel_or_stp_polishing",
+                },
+            },
+        )
+        assert recommendation.status_code == 200, recommendation.text
+        return uploaded, recommendation.json()
+
+    low_upload, low = recommend(
+        "parameter,value,unit\nBOD,30,mg/L\nCOD,100,mg/L\nTSS,80,mg/L\npH,7.2,\n"
+    )
+    high_upload, high = recommend(
+        "parameter,value,unit\nBOD,300,mg/L\nCOD,1000,mg/L\nTSS,800,mg/L\npH,7.2,\n"
+    )
+
+    assert all(
+        row["unit"] == "mg_l"
+        for row in high_upload["observations_used"]
+        if row["parameter"] != "ph"
+    )
+    assert any(
+        gap["parameter"] == "bod" and gap["required_removal_percent"] == 90
+        for gap in high["contaminant_gaps"]
+    )
+    assert low["input_summary"]["data_used"] != high["input_summary"]["data_used"]
+    assert low["ranked_trains"][0]["match_score"] != high["ranked_trains"][0]["match_score"]
+
+
 def test_context_only_modes_are_labelled_as_guidance() -> None:
     """Useful context-only output should not present itself as a failed run."""
 

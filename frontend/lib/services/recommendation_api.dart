@@ -33,10 +33,76 @@ class UploadedWaterCsv {
   UploadedWaterCsv({
     required this.observations,
     required this.unknownParameters,
+    required this.validationSummary,
   });
 
   final List<Map<String, dynamic>> observations;
   final List<String> unknownParameters;
+  final CsvValidationSummary validationSummary;
+}
+
+class CsvValidationSummary {
+  CsvValidationSummary({
+    required this.rowsRead,
+    required this.rowsUsed,
+    required this.blankRows,
+    required this.blankParameters,
+    required this.blankValues,
+    required this.unknownParameters,
+    required this.nonNumericValues,
+    required this.missingHeaders,
+    required this.warnings,
+    required this.errors,
+    required this.isValid,
+  });
+
+  final int rowsRead;
+  final int rowsUsed;
+  final int blankRows;
+  final int blankParameters;
+  final int blankValues;
+  final List<String> unknownParameters;
+  final List<String> nonNumericValues;
+  final List<String> missingHeaders;
+  final List<String> warnings;
+  final List<String> errors;
+  final bool isValid;
+
+  factory CsvValidationSummary.fromJson(Map<String, dynamic>? json) {
+    final value = json ?? const <String, dynamic>{};
+    List<String> strings(String key) => (value[key] as List?)
+            ?.map((item) => item.toString())
+            .toList() ??
+        <String>[];
+    int integer(String key) => (value[key] as num?)?.toInt() ?? 0;
+    return CsvValidationSummary(
+      rowsRead: integer('rows_read'),
+      rowsUsed: integer('rows_used'),
+      blankRows: integer('blank_rows'),
+      blankParameters: integer('blank_parameters'),
+      blankValues: integer('blank_values'),
+      unknownParameters: strings('unknown_parameters'),
+      nonNumericValues: strings('non_numeric_values'),
+      missingHeaders: strings('missing_headers'),
+      warnings: strings('warnings'),
+      errors: strings('errors'),
+      isValid: value['is_valid'] == true,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'rows_read': rowsRead,
+        'rows_used': rowsUsed,
+        'blank_rows': blankRows,
+        'blank_parameters': blankParameters,
+        'blank_values': blankValues,
+        'unknown_parameters': unknownParameters,
+        'non_numeric_values': nonNumericValues,
+        'missing_headers': missingHeaders,
+        'warnings': warnings,
+        'errors': errors,
+        'is_valid': isValid,
+      };
 }
 
 class RecommendationApi {
@@ -175,11 +241,20 @@ class RecommendationApi {
     )..files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename));
     final streamed = await _client.send(request).timeout(const Duration(seconds: 30));
     final response = await http.Response.fromStream(streamed);
-    if (response.statusCode != 200) {
-      throw RecommendationApiException('CSV upload failed: ${response.body}');
-    }
     final decoded = jsonDecode(response.body);
-    final rows = decoded is Map<String, dynamic> ? decoded['observations'] : null;
+    if (response.statusCode != 200) {
+      final detail = decoded is Map<String, dynamic> ? decoded['detail'] : null;
+      final detailMap = detail is Map<String, dynamic> ? detail : null;
+      throw RecommendationApiException(
+        detailMap?['message']?.toString() ?? 'CSV validation failed.',
+        csvValidationSummary: CsvValidationSummary.fromJson(
+          detailMap?['csv_validation_summary'] as Map<String, dynamic>?,
+        ),
+      );
+    }
+    final rows = decoded is Map<String, dynamic>
+        ? decoded['observations_used'] ?? decoded['observations']
+        : null;
     final unknown = decoded is Map<String, dynamic>
         ? decoded['unknown_parameters']
         : null;
@@ -190,6 +265,11 @@ class RecommendationApi {
       unknownParameters: unknown is List
           ? unknown.map((value) => value.toString()).toList()
           : <String>[],
+      validationSummary: CsvValidationSummary.fromJson(
+        decoded is Map<String, dynamic>
+            ? decoded['csv_validation_summary'] as Map<String, dynamic>?
+            : null,
+      ),
     );
   }
 
@@ -212,9 +292,10 @@ String _cleanBaseUrl(String rawBaseUrl) {
 }
 
 class RecommendationApiException implements Exception {
-  RecommendationApiException(this.message);
+  RecommendationApiException(this.message, {this.csvValidationSummary});
 
   final String message;
+  final CsvValidationSummary? csvValidationSummary;
 
   @override
   String toString() => message;

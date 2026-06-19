@@ -6,6 +6,7 @@ They never compare observations with standards or calculate exceedance.
 
 import csv
 from io import StringIO
+from math import isfinite
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
@@ -17,6 +18,106 @@ from app.schemas import WaterObservationResponse, WaterParameterSummaryResponse
 from app.services import WaterDataService
 
 router = APIRouter(prefix="/water", tags=["water"])
+
+
+PARAMETER_ALIASES = {
+    "bod": "bod",
+    "bod5": "bod",
+    "biological oxygen demand": "bod",
+    "biochemical oxygen demand": "bod",
+    "cod": "cod",
+    "chemical oxygen demand": "cod",
+    "tss": "tss",
+    "suspended solids": "tss",
+    "total suspended solids": "tss",
+    "nh4": "ammonia_n",
+    "nh4 n": "ammonia_n",
+    "ammonia": "ammonia_n",
+    "ammonia n": "ammonia_n",
+    "nitrate": "nitrate_n",
+    "nitrate n": "nitrate_n",
+    "no3": "nitrate_n",
+    "no3 n": "nitrate_n",
+    "phosphate": "phosphate_p",
+    "po4": "phosphate_p",
+    "po4 p": "phosphate_p",
+    "tp": "phosphate_p",
+    "total phosphorus": "phosphate_p",
+    "ph": "ph",
+    "do": "do",
+    "dissolved oxygen": "do",
+    "tds": "tds",
+    "ec": "ec",
+    "electrical conductivity": "ec",
+    "turbidity": "turbidity",
+    "faecal coliform": "faecal_coliform",
+    "fecal coliform": "faecal_coliform",
+    "fc": "faecal_coliform",
+}
+
+PARAMETER_DISPLAY_NAMES = {
+    "bod": "BOD",
+    "cod": "COD",
+    "tss": "TSS",
+    "ammonia_n": "NH4-N",
+    "nitrate_n": "NO3-N",
+    "phosphate_p": "PO4-P / TP",
+    "ph": "pH",
+    "do": "DO",
+    "tds": "TDS",
+    "ec": "EC",
+    "turbidity": "Turbidity",
+    "faecal_coliform": "Faecal coliform",
+}
+
+
+def _alias_key(value: Any) -> str:
+    """Return a small, readable match key for supported CSV aliases."""
+
+    text = str(value or "").strip().lower()
+    for character in ("_", "-", "."):
+        text = text.replace(character, " ")
+    return " ".join(text.split())
+
+
+def _new_validation_summary() -> dict[str, Any]:
+    """Return an empty structured CSV validation summary."""
+
+    return {
+        "rows_read": 0,
+        "rows_used": 0,
+        "blank_rows": 0,
+        "blank_parameters": 0,
+        "blank_values": 0,
+        "unknown_parameters": [],
+        "non_numeric_values": [],
+        "missing_headers": [],
+        "warnings": [],
+        "errors": [],
+        "is_valid": False,
+    }
+
+
+def _normalize_unit(value: Any) -> str:
+    """Normalize common unit spellings without performing unit conversion."""
+
+    text = str(value or "").strip()
+    key = text.lower().replace(" ", "")
+    aliases = {
+        "mg/l": "mg_l",
+        "mgl": "mg_l",
+        "mg_l": "mg_l",
+        "µs/cm": "us_cm",
+        "μs/cm": "us_cm",
+        "us/cm": "us_cm",
+        "us_cm": "us_cm",
+        "mpn/100ml": "mpn_100ml",
+        "mpn_100ml": "mpn_100ml",
+        "phunits": "ph_units",
+        "ph_units": "ph_units",
+        "ntu": "ntu",
+    }
+    return aliases.get(key, text)
 
 
 @router.get(
@@ -75,45 +176,86 @@ async def analyze_uploaded_csv(
     except UnicodeDecodeError as exc:
         raise HTTPException(status_code=400, detail="CSV must use UTF-8 encoding.") from exc
 
+    summary = _new_validation_summary()
     reader = csv.DictReader(StringIO(text))
-    required = {"parameter", "value", "unit"}
-    if not reader.fieldnames or not required.issubset(
-        {name.strip().lower() for name in reader.fieldnames}
-    ):
+    normalized_headers = [
+        str(name or "").strip().lower() for name in (reader.fieldnames or [])
+    ]
+    required_headers = {"parameter", "value"}
+    missing_headers = sorted(required_headers.difference(normalized_headers))
+    if missing_headers:
+        summary["missing_headers"] = missing_headers
+        summary["errors"].append(
+            "CSV must include parameter and value columns. The unit column is optional."
+        )
         raise HTTPException(
             status_code=400,
-            detail="CSV must include parameter, value, and unit columns.",
+            detail={
+                "message": summary["errors"][0],
+                "csv_validation_summary": summary,
+            },
         )
+    reader.fieldnames = normalized_headers
 
     observations: list[dict[str, Any]] = []
-    unknown_parameters: list[str] = []
+    blank_value_parameters: list[str] = []
     for index, row in enumerate(reader, start=2):
-        normalized = {str(key).strip().lower(): value for key, value in row.items()}
-        parameter = str(normalized.get("parameter") or "").strip()
-        raw_value = str(normalized.get("value") or "").strip()
-        if not parameter:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Row {index} is missing a parameter name.",
+        summary["rows_read"] += 1
+        normalized = {
+            str(key or "").strip().lower(): str(value or "").strip()
+            for key, value in row.items()
+        }
+        if not any(normalized.values()):
+            summary["blank_rows"] += 1
+            continue
+
+        raw_parameter = normalized.get("parameter", "")
+        if not raw_parameter:
+            summary["blank_parameters"] += 1
+            summary["warnings"].append(f"Row {index}: blank parameter name was skipped.")
+            continue
+        parameter = PARAMETER_ALIASES.get(_alias_key(raw_parameter))
+        if parameter is None:
+            summary["unknown_parameters"].append(f"Row {index}: {raw_parameter}")
+            summary["warnings"].append(
+                f"Row {index}: unknown parameter '{raw_parameter}' was skipped."
             )
+            continue
+
+        raw_value = str(normalized.get("value") or "").strip()
         if not raw_value:
-            unknown_parameters.append(parameter)
+            summary["blank_values"] += 1
+            blank_value_parameters.append(parameter)
+            summary["warnings"].append(
+                f"Row {index}: {PARAMETER_DISPLAY_NAMES[parameter]} is blank and remains unknown."
+            )
             continue
         try:
             value = float(raw_value)
-        except ValueError as exc:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Row {index} has a non-numeric value.",
-            ) from exc
+        except ValueError:
+            value = None
+        if value is None or not isfinite(value):
+            summary["non_numeric_values"].append(
+                f"Row {index}: {raw_parameter}={raw_value}"
+            )
+            summary["warnings"].append(
+                f"Row {index}: non-numeric value for '{raw_parameter}' was skipped."
+            )
+            continue
         observations.append(
             {
                 "parameter": parameter,
+                "display_name": PARAMETER_DISPLAY_NAMES[parameter],
                 "value": value,
-                "unit": str(normalized.get("unit") or "").strip(),
-                "source": "user_upload",
+                "unit": _normalize_unit(normalized.get("unit")),
+                "source": "user_csv",
             }
         )
+
+    summary["rows_used"] = len(observations)
+    summary["is_valid"] = bool(observations)
+    if not observations:
+        summary["errors"].append("No usable water-quality values found.")
 
     bundle = WaterInputBundle(
         selected_source_type="user_measured",
@@ -123,11 +265,7 @@ async def analyze_uploaded_csv(
         use_case=use_case,
         data_quality_notes=[
             "Parsed from a user-uploaded CSV; values were not persisted.",
-            *(
-                ["Blank values were retained as unknown parameters and were not treated as zero."]
-                if unknown_parameters
-                else []
-            ),
+            *summary["warnings"],
         ],
     )
     gaps = PollutantGapEngine.from_session(db).calculate(bundle, use_case=use_case)
@@ -135,8 +273,10 @@ async def analyze_uploaded_csv(
         "filename": file.filename,
         "use_case": use_case,
         "observation_count": len(observations),
-        "unknown_parameter_count": len(unknown_parameters),
-        "unknown_parameters": unknown_parameters,
+        "unknown_parameter_count": summary["blank_values"],
+        "unknown_parameters": blank_value_parameters,
         "observations": observations,
+        "observations_used": observations,
+        "csv_validation_summary": summary,
         "contaminant_gaps": gaps.to_dict(),
     }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/services.dart';
 
 import '../models/recommendation_models.dart';
 import '../services/recommendation_api.dart';
@@ -7,6 +8,7 @@ import '../theme/nbs_theme.dart';
 import '../widgets/app_card.dart';
 
 const _maxContentWidth = 1160.0;
+const _csvTemplate = 'parameter,value,unit\nBOD,30,mg/L\nCOD,100,mg/L\nTSS,80,mg/L\npH,7.2,';
 
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key, required this.onStart});
@@ -195,11 +197,19 @@ class HomeDashboard extends StatelessWidget {
                   onTap: onUploadWater,
                 ),
               ];
+              if (!isWide) {
+                return Column(children: [
+                  for (var index = 0; index < cards.length; index++) ...[
+                    cards[index],
+                    if (index != cards.length - 1) const SizedBox(height: 12),
+                  ],
+                ]);
+              }
               return GridView.count(
-                crossAxisCount: isWide ? 4 : 1,
+                crossAxisCount: 4,
                 crossAxisSpacing: 14,
                 mainAxisSpacing: 14,
-                childAspectRatio: isWide ? 1.45 : 4.1,
+                childAspectRatio: 1.45,
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 children: cards,
@@ -276,6 +286,7 @@ class _AnalysisSetupScreenState extends State<AnalysisSetupScreen> {
   String _position = 'off_channel_or_stp_polishing';
   List<Map<String, dynamic>>? _uploaded;
   List<String> _uploadUnknownParameters = [];
+  CsvValidationSummary? _csvValidation;
   String? _uploadName;
   int? _pollutionCount;
   String? _localError;
@@ -324,7 +335,10 @@ class _AnalysisSetupScreenState extends State<AnalysisSetupScreen> {
     if (file?.bytes == null) {
       return;
     }
-    setState(() => _uploading = true);
+    setState(() {
+      _uploading = true;
+      _localError = null;
+    });
     try {
       final result = await widget.api.uploadWaterCsv(
         bytes: file!.bytes!,
@@ -334,8 +348,23 @@ class _AnalysisSetupScreenState extends State<AnalysisSetupScreen> {
         setState(() {
           _uploaded = result.observations;
           _uploadUnknownParameters = result.unknownParameters;
+          _csvValidation = result.validationSummary;
           _uploadName = file.name;
         });
+      }
+    } on RecommendationApiException catch (error) {
+      if (mounted) {
+        setState(() {
+          _uploaded = null;
+          _uploadUnknownParameters = [];
+          _csvValidation = error.csvValidationSummary;
+          _uploadName = file?.name;
+          _localError = error.message;
+        });
+      }
+    } on Object {
+      if (mounted) {
+        setState(() => _localError = 'CSV could not be read. Check the file format and try again.');
       }
     } finally {
       if (mounted) {
@@ -389,6 +418,10 @@ class _AnalysisSetupScreenState extends State<AnalysisSetupScreen> {
           'stream_order': _site!.streamOrder,
         if (_isUploadMode && _uploadUnknownParameters.isNotEmpty)
           'uploaded_unknown_parameters': _uploadUnknownParameters,
+        if (_isUploadMode && _csvValidation != null)
+          'csv_validation_summary': _csvValidation!.toJson(),
+        if (_isUploadMode && _uploadName != null)
+          'uploaded_filename': _uploadName,
       },
     ));
   }
@@ -491,13 +524,31 @@ class _AnalysisSetupScreenState extends State<AnalysisSetupScreen> {
         children: [
           OutlinedButton.icon(onPressed: _uploading ? null : _chooseCsv, icon: const Icon(Icons.upload_file), label: Text(_uploading ? 'Analyzing CSV...' : _uploadName ?? 'Upload Water CSV')),
           const SizedBox(height: 8),
-          Text('CSV format: parameter,value,unit. Example: bod,80,mg_l', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: NbsColors.mutedGrey)),
+          Text('CSV template', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
           const SizedBox(height: 6),
-          Text('Accepted parameters include BOD, COD, TSS, pH, NH4-N, nitrate-N, phosphate-P, DO, EC, TDS, turbidity, and faecal coliform. Blank values are retained as unknown and never converted to zero.', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: NbsColors.mutedGrey)),
-          if (_uploaded != null) Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text('${_uploaded!.length} numeric observations ready; ${_uploadUnknownParameters.length} blank parameters marked unknown.'),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: NbsColors.deepNavy.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(8), border: Border.all(color: NbsColors.cardBorder)),
+            child: const SelectableText(_csvTemplate, style: TextStyle(fontFamily: 'monospace')),
           ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () async {
+              await Clipboard.setData(const ClipboardData(text: _csvTemplate));
+              if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('CSV template copied.')));
+            },
+            icon: const Icon(Icons.copy_outlined),
+            label: const Text('Copy template'),
+          ),
+          const SizedBox(height: 6),
+          Text('The unit column is optional for now. Values must be numeric. Blank values remain unknown and are never converted to zero.', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: NbsColors.mutedGrey)),
+          const SizedBox(height: 6),
+          Text('Accepted aliases include BOD/BOD5, COD, TSS, NH4-N, NO3-N, PO4-P/TP, pH, DO, TDS, EC, turbidity, and faecal coliform/FC.', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: NbsColors.mutedGrey)),
+          if (_csvValidation != null) ...[
+            const SizedBox(height: 12),
+            _CsvValidationPanel(summary: _csvValidation!, observations: _uploaded ?? const []),
+          ],
         ],
       );
 
@@ -582,6 +633,50 @@ class _AnalysisSetupScreenState extends State<AnalysisSetupScreen> {
           FilledButton.icon(onPressed: _submit, icon: const Icon(Icons.science_outlined), label: Text(_runButtonLabel)),
         ]),
       ),
+    );
+  }
+}
+
+class _CsvValidationPanel extends StatelessWidget {
+  const _CsvValidationPanel({required this.summary, required this.observations});
+
+  final CsvValidationSummary summary;
+  final List<Map<String, dynamic>> observations;
+
+  @override
+  Widget build(BuildContext context) {
+    final messages = [...summary.warnings, ...summary.errors];
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: (summary.isValid ? NbsColors.wetlandGreen : NbsColors.warningAmber).withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: (summary.isValid ? NbsColors.wetlandGreen : NbsColors.warningAmber).withValues(alpha: 0.28)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(summary.isValid ? 'CSV validation passed' : 'No usable water-quality values found', style: const TextStyle(fontWeight: FontWeight.w900)),
+        const SizedBox(height: 8),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          _ContextChip(label: 'Rows read', value: '${summary.rowsRead}'),
+          _ContextChip(label: 'Rows used', value: '${summary.rowsUsed}'),
+          _ContextChip(label: 'Blank values', value: '${summary.blankValues}'),
+          _ContextChip(label: 'Skipped items', value: '${summary.unknownParameters.length + summary.nonNumericValues.length + summary.blankParameters}'),
+        ]),
+        if (observations.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Text('Uploaded parameters used', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 5),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            for (final row in observations)
+              Chip(label: Text('${row['display_name'] ?? row['parameter']} = ${row['value']}${(row['unit']?.toString().isNotEmpty ?? false) ? ' ${row['unit']}' : ''}')),
+          ]),
+        ],
+        if (messages.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          _ReadableBulletList(values: messages),
+        ],
+      ]),
     );
   }
 }
@@ -952,6 +1047,8 @@ class ResultsScreen extends StatelessWidget {
               const SizedBox(height: 10),
               _DataBasisCard(dataBasis: dataBasis, readiness: readiness),
               const SizedBox(height: 10),
+              _DataUsedPanel(inputSummary: response.inputSummary),
+              const SizedBox(height: 10),
               _DesignReadinessBanner(readiness: readiness),
               const SizedBox(height: 10),
               _DataConfidenceGuide(confidenceLabel: topTrain?.confidenceLabel, methodLabel: _confidenceMethodLabel(response, bundle), dataLimited: contextOnly || !hasMeasuredData),
@@ -1094,6 +1191,50 @@ class _DataBasisCard extends StatelessWidget {
           ]),
         ]),
       );
+}
+
+class _DataUsedPanel extends StatelessWidget {
+  const _DataUsedPanel({required this.inputSummary});
+
+  final RecommendationInputSummary inputSummary;
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = inputSummary.dataUsed;
+    final sourceLabel = switch (inputSummary.workflowMode) {
+      'uploaded_water_quality' => 'User CSV',
+      'manual_measured_water_quality' => 'Manual user input',
+      'site_context_only' => 'Canonical station / site data',
+      'pollution_source_screening' => 'Canonical source / site context',
+      _ => 'Available recommendation input',
+    };
+    return _DetailSection(
+      title: rows.isEmpty ? 'Data used in screening' : 'Data used in ranking',
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Source: $sourceLabel', style: const TextStyle(fontWeight: FontWeight.w800)),
+        const SizedBox(height: 8),
+        if (rows.isEmpty)
+          const Text('No user-supplied current sample was used. Canonical station/source context supports screening where available.')
+        else
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            for (final row in rows)
+              Chip(
+                avatar: const Icon(Icons.science_outlined, size: 16),
+                label: Text(
+                  '${row['display_name'] ?? _titleFromSnake(row['parameter']?.toString() ?? 'parameter')} = ${row['value']}${(row['unit']?.toString().isNotEmpty ?? false) ? ' ${row['unit']}' : ''}',
+                ),
+              ),
+          ]),
+        if (inputSummary.workflowMode == 'uploaded_water_quality' && rows.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Text(
+            'Uploaded values feed pollutant-gap calculations. Similar scores can still occur when different files produce the same standards gap, evidence coverage, and applicability context.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: NbsColors.mutedGrey),
+          ),
+        ],
+      ]),
+    );
+  }
 }
 
 class _DesignReadinessBanner extends StatelessWidget {
@@ -3842,6 +3983,15 @@ Map<String, List<String>> _groupDataActions(
   final required = <String>[];
   final ranking = <String>[];
   final site = <String>[];
+  final csvSummary = response.inputSummary.context['csv_validation_summary'];
+  if (csvSummary is Map) {
+    for (final warning in (csvSummary['warnings'] as List? ?? const [])) {
+      ranking.add('CSV validation: $warning');
+    }
+    for (final error in (csvSummary['errors'] as List? ?? const [])) {
+      required.add('CSV validation: $error');
+    }
+  }
   if (response.inputSummary.isContextOnly) {
     required.add('Confirm recent measured water quality before design-level treatment pass/fail assessment.');
   }

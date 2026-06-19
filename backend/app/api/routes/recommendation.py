@@ -233,11 +233,26 @@ def _input_summary(payload: dict[str, Any]) -> dict[str, Any]:
     input_context = payload.get("input_context") or {}
     normalized_input = input_context.get("normalized_input") or {}
     water_bundle = payload.get("water_input_bundle") or {}
+    observations = normalized_input.get("measured_observations") or []
     return {
         "use_case": normalized_input.get("use_case"),
         "selected_source_type": water_bundle.get("selected_source_type"),
         "observation_count": water_bundle.get("observation_count", 0),
         "selected_parameters": normalized_input.get("selected_parameters") or [],
+        "data_used": [
+            {
+                "parameter": row.get("parameter"),
+                "display_name": (
+                    (row.get("original") or {}).get("display_name")
+                    or row.get("parameter")
+                ),
+                "value": row.get("value"),
+                "unit": row.get("unit"),
+                "source": row.get("source") or "unknown",
+            }
+            for row in observations
+            if row.get("parameter") and row.get("value") is not None
+        ],
         "context": normalized_input.get("context") or {},
     }
 
