@@ -17,3 +17,7 @@ backend/data/*.db
 # Python cache files
 __pycache__/
 *.pyc
+
+# Local canonical data assets
+canonical db/
+app/data/narmada_nbs_v2_csvs/
