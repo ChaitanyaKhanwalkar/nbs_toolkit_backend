@@ -141,6 +141,10 @@ class TrainRecommendation {
     required this.matchScore,
     required this.confidenceScore,
     required this.confidenceLabel,
+    required this.confidenceCap,
+    required this.confidenceFactors,
+    required this.confidenceExplanation,
+    required this.pollutantGapBreakdown,
     required this.useCaseVerdicts,
     required this.criteriaBreakdown,
     required this.applicabilityStatus,
@@ -166,6 +170,10 @@ class TrainRecommendation {
   final double? matchScore;
   final double? confidenceScore;
   final String? confidenceLabel;
+  final double? confidenceCap;
+  final Map<String, dynamic> confidenceFactors;
+  final List<String> confidenceExplanation;
+  final List<Map<String, dynamic>> pollutantGapBreakdown;
   final Map<String, String> useCaseVerdicts;
   final List<Map<String, dynamic>> criteriaBreakdown;
   final String applicabilityStatus;
@@ -193,6 +201,15 @@ class TrainRecommendation {
       matchScore: _nullableDouble(json['match_score']),
       confidenceScore: _nullableDouble(json['confidence_score']),
       confidenceLabel: _nullableString(json['confidence_label']),
+      confidenceCap: _nullableDouble(json['confidence_cap']),
+      confidenceFactors: json['confidence_factors'] is Map<String, dynamic>
+          ? json['confidence_factors'] as Map<String, dynamic>
+          : <String, dynamic>{},
+      confidenceExplanation: _stringList(json['confidence_explanation']),
+      pollutantGapBreakdown: (json['pollutant_gap_breakdown'] as List?)
+              ?.whereType<Map<String, dynamic>>()
+              .toList() ??
+          <Map<String, dynamic>>[],
       useCaseVerdicts: verdictRows is Map<String, dynamic>
           ? verdictRows.map(
               (key, value) => MapEntry(
@@ -272,9 +289,8 @@ class Exceedance {
   }
 
   String get summary {
-    final observed = observedValue == null
-        ? '?'
-        : observedValue!.toStringAsFixed(2);
+    final observed =
+        observedValue == null ? '?' : observedValue!.toStringAsFixed(2);
     final limit = limitHigh == null ? '?' : limitHigh!.toStringAsFixed(2);
     final unit = observedUnit == null ? '' : ' $observedUnit';
     return '$parameter: $observed$unit (limit $limit$unit)';
@@ -500,7 +516,8 @@ class CriterionBreakdown {
 
   factory CriterionBreakdown.fromJson(Map<String, dynamic> json) {
     return CriterionBreakdown(
-      criterionName: _stringValue(json['criterion_name'], fallback: 'criterion'),
+      criterionName:
+          _stringValue(json['criterion_name'], fallback: 'criterion'),
       normalizedValue: _nullableDouble(json['normalized_value']) ?? 0,
       weight: _nullableDouble(json['weight']) ?? 0,
       weightedValue: _nullableDouble(json['weighted_value']) ?? 0,

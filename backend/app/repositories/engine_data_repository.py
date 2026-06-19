@@ -20,6 +20,32 @@ class EngineDataRepository(BaseRepository):
 
         super().__init__(session)
 
+    def canonical_dataset_counts(self) -> dict[str, int | None]:
+        """Return review diagnostics for the authoritative engine datasets.
+
+        ``None`` means the relation is unavailable. Keeping this read in the
+        repository lets tests verify the configured database without teaching
+        the API or scoring engine to query raw tables directly.
+        """
+
+        relations = (
+            "nbs_options",
+            "treatment_train",
+            "removal_efficiency",
+            "sources",
+            "nbs_footprint",
+            "plant_solution_map",
+            "site_attributes",
+        )
+        return {
+            relation: (
+                int(self.fetch_mappings(f"SELECT COUNT(*) AS count FROM {relation}")[0]["count"])
+                if self.relation_exists(relation)
+                else None
+            )
+            for relation in relations
+        }
+
     def list_applicability_rules(
         self,
         *,

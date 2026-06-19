@@ -25,6 +25,7 @@ def _rank(**overrides):
             "contaminant_gaps": [
                 {
                     "parameter": "bod",
+                    "observed_value": 100,
                     "direction": "reduce",
                     "required_removal_percent": 70,
                 }
@@ -49,6 +50,128 @@ def test_ranked_trains_have_dynamic_confidence_and_three_use_cases() -> None:
         == {"drinking", "irrigation", "discharge_inland"}
         for row in result["ranked_trains"]
     )
+
+
+def test_configured_canonical_database_has_expected_review_counts() -> None:
+    """Guard against accidentally running the engine on a legacy database."""
+
+    engine = create_engine(DATABASE_URL)
+    with Session(engine) as session:
+        counts = EngineDataRepository(session).canonical_dataset_counts()
+
+    assert counts == {
+        "nbs_options": 28,
+        "treatment_train": 8,
+        "removal_efficiency": 167,
+        "sources": 104,
+        "nbs_footprint": 19,
+        "plant_solution_map": 118,
+        "site_attributes": 52,
+    }
+
+
+def test_pollutant_breakdown_covers_every_supplied_parameter() -> None:
+    result = _rank(
+        contaminant_gaps=[
+            {
+                "parameter": "bod",
+                "observed_value": 80,
+                "observed_unit": "mg_l",
+                "limit_high": 30,
+                "standard_unit": "mg_l",
+                "status": "exceeds_standard",
+                "direction": "reduce",
+                "required_removal_percent": 62.5,
+            },
+            {
+                "parameter": "ph",
+                "observed_value": 7.2,
+                "standard_unit": "ph_units",
+                "limit_low": 5.5,
+                "limit_high": 9,
+                "status": "within_standard",
+                "direction": "none",
+            },
+        ],
+        context={"workflow_mode": "uploaded_water_quality"},
+    )
+
+    rows = result["ranked_trains"][0]["pollutant_gap_breakdown"]
+    assert [row["parameter"] for row in rows] == ["bod", "ph"]
+    assert rows[0]["gap_status"] == "exceeds_target"
+    assert rows[1]["gap_status"] == "below_target"
+    assert all(row["source"] == "user_csv" for row in rows)
+    assert all("target_threshold" in row for row in rows)
+    assert all("train_addresses_parameter" in row for row in rows)
+
+
+def test_thin_input_confidence_is_capped_below_complete_panel() -> None:
+    partial = _rank(
+        contaminant_gaps=[
+            {
+                "parameter": "tss",
+                "observed_value": 120,
+                "status": "exceeds_standard",
+                "direction": "reduce",
+                "required_removal_percent": 20,
+            }
+        ]
+    )
+    complete = _rank(
+        contaminant_gaps=[
+            {
+                "parameter": parameter,
+                "observed_value": value,
+                "status": "within_standard" if parameter == "ph" else "exceeds_standard",
+                "direction": "none" if parameter == "ph" else "reduce",
+                "required_removal_percent": None if parameter == "ph" else 50,
+            }
+            for parameter, value in (("bod", 80), ("cod", 200), ("tss", 120), ("ph", 7.2))
+        ]
+    )
+
+    partial_by_id = {row["train_id"]: row for row in partial["ranked_trains"]}
+    complete_by_id = {row["train_id"]: row for row in complete["ranked_trains"]}
+    common_id = next(iter(partial_by_id.keys() & complete_by_id.keys()))
+    partial_row = partial_by_id[common_id]
+    complete_row = complete_by_id[common_id]
+    assert partial_row["confidence_score"] <= 0.35
+    assert partial_row["confidence_label"] == "low"
+    assert complete_row["confidence_score"] > partial_row["confidence_score"]
+    assert complete_row["confidence_factors"]["key_parameters_missing"] == []
+
+
+def test_skipped_csv_rows_reduce_confidence_without_becoming_zero() -> None:
+    gaps = [
+        {
+            "parameter": parameter,
+            "observed_value": value,
+            "status": "within_standard" if parameter == "ph" else "exceeds_standard",
+            "direction": "none" if parameter == "ph" else "reduce",
+            "required_removal_percent": None if parameter == "ph" else 50,
+        }
+        for parameter, value in (("bod", 80), ("cod", 200), ("tss", 120), ("ph", 7.2))
+    ]
+    clean = _rank(
+        contaminant_gaps=gaps,
+        context={"workflow_mode": "uploaded_water_quality"},
+    )
+    skipped = _rank(
+        contaminant_gaps=gaps,
+        context={
+            "workflow_mode": "uploaded_water_quality",
+            "csv_validation_summary": {
+                "non_numeric_values": ["Row 6: NH4-N=unknown"],
+                "unknown_parameters": ["Row 7: colour"],
+            },
+        },
+    )
+
+    clean_by_id = {row["train_id"]: row for row in clean["ranked_trains"]}
+    skipped_by_id = {row["train_id"]: row for row in skipped["ranked_trains"]}
+    common_id = next(iter(clean_by_id.keys() & skipped_by_id.keys()))
+    assert skipped_by_id[common_id]["confidence_score"] < clean_by_id[common_id]["confidence_score"]
+    assert skipped_by_id[common_id]["confidence_factors"]["skipped_row_count"] == 2
 
 
 def test_all_unknown_use_case_trains_follow_assessed_trains() -> None:

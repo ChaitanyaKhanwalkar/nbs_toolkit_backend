@@ -28,6 +28,18 @@ PROVISIONAL_WARNING = (
 )
 USE_CASES = ("drinking", "irrigation", "discharge_inland")
 
+# These caps are conservative UX safeguards, not scientific certainty or
+# expert-derived weights. The four-item panel is used only to describe input
+# completeness; it does not claim that other source-specific parameters are
+# unimportant.
+KEY_SCREENING_PANEL = frozenset({"bod", "cod", "tss", "ph"})
+CONFIDENCE_CAP_NO_DATA = 0.0
+CONFIDENCE_CAP_ONE_PARAMETER = 0.35
+CONFIDENCE_CAP_TWO_TO_THREE = 0.55
+CONFIDENCE_CAP_INCOMPLETE_KEY_PANEL = 0.72
+CONFIDENCE_CAP_COMPLETE_KEY_PANEL = 0.90
+PROVISIONAL_METHOD_CAP = 0.90
+
 # Global safety rules should normally guide the recommendation, not wipe out
 # every train. Example: drinking use needs disinfection/advanced treatment;
 # industrial wastewater needs ETP/CETP first; mainstem/reservoir sites need
@@ -147,6 +159,8 @@ class TrainRecommendationEngine:
                 site,
                 applicability,
                 criteria,
+                contaminant_gaps,
+                context,
             )
             item.update(
                 {
@@ -154,6 +168,13 @@ class TrainRecommendationEngine:
                     "confidence_score": confidence["score"],
                     "confidence_label": confidence["label"],
                     "confidence_factors": confidence["factors"],
+                    "confidence_explanation": confidence["explanation"],
+                    "confidence_cap": confidence["cap"],
+                    "pollutant_gap_breakdown": _pollutant_gap_breakdown(
+                        contaminant_gaps,
+                        performance.get(train_id, []),
+                        context,
+                    ),
                     "caveats": _unique(
                         [
                             *applicability["caveats"],
@@ -606,24 +627,211 @@ def _apply_topsis(candidates: list[dict[str, Any]], weights: list[dict[str, Any]
         ]
 
 
-def _confidence(performance: list[dict[str, Any]], source_ids: list[int], input_type: str | None, site: dict[str, Any] | None, applicability: dict[str, Any], criteria: dict[str, Any]) -> dict[str, Any]:
+def _confidence(
+    performance: list[dict[str, Any]],
+    source_ids: list[int],
+    input_type: str | None,
+    site: dict[str, Any] | None,
+    applicability: dict[str, Any],
+    criteria: dict[str, Any],
+    contaminant_gaps: list[dict[str, Any]],
+    context: dict[str, Any],
+) -> dict[str, Any]:
+    """Score result reliability separately from technical TOPSIS match.
+
+    Data-completeness caps deliberately prevent a thin input from appearing
+    highly reliable. These constants are transparent rule-based safeguards;
+    they are not expert-validated scientific confidence intervals.
+    """
+
     known_perf = sum(bool(row.get("steps_with_data")) for row in performance)
     perf_ratio = known_perf / len(performance) if performance else 0.0
     input_factor = {"user_measured": 1.0, "station_observations": 0.8, "basin_observations": 0.7, "water_type_profile": 0.55}.get(input_type or "", 0.35)
-    site_factor = 0.85 if site and site.get("source_id") else 0.4
+    context_fields = ("pollution_source_type", "intervention_position", "stream_order")
+    context_known = sum(context.get(field) not in {None, ""} for field in context_fields)
+    site_factor = min(
+        1.0,
+        (0.55 if site and site.get("source_id") else 0.2) + 0.15 * context_known,
+    )
     source_factor = min(len(source_ids) / 4.0, 1.0)
     known_criteria = sum(value is not None for code, value in criteria.items() if code != "C5") / 7.0
-    score = 0.35 * perf_ratio + 0.25 * input_factor + 0.15 * site_factor + 0.15 * source_factor + 0.10 * known_criteria
+    usable_parameters = {
+        normalize_match_key(row.get("parameter"))
+        for row in contaminant_gaps
+        if _first_float(row, ("observed_value", "measured_value", "input_value", "value"))
+        is not None
+    }
+    usable_parameters.discard(None)
+    usable_count = len(usable_parameters)
+    key_present = sorted(KEY_SCREENING_PANEL.intersection(usable_parameters))
+    key_missing = sorted(KEY_SCREENING_PANEL.difference(usable_parameters))
+    key_panel_complete = not key_missing
+    panel_factor = min(usable_count / len(KEY_SCREENING_PANEL), 1.0)
+
+    csv_summary = context.get("csv_validation_summary")
+    csv_summary = csv_summary if isinstance(csv_summary, dict) else {}
+    blank_count = _summary_count(csv_summary, "blank_values")
+    skipped_count = sum(
+        _summary_count(csv_summary, key)
+        for key in ("non_numeric_values", "unknown_parameters")
+    )
+    incomplete_penalty = min(0.15, 0.02 * blank_count + 0.03 * skipped_count)
+
+    score = (
+        0.30 * perf_ratio
+        + 0.15 * input_factor
+        + 0.10 * site_factor
+        + 0.15 * source_factor
+        + 0.10 * known_criteria
+        + 0.20 * panel_factor
+    )
     score += float(applicability.get("confidence_modifier_total") or 0.0)
-    score = _clamp(score)
+    score = _clamp(score - incomplete_penalty)
+    if usable_count == 0:
+        data_cap = CONFIDENCE_CAP_NO_DATA
+    elif usable_count == 1:
+        data_cap = CONFIDENCE_CAP_ONE_PARAMETER
+    elif usable_count <= 3:
+        data_cap = CONFIDENCE_CAP_TWO_TO_THREE
+    elif key_panel_complete:
+        data_cap = CONFIDENCE_CAP_COMPLETE_KEY_PANEL
+    else:
+        data_cap = CONFIDENCE_CAP_INCOMPLETE_KEY_PANEL
+    confidence_cap = min(data_cap, PROVISIONAL_METHOD_CAP)
+    # Scaling preserves evidence-driven differences between trains while the
+    # same cap still bounds every result built from the same thin input.
+    score = min(score * confidence_cap, confidence_cap)
     caveats = []
     if perf_ratio < 1:
         caveats.append("Some train performance parameters are unknown data gaps.")
-    if input_factor < 0.7:
-        caveats.append("Confidence is reduced because measured water-quality data were not supplied.")
+    if usable_count == 0:
+        caveats.append("Result confidence is not assessed because no usable water-quality parameters were supplied.")
+    elif usable_count == 1:
+        caveats.append("Only one usable parameter was supplied. Result confidence has been reduced.")
+    elif usable_count <= 3:
+        caveats.append("Only two or three usable parameters were supplied, so result confidence is capped.")
+    if key_missing:
+        caveats.append(
+            "The screening completeness panel is missing: "
+            + ", ".join(key_missing).upper()
+            + "."
+        )
+    if blank_count:
+        caveats.append(f"{blank_count} blank CSV value(s) remain unknown.")
+    if skipped_count:
+        caveats.append(f"{skipped_count} unsupported or nonnumeric CSV row(s) were skipped.")
     if site_factor < 0.8:
         caveats.append("Site context is incomplete or not source-verified.")
-    return {"score": score, "label": "high" if score >= 0.75 else "medium" if score >= 0.5 else "low", "factors": {"performance_completeness": perf_ratio, "input_quality": input_factor, "site_quality": site_factor, "source_coverage": source_factor, "criteria_completeness": known_criteria}, "caveats": caveats}
+    label = (
+        "not_assessed"
+        if usable_count == 0
+        else "high"
+        if score >= 0.75
+        else "medium"
+        if score >= 0.5
+        else "low"
+    )
+    explanation = [
+        f"{usable_count} usable water-quality parameter(s) informed this result.",
+        (
+            "The BOD, COD, TSS, and pH screening completeness panel is present."
+            if key_panel_complete
+            else "The screening completeness panel is incomplete."
+        ),
+        "Confidence also reflects canonical evidence coverage, source type, and site context completeness.",
+        f"A documented rule-based data cap of {confidence_cap:.0%} applies to this input.",
+        "The method remains research-stage and requires expert calibration.",
+    ]
+    return {
+        "score": score,
+        "label": label,
+        "cap": confidence_cap,
+        "factors": {
+            "usable_parameter_count": usable_count,
+            "key_parameters_present": key_present,
+            "key_parameters_missing": key_missing,
+            "blank_unknown_count": blank_count,
+            "skipped_row_count": skipped_count,
+            "performance_completeness": perf_ratio,
+            "input_quality": input_factor,
+            "site_context_completeness": site_factor,
+            "source_coverage": source_factor,
+            "criteria_completeness": known_criteria,
+            "provisional_method_cap": PROVISIONAL_METHOD_CAP,
+        },
+        "explanation": explanation,
+        "caveats": caveats,
+    }
+
+
+def _summary_count(summary: dict[str, Any], key: str) -> int:
+    """Read either a numeric count or a list-valued CSV validation field."""
+
+    value = summary.get(key)
+    if isinstance(value, list):
+        return len(value)
+    try:
+        return max(0, int(value or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _pollutant_gap_breakdown(
+    gaps: list[dict[str, Any]],
+    performance: list[dict[str, Any]],
+    context: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Explain every supplied parameter against targets and train evidence."""
+
+    addressed = {
+        normalize_match_key(row.get("parameter"))
+        for row in performance
+        if row.get("steps_with_data")
+    }
+    result = []
+    for gap in gaps:
+        status = normalize_match_key(gap.get("status"))
+        if status == "within_standard":
+            gap_status = "below_target"
+            severity = "Target met for the selected use case."
+        elif status in {"exceeds_standard", "below_minimum", "outside_range"}:
+            gap_status = "exceeds_target"
+            severity = "Target is not met; treatment or adjustment is required."
+        else:
+            gap_status = "not_assessed"
+            severity = "Not assessed because a comparable target or unit is unavailable."
+        parameter = normalize_match_key(gap.get("parameter"))
+        result.append(
+            {
+                "parameter": parameter or gap.get("parameter"),
+                "observed_value": gap.get("observed_value"),
+                "unit": gap.get("observed_unit") or gap.get("standard_unit"),
+                "source": _input_source_label(gap, context),
+                "target_threshold": {
+                    "limit_low": gap.get("limit_low"),
+                    "limit_high": gap.get("limit_high"),
+                    "unit": gap.get("standard_unit"),
+                },
+                "gap_status": gap_status,
+                "severity": severity,
+                "train_addresses_parameter": parameter in addressed,
+            }
+        )
+    return result
+
+
+def _input_source_label(gap: dict[str, Any], context: dict[str, Any]) -> str:
+    mode = normalize_match_key(context.get("workflow_mode"))
+    if mode == "uploaded_water_quality":
+        return "user_csv"
+    if mode == "manual_measured_water_quality":
+        return "manual"
+    source = normalize_match_key(gap.get("source_type"))
+    if source in {"station_observations", "basin_observations", "water_type_profile"}:
+        return "canonical"
+    if source == "user_measured":
+        return "manual"
+    return "unknown"
 
 
 def _all_use_case_verdicts(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:

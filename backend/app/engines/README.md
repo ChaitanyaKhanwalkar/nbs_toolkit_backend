@@ -107,6 +107,22 @@ They also implement Step L-A:
 - keep `confidence_score` separate from `match_score`
 - preserve rank, weight status, methods, warnings, source IDs, and caution flags
 
+The canonical treatment-train recommendation layer also reports a separate
+rule-based result-confidence score. Its transparent data-completeness caps are
+0% for no usable parameters, 35% for one parameter, 55% for two or three
+parameters, 72% for four or more parameters with an incomplete BOD/COD/TSS/pH
+screening panel, and 90% when that panel is complete. These are conservative UX
+safeguards, not scientific confidence intervals or expert-validated weights.
+Blank values remain unknown, skipped CSV rows reduce confidence, and neither
+confidence nor its cap changes the TOPSIS technical-match score.
+
+Each ranked treatment train includes a pollutant-gap breakdown for every
+supplied parameter. It preserves the observed value, selected-use-case target,
+input source, target status, and whether canonical train-performance evidence
+addresses that parameter. `EngineDataRepository.canonical_dataset_counts()` is
+a read-only diagnostic used by tests to guard against accidentally selecting a
+legacy database.
+
 Steps A through K and Step L-A do not create API routes or `/recommend`.
 
 They do not:

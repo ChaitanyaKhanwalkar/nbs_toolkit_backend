@@ -1049,9 +1049,11 @@ class ResultsScreen extends StatelessWidget {
               const SizedBox(height: 10),
               _DataUsedPanel(inputSummary: response.inputSummary),
               const SizedBox(height: 10),
+              _PollutantGapPanel(train: topTrain),
+              const SizedBox(height: 10),
               _DesignReadinessBanner(readiness: readiness),
               const SizedBox(height: 10),
-              _DataConfidenceGuide(confidenceLabel: topTrain?.confidenceLabel, methodLabel: _confidenceMethodLabel(response, bundle), dataLimited: contextOnly || !hasMeasuredData),
+              _DataConfidenceGuide(train: topTrain, methodLabel: _confidenceMethodLabel(response, bundle), dataLimited: contextOnly || !hasMeasuredData),
               const SizedBox(height: 14),
               _DetailSection(title: 'Why this recommendation?', child: _ReadableBulletList(values: whyReasons, emptyText: 'A top recommendation was not available for explanation.')),
               const SizedBox(height: 14),
@@ -1209,7 +1211,7 @@ class _DataUsedPanel extends StatelessWidget {
       _ => 'Available recommendation input',
     };
     return _DetailSection(
-      title: rows.isEmpty ? 'Data used in screening' : 'Data used in ranking',
+      title: rows.isEmpty ? 'Data used in screening' : 'Water-quality values used',
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('Source: $sourceLabel', style: const TextStyle(fontWeight: FontWeight.w800)),
         const SizedBox(height: 8),
@@ -1233,6 +1235,58 @@ class _DataUsedPanel extends StatelessWidget {
           ),
         ],
       ]),
+    );
+  }
+}
+
+class _PollutantGapPanel extends StatelessWidget {
+  const _PollutantGapPanel({required this.train});
+
+  final TrainRecommendation? train;
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = train?.pollutantGapBreakdown ?? const <Map<String, dynamic>>[];
+    return _DetailSection(
+      title: 'Pollutant gaps and train coverage',
+      child: rows.isEmpty
+          ? const Text('No usable water-quality values were available for target comparison.')
+          : Column(children: [
+              for (final row in rows)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: NbsColors.researchBlue.withValues(alpha: 0.035),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: NbsColors.cardBorder),
+                  ),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(
+                      '${_titleFromSnake(row['parameter']?.toString() ?? 'parameter')}: ${row['observed_value'] ?? 'unknown'}${row['unit'] == null ? '' : ' ${row['unit']}'}',
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(spacing: 8, runSpacing: 8, children: [
+                      StatusPill(
+                        label: 'Target status',
+                        value: _gapStatusLabel(row['gap_status']?.toString()),
+                        color: row['gap_status'] == 'exceeds_target' ? NbsColors.warningAmber : NbsColors.wetlandGreen,
+                      ),
+                      StatusPill(label: 'Use-case target', value: _targetThresholdLabel(row['target_threshold'])),
+                      StatusPill(label: 'Input source', value: _titleFromSnake(row['source']?.toString() ?? 'unknown')),
+                      StatusPill(
+                        label: 'Train evidence',
+                        value: row['train_addresses_parameter'] == true ? 'Addresses parameter' : 'Not demonstrated',
+                        color: row['train_addresses_parameter'] == true ? NbsColors.wetlandGreen : NbsColors.warningAmber,
+                      ),
+                    ]),
+                    const SizedBox(height: 6),
+                    Text(row['severity']?.toString() ?? 'Not assessed.', style: Theme.of(context).textTheme.bodySmall),
+                  ]),
+                ),
+            ]),
     );
   }
 }
@@ -1418,8 +1472,8 @@ class TrainRecommendationCard extends StatelessWidget {
           padding: const EdgeInsets.only(top: 8),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Wrap(spacing: 8, runSpacing: 8, children: [
-              _MetricChip(label: 'Match', value: train.matchPercent, color: NbsColors.researchBlue),
-              _MetricChip(label: 'Confidence', value: train.confidencePercent, color: NbsColors.wetlandGreen),
+              _MetricChip(label: 'Technical match', value: train.matchPercent, color: NbsColors.researchBlue),
+              _MetricChip(label: 'Result confidence', value: train.confidencePercent, color: NbsColors.wetlandGreen),
               if (train.allUseCasesUnknown)
                 const _MetricChip(label: 'Data gap', value: 'Needs data for use-case assessment', color: NbsColors.warningAmber),
               for (final entry in train.useCaseVerdicts.entries)
@@ -1461,6 +1515,14 @@ class TrainRecommendationCard extends StatelessWidget {
             emptyText: 'No treatment sequence returned.',
           ),
           const SizedBox(height: 12),
+          _PollutantGapPanel(train: train),
+          const SizedBox(height: 12),
+          _TextBlockList(
+            title: 'Why this confidence level',
+            values: train.confidenceExplanation,
+            emptyText: 'No confidence explanation was returned.',
+          ),
+          const SizedBox(height: 12),
           Text('Evidence sources', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
           const SizedBox(height: 8),
           _SourceIdWrap(sourceIds: train.sourceIds),
@@ -1472,20 +1534,20 @@ class TrainRecommendationCard extends StatelessWidget {
 
 class _DataConfidenceGuide extends StatelessWidget {
   const _DataConfidenceGuide({
-    required this.confidenceLabel,
+    required this.train,
     required this.methodLabel,
     required this.dataLimited,
   });
 
-  final String? confidenceLabel;
+  final TrainRecommendation? train;
   final String methodLabel;
   final bool dataLimited;
 
   @override
   Widget build(BuildContext context) {
-    final explanation = dataLimited
+    final fallbackExplanation = dataLimited
         ? 'Data-limited confidence: canonical source/site context is available; a recent user-supplied sample would strengthen design-level confirmation.'
-        : switch (confidenceLabel) {
+        : switch (train?.confidenceLabel) {
       'high' => 'Measured data, context, and supporting evidence are substantially available.',
       'medium' => 'Partial measured data, context, or supporting evidence are available.',
       _ => 'Source/site context only or measured values and evidence are incomplete.',
@@ -1504,9 +1566,26 @@ class _DataConfidenceGuide extends StatelessWidget {
           const Icon(Icons.speed_outlined, color: NbsColors.wetlandGreen),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              '$methodLabel: $explanation',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(height: 1.4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$methodLabel: ${(train?.confidenceExplanation.isNotEmpty ?? false) ? train!.confidenceExplanation.first : fallbackExplanation}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(height: 1.4),
+                ),
+                if ((train?.confidenceExplanation.length ?? 0) > 1) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    train!.confidenceExplanation.skip(1).join(' '),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(height: 1.4, color: NbsColors.mutedGrey),
+                  ),
+                ],
+                const SizedBox(height: 8),
+                const Text(
+                  'Technical match = how well the train fits the supplied problem and context.\nResult confidence = how reliable this result is based on data completeness, evidence coverage, and context quality.',
+                  style: TextStyle(fontWeight: FontWeight.w700, height: 1.4),
+                ),
+              ],
             ),
           ),
         ],
@@ -1542,8 +1621,8 @@ class _TopTrainComparison extends StatelessWidget {
               Text('#${train.rank}  ${train.name}', style: const TextStyle(fontWeight: FontWeight.w900)),
               const SizedBox(height: 8),
               Wrap(spacing: 7, runSpacing: 7, children: [
-                _MetricChip(label: 'Match', value: train.matchPercent, color: NbsColors.researchBlue),
-                _MetricChip(label: 'Confidence', value: train.confidencePercent, color: NbsColors.wetlandGreen),
+                _MetricChip(label: 'Technical match', value: train.matchPercent, color: NbsColors.researchBlue),
+                _MetricChip(label: 'Result confidence', value: train.confidencePercent, color: NbsColors.wetlandGreen),
               ]),
               const SizedBox(height: 8),
               Text('Role', style: Theme.of(context).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w800)),
@@ -1872,12 +1951,12 @@ class RecommendationCard extends StatelessWidget {
             runSpacing: 8,
             children: [
               _MetricChip(
-                label: 'Match',
+                label: 'Technical match',
                 value: item.matchPercent,
                 color: NbsColors.researchBlue,
               ),
               _MetricChip(
-                label: 'Confidence',
+                label: 'Result confidence',
                 value: item.confidencePercent,
                 color: NbsColors.wetlandGreen,
               ),
@@ -2073,7 +2152,7 @@ class DetailScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 _ScoreBar(
-                  label: 'Confidence',
+                  label: 'Result confidence',
                   value: item.confidenceScore,
                   color: NbsColors.wetlandGreen,
                 ),
@@ -2847,13 +2926,13 @@ class _ResultsHero extends StatelessWidget {
                 color: NbsColors.warningAmber,
               ),
               _DashboardMetricCard(
-                label: 'Top match',
+                label: 'Technical match',
                 value: topRecommendation?.matchPercent ?? 'N/A',
                 icon: Icons.trending_up,
                 color: NbsColors.researchBlue,
               ),
               _DashboardMetricCard(
-                label: 'Confidence',
+                label: 'Result confidence',
                 value: topRecommendation?.confidencePercent ?? 'N/A',
                 icon: Icons.verified_outlined,
                 color: NbsColors.wetlandGreen,
@@ -4311,9 +4390,9 @@ String _suitabilityLabel(
   required bool contextOnly,
   required bool hasMeasuredData,
 }) {
-  if (verdict != 'unknown') {
-    return _titleFromSnake(verdict);
-  }
+  if (verdict == 'pass') return 'Suitable';
+  if (verdict == 'marginal') return 'Conditional';
+  if (verdict == 'fail') return 'Not suitable alone';
   if (contextOnly) {
     return 'Not assessed';
   }
@@ -4321,6 +4400,26 @@ String _suitabilityLabel(
     return 'Needs water-quality data';
   }
   return 'Evidence gap';
+}
+
+String _gapStatusLabel(String? status) {
+  return switch (status) {
+    'below_target' => 'Below / within target',
+    'near_target' => 'Near target',
+    'exceeds_target' => 'Exceeds target',
+    _ => 'Not assessed',
+  };
+}
+
+String _targetThresholdLabel(dynamic value) {
+  if (value is! Map) return 'Not available';
+  final low = value['limit_low'];
+  final high = value['limit_high'];
+  final unit = value['unit']?.toString() ?? '';
+  if (low != null && high != null) return '$low-$high $unit'.trim();
+  if (high != null) return '<= $high $unit'.trim();
+  if (low != null) return '>= $low $unit'.trim();
+  return 'Not available';
 }
 
 List<String> _sourceLocationGuidance(List<TrainRecommendation> trains) {
