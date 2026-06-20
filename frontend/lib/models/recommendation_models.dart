@@ -17,6 +17,9 @@ class RecommendationResponse {
     required this.recommendationCount,
     required this.rankedTrains,
     required this.rejectedOptions,
+    required this.componentRecommendations,
+    required this.filteredComponents,
+    required this.componentRecommendationMethod,
     required this.inputSummary,
   });
 
@@ -37,6 +40,9 @@ class RecommendationResponse {
   final int recommendationCount;
   final List<TrainRecommendation> rankedTrains;
   final List<Map<String, dynamic>> rejectedOptions;
+  final List<IndividualNbsRecommendation> componentRecommendations;
+  final List<Map<String, dynamic>> filteredComponents;
+  final String? componentRecommendationMethod;
   final RecommendationInputSummary inputSummary;
 
   /// Resolved citations indexed by source ID for quick lookup in the UI.
@@ -49,6 +55,7 @@ class RecommendationResponse {
     final exceedanceRows = json['exceedances'];
     final citationRows = json['citations'];
     final trainRows = json['ranked_trains'];
+    final componentRows = json['component_recommendations'];
     return RecommendationResponse(
       workflowStatus: _stringValue(json['workflow_status']),
       stepCompleted: _nullableString(json['step_completed']),
@@ -90,6 +97,18 @@ class RecommendationResponse {
               ?.whereType<Map<String, dynamic>>()
               .toList() ??
           <Map<String, dynamic>>[],
+      componentRecommendations: componentRows is List
+          ? componentRows
+              .whereType<Map<String, dynamic>>()
+              .map(IndividualNbsRecommendation.fromJson)
+              .toList()
+          : <IndividualNbsRecommendation>[],
+      filteredComponents: (json['filtered_components'] as List?)
+              ?.whereType<Map<String, dynamic>>()
+              .toList() ??
+          <Map<String, dynamic>>[],
+      componentRecommendationMethod:
+          _nullableString(json['component_recommendation_method']),
       inputSummary: RecommendationInputSummary.fromJson(
         json['input_summary'] is Map<String, dynamic>
             ? json['input_summary'] as Map<String, dynamic>
@@ -97,6 +116,79 @@ class RecommendationResponse {
       ),
     );
   }
+}
+
+class IndividualNbsRecommendation {
+  IndividualNbsRecommendation({
+    required this.nbsId,
+    required this.name,
+    required this.family,
+    required this.componentRank,
+    required this.suitabilityScore,
+    required this.suitabilityBasis,
+    required this.role,
+    required this.pollutantsAddressed,
+    required this.whereSuitable,
+    required this.whereNotSuitable,
+    required this.standaloneSuitability,
+    required this.standaloneGuidance,
+    required this.keyConstraints,
+    required this.implementationGuidance,
+    required this.plants,
+    required this.plantingGuidance,
+    required this.sourceIds,
+    required this.evidenceStatus,
+    required this.applicabilityStatus,
+  });
+
+  final int nbsId;
+  final String name;
+  final String? family;
+  final int? componentRank;
+  final double? suitabilityScore;
+  final String suitabilityBasis;
+  final String role;
+  final List<String> pollutantsAddressed;
+  final List<String> whereSuitable;
+  final List<String> whereNotSuitable;
+  final String standaloneSuitability;
+  final String standaloneGuidance;
+  final List<String> keyConstraints;
+  final List<String> implementationGuidance;
+  final List<Map<String, dynamic>> plants;
+  final String plantingGuidance;
+  final List<int> sourceIds;
+  final String evidenceStatus;
+  final String applicabilityStatus;
+
+  factory IndividualNbsRecommendation.fromJson(Map<String, dynamic> json) {
+    return IndividualNbsRecommendation(
+      nbsId: _intValue(json['nbs_id']),
+      name: _stringValue(json['name'], fallback: 'NbS component'),
+      family: _nullableString(json['family']),
+      componentRank: _nullableInt(json['component_rank']),
+      suitabilityScore: _nullableDouble(json['suitability_score']),
+      suitabilityBasis: _stringValue(json['suitability_basis']),
+      role: _stringValue(json['role']),
+      pollutantsAddressed: _stringList(json['pollutants_addressed']),
+      whereSuitable: _stringList(json['where_suitable']),
+      whereNotSuitable: _stringList(json['where_not_suitable']),
+      standaloneSuitability: _stringValue(json['standalone_suitability']),
+      standaloneGuidance: _stringValue(json['standalone_guidance']),
+      keyConstraints: _stringList(json['key_constraints']),
+      implementationGuidance: _stringList(json['implementation_guidance']),
+      plants: (json['plants'] as List?)
+              ?.whereType<Map<String, dynamic>>()
+              .toList() ??
+          <Map<String, dynamic>>[],
+      plantingGuidance: _stringValue(json['planting_guidance']),
+      sourceIds: _intList(json['source_ids']),
+      evidenceStatus: _stringValue(json['evidence_status']),
+      applicabilityStatus: _stringValue(json['applicability_status']),
+    );
+  }
+
+  String get suitabilityPercent => _percent(suitabilityScore);
 }
 
 class RecommendationInputSummary {

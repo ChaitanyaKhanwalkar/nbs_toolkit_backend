@@ -123,6 +123,14 @@ addresses that parameter. `EngineDataRepository.canonical_dataset_counts()` is
 a read-only diagnostic used by tests to guard against accidentally selecting a
 legacy database.
 
+The API also exposes an individual-NbS component layer assembled by
+`IndividualNbsRecommendationEngine`. It enriches the existing A0-screened
+component TOPSIS result with canonical profile, pollutant, implementation,
+non-invasive plant, and source fields. It never replaces the primary treatment
+train. Context-only requests remain unscored and use a documented role ordering
+after A0: agricultural source-control components first, industrial components
+as polishing/buffer only, and high-order/mainstem options off-channel only.
+
 Steps A through K and Step L-A do not create API routes or `/recommend`.
 
 They do not:

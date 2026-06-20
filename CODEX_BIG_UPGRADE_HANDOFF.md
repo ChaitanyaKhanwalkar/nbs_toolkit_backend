@@ -2,82 +2,76 @@
 
 ## Module completed
 
-Module 1 - Trustworthy scoring and confidence.
+Module 2 - Dual recommendation system: treatment trains plus individual NbS.
+
+Module 1 was committed successfully as `62da2da` despite the earlier approval
+response reporting a limit error after the commit completed.
 
 ## Files changed
 
+- `backend/app/api/routes/recommendation.py`
+- `backend/app/engines/component_recommendation.py`
 - `backend/app/engines/README.md`
-- `backend/app/engines/train_recommendation.py`
-- `backend/app/repositories/engine_data_repository.py`
+- `backend/app/engines/__init__.py`
+- `backend/app/schemas/recommendation.py`
 - `backend/tests/train_recommendation_test.py`
 - `frontend/lib/models/recommendation_models.dart`
 - `frontend/lib/screens/nbs_screens.dart`
+- `frontend/test/component_recommendation_test.dart`
 - `CODEX_BIG_UPGRADE_HANDOFF.md`
 - `NEXT_CODEX_PROMPT.md`
 
 ## Tests run
 
-- Backend: 34 passed.
+- Backend: 39 passed.
 - Flutter analyze: no issues found.
-- Flutter tests: 2 passed at 390x844 and 768x1024.
+- Flutter tests: 3 passed.
 - `git diff --check`: clean.
 
 ## What changed
 
-- Verified the configured canonical database through the repository boundary:
-  28 NbS options, 8 treatment trains, 167 removal rows, 104 sources,
-  19 footprint rows, 118 plant mappings, and 52 site attributes.
-- Added per-train pollutant-gap explanations for every supplied parameter,
-  including observed value/unit, source, target, target status, severity text,
-  and whether canonical train evidence addresses the parameter.
-- Added explicit use-case labels for drinking, irrigation, and inland discharge.
-- Kept TOPSIS technical match separate from result confidence.
-- Added documented, rule-based confidence caps for zero, one, two-to-three,
-  and complete/incomplete key-panel inputs.
-- Blank values remain unknown. Skipped or nonnumeric CSV rows reduce confidence.
-- Added clear match-versus-confidence wording in Summary and Ranking.
-- Reduced an accidental full-file Dart formatting diff back to semantic edits.
+- Treatment trains remain the primary wastewater recommendation.
+- Added a separate A0-screened individual-NbS response layer.
+- Measured-data component order preserves the existing component TOPSIS result.
+- Context-only component results are unscored and use transparent role ordering.
+- Added role, pollutants, suitable/unsuitable contexts, standalone boundary,
+  constraints, implementation text, non-invasive plants, and source IDs.
+- Industrial components are polishing/buffer only after ETP/CETP; acidic input
+  explicitly requires neutralization before biological/NbS stages.
+- Mainstem/high-order screening blocks in-channel framing and exposes filtered
+  components with reasons.
+- Agricultural screening prioritizes bioretention, bioswale, and filter strips
+  as source-control measures, not standalone wastewater treatment.
+- Added a dedicated NbS Components workspace and train-first Summary section.
 
-## What still needs work
+## Intentionally not changed
 
-- Module 2: add a separate individual-NbS recommendation layer while keeping
-  treatment trains primary.
-- Module 3: broader responsive and user-language pass.
-- Module 4: treatment train, individual NbS, plant, and learning catalogues.
-
-## Scientific safeguards preserved
-
-- A0 applicability remains before TOPSIS.
-- No scientific values, standards, removal efficiencies, citations, or expert
-  weights were invented.
-- Confidence caps are labelled as transparent UX safeguards, not scientific
-  confidence intervals.
-- Industrial pretreatment, pH neutralization, mainstem placement, agricultural
-  source-control, and invasive-plant safeguards remain active.
-- The canonical database was read only and was not replaced or modified.
+- No treatment-train rank or canonical evidence value was overwritten.
+- No expert weights, removal efficiencies, standards, citations, or health-risk
+  values were invented.
+- No canonical database or source data was modified.
+- Catalogue expansion and broader responsive language changes remain Modules 3
+  and 4.
 
 ## Known limitations
 
-- The BOD/COD/TSS/pH panel is only a screening-completeness rule; source-specific
-  parameters may still be essential.
-- Confidence is research-stage and still requires expert calibration.
-- A train can technically match a limited input while correctly showing low
-  result confidence.
-- Known untracked local prompt/safety artifacts remain outside commits.
+- Context-only component order is a documented rule-based screen, not a numeric
+  scientific rank.
+- Some components have no explicit plant mapping; the UI states that planting
+  guidance requires local validation.
+- The existing component TOPSIS can still assign high technical suitability to
+  unusual components, but standalone/context safeguards now prevent unsafe
+  treatment claims.
+- Known local prompt/safety artifacts remain untracked and outside commits.
 
 ## Commit status
 
-BLOCKED before commit. The scoped checkpoint command was rejected before
-execution because the Codex approval system reported that its usage limit had
-been reached. No workaround was attempted. The verified Module 1 changes remain
-unstaged and uncommitted. When tool access resumes, stage only the eight files
-listed above and commit with:
-`Module 1: Research-grade scoring and confidence`.
+This module is included in the scoped checkpoint commit:
+`Module 2: Add individual NbS component recommendations`.
 
 ## Exact next step
 
-First create the pending Module 1 checkpoint commit. Then start Module 2 from
-`NEXT_CODEX_PROMPT.md`. Inspect canonical NbS, design,
-performance, applicability, plant mapping, and provenance fields; then add
-individual component recommendations as a separate response/UI layer without
-altering treatment-train primacy.
+Start Module 3 from `NEXT_CODEX_PROMPT.md`. Fix the narrow input-modal field
+layout first, then apply responsive and user-language changes across results,
+component cards, side tabs, evidence panels, and upload validation. Add 390,
+768, and desktop widget coverage.

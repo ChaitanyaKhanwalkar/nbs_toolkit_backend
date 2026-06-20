@@ -12,13 +12,18 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.engines.applicability_filter import ApplicabilityFilterEngine
+from app.engines.candidate_filtering import CandidateFilteringEngine
+from app.engines.component_recommendation import IndividualNbsRecommendationEngine
+from app.engines.input_normalization import InputContext
 from app.engines.train_recommendation import (
     PROVISIONAL_WARNING,
     TrainRecommendationEngine,
 )
+from app.engines.treatment_need import TreatmentNeedBundle
 from app.repositories import EngineDataRepository
 from app.schemas import RecommendationRequest, RecommendationResponse
-from app.services import ScientificWorkflowService
+from app.services import NbsCatalogService, PlantCatalogService, ScientificWorkflowService
 from app.services.reference_data_service import ReferenceDataService
 
 router = APIRouter(prefix="/recommend", tags=["recommendation"])
@@ -48,6 +53,22 @@ def get_engine_data_repository(
     return EngineDataRepository(db)
 
 
+def get_nbs_catalog_service(
+    db: Annotated[Session, Depends(get_db)],
+) -> NbsCatalogService:
+    """Build the read-only canonical NbS catalogue service."""
+
+    return NbsCatalogService(db)
+
+
+def get_plant_catalog_service(
+    db: Annotated[Session, Depends(get_db)],
+) -> PlantCatalogService:
+    """Build the read-only non-invasive plant catalogue service."""
+
+    return PlantCatalogService(db)
+
+
 @router.post("", response_model=RecommendationResponse)
 def run_local_recommendation_workflow(
     request: RecommendationRequest,
@@ -62,6 +83,14 @@ def run_local_recommendation_workflow(
     engine_data: Annotated[
         EngineDataRepository,
         Depends(get_engine_data_repository),
+    ],
+    nbs_catalog: Annotated[
+        NbsCatalogService,
+        Depends(get_nbs_catalog_service),
+    ],
+    plant_catalog: Annotated[
+        PlantCatalogService,
+        Depends(get_plant_catalog_service),
     ],
 ) -> dict[str, Any]:
     """Run the staged A-L workflow and return safe recommendation assembly output."""
@@ -88,6 +117,9 @@ def run_local_recommendation_workflow(
             "input_summary": {},
             "contaminant_gaps": [],
             "ranked_trains": [],
+            "component_recommendations": [],
+            "filtered_components": [],
+            "component_recommendation_method": None,
             "rejected_options": [],
             "train_usecase_matrix": [],
             "recommendation_assembly_bundle": None,
@@ -114,6 +146,22 @@ def run_local_recommendation_workflow(
             "selected_source_type"
         ),
     )
+    candidate_bundle, applicability_bundle = _component_screen_bundles(
+        payload,
+        request,
+        nbs_catalog,
+        engine_data,
+    )
+    component_result = IndividualNbsRecommendationEngine(
+        nbs_catalog,
+        plant_catalog,
+    ).assemble(
+        assembly_bundle=assembly_bundle,
+        candidate_bundle=candidate_bundle,
+        applicability_bundle=applicability_bundle,
+        context=request.context,
+        contaminant_gaps=_contaminant_gaps(payload),
+    )
     citations = _resolve_citations(
         assembly_bundle,
         reference_service,
@@ -132,6 +180,9 @@ def run_local_recommendation_workflow(
         "input_summary": _input_summary(payload),
         "contaminant_gaps": _contaminant_gaps(payload),
         "ranked_trains": train_result["ranked_trains"],
+        "component_recommendations": component_result["recommendations"],
+        "filtered_components": component_result["filtered_components"],
+        "component_recommendation_method": component_result["method"],
         "rejected_options": [
             *_rejected_options(payload),
             *train_result["rejected_options"],
@@ -189,6 +240,44 @@ def _location_profile(payload: dict[str, Any]) -> dict[str, Any] | None:
         "basin_id": normalized_input.get("basin_id"),
         "station": normalized_input.get("station"),
     }
+
+
+def _component_screen_bundles(
+    payload: dict[str, Any],
+    request: RecommendationRequest,
+    nbs_catalog: NbsCatalogService,
+    engine_data: EngineDataRepository,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Return existing A0 outputs or build an unscored context-only screen."""
+
+    candidate_bundle = payload.get("candidate_filter_bundle")
+    applicability_bundle = payload.get("applicability_filter_bundle")
+    if candidate_bundle and applicability_bundle:
+        return candidate_bundle, applicability_bundle
+
+    candidates = CandidateFilteringEngine(nbs_catalog).filter_candidates(
+        TreatmentNeedBundle(
+            use_case=request.use_case,
+            selected_source_type="missing",
+        )
+    )
+    input_context = InputContext(
+        original_input=request.workflow_input(),
+        normalized_input={
+            "use_case": request.use_case,
+            "measured_observations": request.measured_observations,
+            "context": request.context,
+        },
+        validation_status="context_guidance",
+    )
+    applicability, filtered_candidates = ApplicabilityFilterEngine(
+        engine_data
+    ).apply(
+        candidates,
+        input_context=input_context,
+        rules=engine_data.list_applicability_rules(active_only=True),
+    )
+    return filtered_candidates.to_dict(), applicability.to_dict()
     return profile if any(value is not None for value in profile.values()) else None
 
 

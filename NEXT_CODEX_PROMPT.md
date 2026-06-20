@@ -1,4 +1,4 @@
-# Continue NBSGCT Big Upgrade - Module 2
+# Continue NBSGCT Big Upgrade - Module 3
 
 Work in:
 `C:\Users\Ecosoul Enviro\OneDrive\Desktop\NBSGCT`
@@ -6,42 +6,28 @@ Work in:
 Read `AGENTS.md`, `codex prompt.txt`, and
 `CODEX_BIG_UPGRADE_HANDOFF.md` first.
 
-Module 1 is complete and fully verified but its commit was blocked by the Codex
-approval usage limit. First run `git status --short`, confirm only the Module 1
-files documented in the handoff are changed, stage only those files, and commit:
-`Module 1: Research-grade scoring and confidence`.
+Modules 1 and 2 are complete. Continue autonomously with Module 3:
+User-facing language and responsive polish.
 
-Then continue autonomously with Module 2: Dual recommendation system -
-treatment trains plus individual NbS components.
+Required work:
 
-Requirements:
+1. Fix the 390px input-modal overflow around pollution source context and
+   intervention position by stacking fields vertically at narrow widths.
+2. Verify upload page, Summary, Ranking, component cards, chips, workspace tabs,
+   evidence panels, and data-gap panels at 390x844, 768x1024, and desktop.
+3. Replace remaining confusing copy with the preferred professional language
+   from `codex prompt.txt`, including Technical match, Result confidence,
+   Water-quality input, Important limitation, What this means, and
+   Water-quality values used.
+4. Explain blanks, unknown values, skipped rows, match versus confidence, and
+   treatment train versus individual component concisely.
+5. Ensure invalid CSV messaging says:
+   `No usable water-quality values found.`
+6. Do not overstuff the home screen or introduce decorative gimmicks.
+7. Add/update widget tests for all three viewport classes and zero overflow.
 
-1. Keep treatment trains primary for wastewater contexts.
-2. Add a separate backend response structure and ranking/suitability assessment
-   for individual NbS components.
-3. Run A0 applicability before any component scoring.
-4. Do not let a component replace or outrank the primary treatment train.
-5. Return component name, family, role, suitability band, pollutants addressed,
-   suitable/unsuitable contexts, standalone suitability, constraints, plant
-   links, and source IDs where canonical evidence exists.
-6. Show filtered or conditional components and reasons where feasible.
-7. Industrial components must be polishing/buffer only after ETP/CETP;
-   extreme pH requires neutralization.
-8. High-order/mainstem contexts must not imply in-channel treatment cells.
-9. Agricultural runoff must prioritize source-control/edge-of-field components.
-10. Never recommend invasive plants or invent missing evidence.
-11. Add an `NbS Components` frontend workspace section and summarize
-    supporting/not-standalone components.
-12. Add backend and practical frontend tests.
-
-After the module, run:
-
-- backend pytest
-- Flutter analyze
-- Flutter tests
-- `git diff --check`
-
-Then overwrite `CODEX_BIG_UPGRADE_HANDOFF.md` and
-`NEXT_CODEX_PROMPT.md`, make the scoped checkpoint commit:
-`Module 2: Add individual NbS component recommendations`,
-and continue directly to Module 3 when all gates pass.
+After the module, run backend pytest, Flutter analyze, Flutter tests, and
+`git diff --check`. Refresh both continuation files, attempt the scoped commit
+`Module 3: Polish responsive UI and user-facing language`, and continue to
+Module 4 when all gates pass. If commit alone is blocked by approval limits,
+create the required module snapshot/status files and continue intentionally.

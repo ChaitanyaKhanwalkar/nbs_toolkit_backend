@@ -579,3 +579,147 @@ def test_context_only_modes_are_labelled_as_guidance() -> None:
         {"workflow_mode": "pollution_source_screening"},
         [{"train_id": 1}],
     ) == "context_guidance"
+
+
+def _recommend_components(
+    *,
+    context: dict,
+    observations: list[dict] | None = None,
+) -> dict:
+    values = observations or []
+    response = TestClient(app).post(
+        "/api/v1/recommend",
+        json={
+            "use_case": "discharge_inland",
+            "measured_observations": values,
+            "selected_parameters": [row["parameter"] for row in values],
+            "context": context,
+        },
+    )
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def test_component_layer_is_separate_and_train_result_remains_primary() -> None:
+    payload = _recommend_components(
+        context={
+            "workflow_mode": "manual_measured_water_quality",
+            "pollution_source_type": "domestic_sewage",
+            "intervention_position": "off_channel_or_stp_polishing",
+        },
+        observations=[
+            {"parameter": "bod", "value": 80, "unit": "mg_l"},
+            {"parameter": "cod", "value": 200, "unit": "mg_l"},
+            {"parameter": "tss", "value": 120, "unit": "mg_l"},
+            {"parameter": "ph", "value": 7.2},
+        ],
+    )
+
+    assert payload["ranked_trains"]
+    assert payload["component_recommendations"]
+    assert payload["component_recommendation_method"] == "a0_screened_component_topsis"
+    assert all(
+        row["train_recommendation_remains_primary"]
+        for row in payload["component_recommendations"]
+    )
+    assert all(
+        row["standalone_suitability"] != "can_be_standalone"
+        for row in payload["component_recommendations"]
+    )
+
+
+def test_industrial_components_are_polishing_only_after_pretreatment() -> None:
+    payload = _recommend_components(
+        context={
+            "workflow_mode": "manual_measured_water_quality",
+            "pollution_source_type": "industrial_or_mixed_industrial",
+            "intervention_position": "standalone_primary_treatment",
+        },
+        observations=[
+            {"parameter": "cod", "value": 1000, "unit": "mg_l"},
+            {"parameter": "ph", "value": 3},
+        ],
+    )
+    components = payload["component_recommendations"]
+
+    assert components
+    assert all(row["role"] == "polishing_or_buffer" for row in components)
+    assert all(
+        row["standalone_suitability"] == "only_as_part_of_train"
+        for row in components
+    )
+    guidance = " ".join(
+        text
+        for row in components
+        for text in [row["standalone_guidance"], *row["key_constraints"]]
+    ).lower()
+    assert "etp/cetp" in guidance
+    assert "neutralization" in guidance
+
+
+def test_mainstem_component_screen_blocks_in_channel_framing() -> None:
+    payload = _recommend_components(
+        context={
+            "workflow_mode": "site_context_only",
+            "pollution_source_type": "domestic_sewage",
+            "intervention_position": "in_channel",
+            "stream_order": 6,
+        },
+    )
+
+    assert payload["component_recommendations"]
+    assert payload["filtered_components"]
+    assert all(
+        not any(
+            "in-channel" in suitable.lower()
+            for suitable in row["where_suitable"]
+        )
+        for row in payload["component_recommendations"]
+    )
+    assert all(
+        any("in-channel" in value.lower() for value in row["where_not_suitable"])
+        for row in payload["component_recommendations"]
+    )
+
+
+def test_agricultural_context_prioritizes_source_control_components() -> None:
+    payload = _recommend_components(
+        context={
+            "workflow_mode": "pollution_source_screening",
+            "pollution_source_type": "high_agriculture_only_no_water_data",
+            "intervention_position": "off_channel_or_stp_polishing",
+        },
+    )
+    top = payload["component_recommendations"][:3]
+
+    assert len(top) == 3
+    assert all(row["role"] == "source_control" for row in top)
+    assert all(
+        row["standalone_suitability"] == "can_be_standalone_source_control"
+        for row in top
+    )
+    assert all(
+        "not standalone treatment" in row["standalone_guidance"].lower()
+        for row in top
+    )
+
+
+def test_component_plant_links_exclude_invasive_species() -> None:
+    payload = _recommend_components(
+        context={
+            "workflow_mode": "pollution_source_screening",
+            "pollution_source_type": "high_agriculture_only_no_water_data",
+        },
+    )
+    plants = [
+        plant
+        for row in payload["component_recommendations"]
+        for plant in row["plants"]
+    ]
+
+    assert plants
+    assert all(plant.get("invasive") in {0, None} for plant in plants)
+    assert all(
+        "invasive" not in str(plant.get("native_status", "")).lower()
+        for plant in plants
+    )

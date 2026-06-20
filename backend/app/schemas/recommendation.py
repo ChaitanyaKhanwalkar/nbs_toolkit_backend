@@ -69,6 +69,9 @@ class RecommendationResponse(RawResponseModel):
     input_summary: dict[str, Any] = Field(default_factory=dict)
     contaminant_gaps: list[dict[str, Any]] = Field(default_factory=list)
     ranked_trains: list[dict[str, Any]] = Field(default_factory=list)
+    component_recommendations: list[dict[str, Any]] = Field(default_factory=list)
+    filtered_components: list[dict[str, Any]] = Field(default_factory=list)
+    component_recommendation_method: str | None = None
     rejected_options: list[dict[str, Any]] = Field(default_factory=list)
     train_usecase_matrix: list[dict[str, Any]] = Field(default_factory=list)
     recommendation_assembly_bundle: RecommendationAssemblyBundleResponse | None = None

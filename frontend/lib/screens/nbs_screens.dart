@@ -995,6 +995,7 @@ class ResultsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final bundle = response.recommendationAssemblyBundle;
     final trains = response.rankedTrains;
+    final components = response.componentRecommendations;
     final topTrain = trains.isNotEmpty ? trains.first : null;
     final sourceLocationGuidance = _cleanContextGuidance(
       _sourceLocationGuidance(trains),
@@ -1055,6 +1056,8 @@ class ResultsScreen extends StatelessWidget {
               const SizedBox(height: 10),
               _DataConfidenceGuide(train: topTrain, methodLabel: _confidenceMethodLabel(response, bundle), dataLimited: contextOnly || !hasMeasuredData),
               const SizedBox(height: 14),
+              _ComponentSummary(train: topTrain, components: components),
+              const SizedBox(height: 14),
               _DetailSection(title: 'Why this recommendation?', child: _ReadableBulletList(values: whyReasons, emptyText: 'A top recommendation was not available for explanation.')),
               const SizedBox(height: 14),
               _DetailSection(title: 'Key caution', child: Text(keyCaution)),
@@ -1078,9 +1081,13 @@ class ResultsScreen extends StatelessWidget {
             child: _ImplementationWorkspace(response: response, train: topTrain, sourceLocationGuidance: sourceLocationGuidance),
           ),
           _WorkspacePanel(
-            label: 'NbS & Plants',
+            label: 'NbS Components',
             icon: Icons.spa_outlined,
-            child: _NbsPlantsWorkspace(train: topTrain),
+            child: _NbsComponentsWorkspace(
+              train: topTrain,
+              components: components,
+              filteredComponents: response.filteredComponents,
+            ),
           ),
           _WorkspacePanel(
             label: 'Data gaps',
@@ -1342,22 +1349,126 @@ class _ImplementationWorkspace extends StatelessWidget {
   }
 }
 
-class _NbsPlantsWorkspace extends StatelessWidget {
-  const _NbsPlantsWorkspace({required this.train});
+class _ComponentSummary extends StatelessWidget {
+  const _ComponentSummary({required this.train, required this.components});
 
   final TrainRecommendation? train;
+  final List<IndividualNbsRecommendation> components;
 
   @override
   Widget build(BuildContext context) {
-    if (train == null) return const Text('No top treatment train is available for component review.');
+    final supporting = components.take(3).toList();
+    final limited = components.where((item) => item.standaloneSuitability == 'only_as_part_of_train').take(3).toList();
+    return _DetailSection(
+      title: 'Train and supporting components',
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Primary treatment train: ${train?.name ?? 'Not available'}', style: const TextStyle(fontWeight: FontWeight.w900)),
+        const SizedBox(height: 8),
+        _ReadableBulletList(
+          values: [for (final item in supporting) '${item.name} - ${_titleFromSnake(item.role)}'],
+          emptyText: 'No supporting component screen is available.',
+        ),
+        if (limited.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text('Not suitable alone: ${limited.map((item) => item.name).join(', ')}.', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: NbsColors.mutedGrey)),
+        ],
+      ]),
+    );
+  }
+}
+
+class _NbsComponentsWorkspace extends StatelessWidget {
+  const _NbsComponentsWorkspace({required this.train, required this.components, required this.filteredComponents});
+
+  final TrainRecommendation? train;
+  final List<IndividualNbsRecommendation> components;
+  final List<Map<String, dynamic>> filteredComponents;
+
+  @override
+  Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _DetailSection(title: 'NbS components', child: _TextBlockList(title: 'Components within ${train!.name}', values: [for (final component in train!.nbsComponents) '${component['name'] ?? 'Catalogue component'}${component['family'] == null ? '' : ' - ${component['family']}'}'], emptyText: 'No linked NbS component is recorded for this train.')),
+      _DetailSection(
+        title: 'How to read this section',
+        child: Text('The primary recommendation is the treatment train ${train?.name ?? ''}. Individual NbS options below are supporting components and do not replace that train.'),
+      ),
       const SizedBox(height: 14),
-      _DetailSection(title: 'Grouped planting guidance', child: _TopTrainPlantingGuidance(train: train!)),
-      const SizedBox(height: 14),
-      _DetailSection(title: 'NbS visualisation and learning', child: _LearningPlaceholder(train: train!)),
+      if (components.isEmpty)
+        const Text('No individual NbS component passed the current screening.')
+      else
+        for (final component in components.take(10))
+          Padding(padding: const EdgeInsets.only(bottom: 10), child: _IndividualNbsCard(component: component)),
+      if (filteredComponents.isNotEmpty) ...[
+        const SizedBox(height: 4),
+        _DetailSection(
+          title: 'Filtered out by applicability screening',
+          child: _ReadableBulletList(
+            values: [
+              for (final row in filteredComponents.take(10))
+                '${row['name'] ?? 'Component'}: ${((row['reasons'] as List?) ?? const ['Not suitable for this context.']).join(' ')}',
+            ],
+          ),
+        ),
+      ],
+      if (train != null) ...[
+        const SizedBox(height: 14),
+        _DetailSection(title: 'Treatment-train learning', child: _LearningPlaceholder(train: train!)),
+      ],
     ]);
   }
+}
+
+class _IndividualNbsCard extends StatelessWidget {
+  const _IndividualNbsCard({required this.component});
+
+  final IndividualNbsRecommendation component;
+
+  @override
+  Widget build(BuildContext context) => AppCard(
+        padding: EdgeInsets.zero,
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.all(14),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          title: Text(component.name, style: const TextStyle(fontWeight: FontWeight.w900)),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Wrap(spacing: 8, runSpacing: 8, children: [
+              _MetricChip(label: 'Role', value: _titleFromSnake(component.role), color: NbsColors.riverTeal),
+              _MetricChip(
+                label: 'Component suitability',
+                value: component.suitabilityScore == null ? 'Context screened' : component.suitabilityPercent,
+                color: NbsColors.researchBlue,
+              ),
+              _MetricChip(label: 'Standalone use', value: _titleFromSnake(component.standaloneSuitability), color: NbsColors.warningAmber),
+            ]),
+          ),
+          children: [
+            _AlertBanner.compact(
+              icon: Icons.account_tree_outlined,
+              color: NbsColors.warningAmber,
+              title: 'Treatment-train boundary',
+              message: component.standaloneGuidance,
+            ),
+            const SizedBox(height: 12),
+            _TextBlockList(title: 'Pollutants addressed by sourced records', values: component.pollutantsAddressed, emptyText: 'No pollutant-specific removal record is available.'),
+            const SizedBox(height: 12),
+            _TextBlockList(title: 'Where suitable', values: component.whereSuitable, emptyText: 'Site suitability requires local validation.'),
+            const SizedBox(height: 12),
+            _TextBlockList(title: 'Where not suitable', values: component.whereNotSuitable, emptyText: 'No additional context exclusion was returned.'),
+            const SizedBox(height: 12),
+            _TextBlockList(title: 'Key constraints', values: component.keyConstraints, emptyText: 'No component-specific constraint was returned.'),
+            const SizedBox(height: 12),
+            _TextBlockList(
+              title: 'Plant links',
+              values: [for (final plant in component.plants) plant['plant_species']?.toString() ?? 'Catalogue plant'],
+              emptyText: component.plantingGuidance,
+            ),
+            const SizedBox(height: 12),
+            Text('Evidence sources', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 8),
+            _SourceIdWrap(sourceIds: component.sourceIds),
+          ],
+        ),
+      );
 }
 
 class _DataGapsWorkspace extends StatelessWidget {
