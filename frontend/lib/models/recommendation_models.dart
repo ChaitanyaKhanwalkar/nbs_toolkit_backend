@@ -21,6 +21,8 @@ class RecommendationResponse {
     required this.filteredComponents,
     required this.componentRecommendationMethod,
     required this.inputSummary,
+    required this.locationContext,
+    required this.designReadiness,
   });
 
   final String workflowStatus;
@@ -44,6 +46,8 @@ class RecommendationResponse {
   final List<Map<String, dynamic>> filteredComponents;
   final String? componentRecommendationMethod;
   final RecommendationInputSummary inputSummary;
+  final LocationContext locationContext;
+  final DesignReadiness designReadiness;
 
   /// Resolved citations indexed by source ID for quick lookup in the UI.
   Map<int, Citation> get citationsById {
@@ -114,8 +118,162 @@ class RecommendationResponse {
             ? json['input_summary'] as Map<String, dynamic>
             : const <String, dynamic>{},
       ),
+      locationContext: LocationContext.fromJson(
+        json['location_context'] is Map<String, dynamic>
+            ? json['location_context'] as Map<String, dynamic>
+            : const <String, dynamic>{},
+      ),
+      designReadiness: DesignReadiness.fromJson(
+        json['design_readiness'] is Map<String, dynamic>
+            ? json['design_readiness'] as Map<String, dynamic>
+            : const <String, dynamic>{},
+      ),
     );
   }
+}
+
+class LocationContext {
+  LocationContext({
+    required this.regionId,
+    required this.station,
+    required this.river,
+    required this.district,
+    required this.basin,
+    required this.subBasin,
+    required this.streamOrder,
+    required this.streamContext,
+    required this.interventionPosition,
+    required this.pollutionSourceType,
+    required this.pollutionSourceRecordCount,
+    required this.riverDischargeCms,
+    required this.drainageAreaKm2,
+    required this.slopeMean,
+    required this.soilType,
+    required this.infiltrationClass,
+    required this.coordinatesAvailable,
+    required this.latitude,
+    required this.longitude,
+    required this.contextFlags,
+    required this.missingSiteInformation,
+    required this.contextNotes,
+  });
+
+  final int? regionId;
+  final String? station;
+  final String? river;
+  final String? district;
+  final String? basin;
+  final String? subBasin;
+  final double? streamOrder;
+  final String? streamContext;
+  final String? interventionPosition;
+  final String? pollutionSourceType;
+  final int? pollutionSourceRecordCount;
+  final double? riverDischargeCms;
+  final double? drainageAreaKm2;
+  final double? slopeMean;
+  final String? soilType;
+  final String? infiltrationClass;
+  final bool coordinatesAvailable;
+  final double? latitude;
+  final double? longitude;
+  final Map<String, bool> contextFlags;
+  final List<String> missingSiteInformation;
+  final List<String> contextNotes;
+
+  bool get isEmpty =>
+      regionId == null && station == null && contextFlags.isEmpty;
+
+  factory LocationContext.fromJson(Map<String, dynamic> json) {
+    final flags = json['context_flags'];
+    return LocationContext(
+      regionId: _nullableInt(json['region_id']),
+      station: _nullableString(json['station']),
+      river: _nullableString(json['river']),
+      district: _nullableString(json['district']),
+      basin: _nullableString(json['basin']),
+      subBasin: _nullableString(json['sub_basin']),
+      streamOrder: _nullableDouble(json['stream_order']),
+      streamContext: _nullableString(json['stream_context']),
+      interventionPosition: _nullableString(json['intervention_position']),
+      pollutionSourceType: _nullableString(json['pollution_source_type']),
+      pollutionSourceRecordCount:
+          _nullableInt(json['pollution_source_record_count']),
+      riverDischargeCms: _nullableDouble(json['river_discharge_cms']),
+      drainageAreaKm2: _nullableDouble(json['drainage_area_km2']),
+      slopeMean: _nullableDouble(json['slope_mean']),
+      soilType: _nullableString(json['soil_type']),
+      infiltrationClass: _nullableString(json['infiltration_class']),
+      coordinatesAvailable: json['coordinates_available'] == true,
+      latitude: _nullableDouble(json['latitude']),
+      longitude: _nullableDouble(json['longitude']),
+      contextFlags: flags is Map<String, dynamic>
+          ? flags.map((key, value) => MapEntry(key, value == true))
+          : <String, bool>{},
+      missingSiteInformation: _stringList(json['missing_site_information']),
+      contextNotes: _stringList(json['context_notes']),
+    );
+  }
+}
+
+class DesignReadiness {
+  DesignReadiness({
+    required this.level,
+    required this.shortLabel,
+    required this.explanation,
+    required this.reasons,
+    required this.missingInputs,
+    required this.requiredNextSteps,
+    required this.expertReviewRequired,
+    required this.inputChecklist,
+  });
+
+  final String level;
+  final String shortLabel;
+  final String explanation;
+  final List<String> reasons;
+  final List<String> missingInputs;
+  final List<String> requiredNextSteps;
+  final bool expertReviewRequired;
+  final List<ReadinessInput> inputChecklist;
+
+  factory DesignReadiness.fromJson(Map<String, dynamic> json) {
+    final checklist = json['input_checklist'];
+    return DesignReadiness(
+      level: _stringValue(json['level'], fallback: 'early_screening_only'),
+      shortLabel:
+          _stringValue(json['short_label'], fallback: 'Needs field data'),
+      explanation: _stringValue(
+        json['explanation'],
+        fallback: 'More field and water-quality data are needed.',
+      ),
+      reasons: _stringList(json['reasons']),
+      missingInputs: _stringList(json['missing_inputs']),
+      requiredNextSteps: _stringList(json['required_next_steps']),
+      expertReviewRequired: json['expert_review_required'] == true,
+      inputChecklist: checklist is List
+          ? checklist
+              .whereType<Map<String, dynamic>>()
+              .map(ReadinessInput.fromJson)
+              .toList()
+          : <ReadinessInput>[],
+    );
+  }
+}
+
+class ReadinessInput {
+  ReadinessInput(
+      {required this.key, required this.label, required this.status});
+
+  final String key;
+  final String label;
+  final String status;
+
+  factory ReadinessInput.fromJson(Map<String, dynamic> json) => ReadinessInput(
+        key: _stringValue(json['key']),
+        label: _stringValue(json['label'], fallback: 'Design input'),
+        status: _stringValue(json['status'], fallback: 'missing'),
+      );
 }
 
 class IndividualNbsRecommendation {

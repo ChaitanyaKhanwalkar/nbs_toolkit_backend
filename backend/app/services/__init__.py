@@ -1,6 +1,7 @@
 """Service classes that prepare raw data packets for future APIs."""
 
 from app.services.data_availability_service import DataAvailabilityService
+from app.services.location_context_service import LocationContextService
 from app.services.nbs_catalog_service import NbsCatalogService
 from app.services.catalogue_service import CatalogueService
 from app.services.plant_catalog_service import PlantCatalogService
@@ -17,6 +18,7 @@ from app.services.water_data_service import WaterDataService
 
 __all__ = [
     "DataAvailabilityService",
+    "LocationContextService",
     "NbsCatalogService",
     "CatalogueService",
     "PlantCatalogService",

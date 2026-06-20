@@ -12,6 +12,27 @@ void main() {
     'workflow_status': 'completed',
     'use_case': 'discharge_inland',
     'global_gaps': ['Confirm design flow.'],
+    'location_context': {
+      'station': 'Test station',
+      'district': 'Test district',
+      'coordinates_available': false,
+      'context_flags': {'site_context_incomplete': true},
+    },
+    'design_readiness': {
+      'level': 'planning_level_result',
+      'short_label': 'Ready for planning',
+      'explanation': 'Engineering design is still required.',
+      'reasons': ['The core screening panel is available.'],
+      'missing_inputs': ['Design flow'],
+      'required_next_steps': ['Confirm design flow.'],
+      'input_checklist': [
+        {
+          'key': 'design_flow',
+          'label': 'Flow rate / design flow',
+          'status': 'missing'
+        },
+      ],
+    },
     'ranked_trains': [
       {
         'train_id': 3,
@@ -65,6 +86,8 @@ void main() {
     final decoded = jsonDecode(report.json) as Map<String, dynamic>;
 
     expect(decoded['project_input_summary'], isA<Map<String, dynamic>>());
+    expect(decoded['location_context']['station'], 'Test station');
+    expect(decoded['design_readiness']['short_label'], 'Ready for planning');
     expect(
       decoded['recommended_treatment_train']['name'],
       'DEWATS modular train',
@@ -79,9 +102,12 @@ void main() {
 
     expect(report.csv, startsWith('"section","item","field","value"'));
     expect(report.csv, contains('"recommended_treatment_train"'));
+    expect(report.csv, contains('"design_readiness"'));
+    expect(report.csv, contains('"location_context"'));
     expect(report.csv, contains('"evidence_records"'));
     expect(report.summary, contains('DEWATS modular train'));
     expect(report.summary, contains('Technical match: 78.0%'));
+    expect(report.summary, contains('Design readiness: Ready for planning'));
     expect(report.summary, contains(planningLevelDisclaimer));
   });
 }

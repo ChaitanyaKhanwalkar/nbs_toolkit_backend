@@ -8,6 +8,7 @@ import '../services/recommendation_report.dart';
 import '../services/report_platform.dart';
 import '../theme/nbs_theme.dart';
 import '../widgets/app_card.dart';
+import '../widgets/location_context_diagram.dart';
 import '../widgets/nbs_diagrams.dart';
 
 const _maxContentWidth = 1160.0;
@@ -442,6 +443,8 @@ class _AnalysisSetupScreenState extends State<AnalysisSetupScreen> {
         if (!_isSiteMode) 'intervention_position': _position,
         if (_isSiteMode && _site?.streamOrder != null)
           'stream_order': _site!.streamOrder,
+        if (_isSiteMode && _pollutionCount != null)
+          'pollution_source_record_count': _pollutionCount,
         if (_isUploadMode && _uploadUnknownParameters.isNotEmpty)
           'uploaded_unknown_parameters': _uploadUnknownParameters,
         if (_isUploadMode && _csvValidation != null)
@@ -1295,11 +1298,13 @@ class ResultsScreen extends StatelessWidget {
               const SizedBox(height: 10),
               _DataBasisCard(dataBasis: dataBasis, readiness: readiness),
               const SizedBox(height: 10),
+              _SiteContextSummaryCard(location: response.locationContext),
+              const SizedBox(height: 10),
+              _DesignReadinessSummaryCard(readiness: response.designReadiness),
+              const SizedBox(height: 10),
               _DataUsedPanel(inputSummary: response.inputSummary),
               const SizedBox(height: 10),
               _PollutantGapPanel(train: topTrain),
-              const SizedBox(height: 10),
-              _DesignReadinessBanner(readiness: readiness),
               const SizedBox(height: 10),
               _DataConfidenceGuide(
                   train: topTrain,
@@ -1346,6 +1351,17 @@ class ResultsScreen extends StatelessWidget {
                         hasMeasuredData: hasMeasuredData,
                         citationsById: response.citationsById)),
             ]),
+          ),
+          _WorkspacePanel(
+            label: 'Location',
+            icon: Icons.location_on_outlined,
+            child: _LocationWorkspace(location: response.locationContext),
+          ),
+          _WorkspacePanel(
+            label: 'Design readiness',
+            icon: Icons.engineering_outlined,
+            child:
+                _DesignReadinessWorkspace(readiness: response.designReadiness),
           ),
           _WorkspacePanel(
             label: 'Implementation',
@@ -1517,6 +1533,256 @@ class _DataBasisCard extends StatelessWidget {
       );
 }
 
+class _SiteContextSummaryCard extends StatelessWidget {
+  const _SiteContextSummaryCard({required this.location});
+
+  final LocationContext location;
+
+  @override
+  Widget build(BuildContext context) {
+    final offChannel = location.contextFlags['off_channel_required'] == true;
+    return AppCard(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Icon(Icons.location_on_outlined, color: NbsColors.riverTeal),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text('Site context',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w900)),
+          ),
+        ]),
+        const SizedBox(height: 9),
+        Text(
+          location.station ??
+              location.district ??
+              'No site or station selected',
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          offChannel
+              ? 'Off-channel treatment only. Do not build treatment cells inside the river channel.'
+              : 'Site context helps prevent unsafe placement and guides the next field checks.',
+        ),
+        if (location.contextFlags['site_context_incomplete'] == true) ...[
+          const SizedBox(height: 7),
+          Text('Where site data is missing, the result remains planning-level.',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: NbsColors.mutedGrey)),
+        ],
+      ]),
+    );
+  }
+}
+
+class _DesignReadinessSummaryCard extends StatelessWidget {
+  const _DesignReadinessSummaryCard({required this.readiness});
+
+  final DesignReadiness readiness;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = readiness.expertReviewRequired
+        ? NbsColors.warningAmber
+        : NbsColors.researchBlue;
+    return AppCard(
+      borderColor: color.withValues(alpha: 0.35),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(Icons.engineering_outlined, color: color),
+          const SizedBox(width: 9),
+          Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Text('Design readiness',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w900)),
+                const SizedBox(height: 5),
+                Text(readiness.shortLabel,
+                    style:
+                        TextStyle(color: color, fontWeight: FontWeight.w900)),
+              ])),
+        ]),
+        const SizedBox(height: 8),
+        Text(readiness.explanation),
+        if (readiness.requiredNextSteps.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            childrenPadding: const EdgeInsets.only(bottom: 6),
+            title: const Text('What to do next',
+                style: TextStyle(fontWeight: FontWeight.w800)),
+            children: [
+              _ReadableBulletList(values: readiness.requiredNextSteps)
+            ],
+          ),
+        ],
+      ]),
+    );
+  }
+}
+
+class _LocationWorkspace extends StatelessWidget {
+  const _LocationWorkspace({required this.location});
+
+  final LocationContext location;
+
+  @override
+  Widget build(BuildContext context) {
+    final factors = <String>[
+      if (location.station != null)
+        'Selected site/station: ${location.station}',
+      if (location.basin != null) 'Basin: ${location.basin}',
+      if (location.subBasin != null) 'Sub-basin: ${location.subBasin}',
+      if (location.river != null) 'River: ${location.river}',
+      if (location.district != null) 'District: ${location.district}',
+      if (location.streamOrder != null)
+        'Stream order: ${location.streamOrder!.toStringAsFixed(location.streamOrder! % 1 == 0 ? 0 : 1)}',
+      if (location.streamContext != null)
+        'River context: ${location.streamContext}',
+      if (location.interventionPosition != null)
+        'Intervention position: ${_titleFromSnake(location.interventionPosition!)}',
+      if (location.pollutionSourceType != null)
+        'Source context: ${_titleFromSnake(location.pollutionSourceType!)}',
+      if (location.pollutionSourceRecordCount != null)
+        'Linked pollution-source records: ${location.pollutionSourceRecordCount}',
+      if (location.riverDischargeCms != null)
+        'Stored river discharge context: ${location.riverDischargeCms} m3/s',
+      if (location.drainageAreaKm2 != null)
+        'Drainage area: ${location.drainageAreaKm2} km2',
+    ];
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const _DetailSection(
+        title: 'Location intelligence',
+        child: Text(
+            'This context helps prevent unsafe recommendations, such as placing treatment cells inside the main river channel.'),
+      ),
+      const SizedBox(height: 14),
+      LocationContextDiagram(location: location),
+      const SizedBox(height: 14),
+      _DetailSection(
+          title: 'Site factors',
+          child: _ReadableBulletList(
+              values: factors,
+              emptyText:
+                  'No verified site profile is available for this run.')),
+      const SizedBox(height: 14),
+      _DetailSection(
+          title: 'Safety and source context',
+          child: _ReadableBulletList(
+              values: location.contextNotes,
+              emptyText: 'No additional location safety flag was triggered.')),
+      const SizedBox(height: 14),
+      _DetailSection(
+          title: 'Missing site information',
+          child: _ReadableBulletList(
+              values: location.missingSiteInformation,
+              emptyText: 'No site-profile gap was identified.')),
+    ]);
+  }
+}
+
+class _DesignReadinessWorkspace extends StatelessWidget {
+  const _DesignReadinessWorkspace({required this.readiness});
+
+  final DesignReadiness readiness;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      _DetailSection(
+        title: 'Design readiness: ${readiness.shortLabel}',
+        child: Text(readiness.explanation,
+            style: Theme.of(context)
+                .textTheme
+                .titleMedium
+                ?.copyWith(fontWeight: FontWeight.w800)),
+      ),
+      const SizedBox(height: 14),
+      _DetailSection(
+          title: 'Why this level',
+          child: _ReadableBulletList(
+              values: readiness.reasons,
+              emptyText: 'Readiness reasons were not returned.')),
+      const SizedBox(height: 14),
+      _DetailSection(
+        title: 'Missing before design',
+        child: Column(children: [
+          for (final item in readiness.inputChecklist)
+            _ReadinessChecklistRow(item: item),
+        ]),
+      ),
+      const SizedBox(height: 14),
+      _DetailSection(
+          title: 'Required next steps',
+          child: _ReadableBulletList(
+              values: readiness.requiredNextSteps,
+              emptyText: 'Proceed to normal engineering review.')),
+      if (readiness.expertReviewRequired) ...[
+        const SizedBox(height: 14),
+        const _AlertBanner.compact(
+          icon: Icons.warning_amber_outlined,
+          color: NbsColors.warningAmber,
+          title: 'Expert review recommended',
+          message:
+              'Safety, site-risk, or preliminary-design conditions require qualified expert review.',
+        ),
+      ],
+    ]);
+  }
+}
+
+class _ReadinessChecklistRow extends StatelessWidget {
+  const _ReadinessChecklistRow({required this.item});
+
+  final ReadinessInput item;
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, color, label) = switch (item.status) {
+      'available' => (
+          Icons.check_circle_outline,
+          NbsColors.wetlandGreen,
+          'Available'
+        ),
+      'needs_field_verification' => (
+          Icons.travel_explore_outlined,
+          NbsColors.warningAmber,
+          'Needs field verification'
+        ),
+      'not_required_for_current_screening' => (
+          Icons.remove_circle_outline,
+          NbsColors.mutedGrey,
+          'Not required for current screening'
+        ),
+      _ => (Icons.radio_button_unchecked, Colors.red.shade700, 'Missing'),
+    };
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 9),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Icon(icon, size: 19, color: color),
+        const SizedBox(width: 9),
+        Expanded(
+            child: Text(item.label,
+                style: const TextStyle(fontWeight: FontWeight.w700))),
+        const SizedBox(width: 8),
+        Flexible(
+            child: Text(label,
+                textAlign: TextAlign.end,
+                style: TextStyle(color: color, fontWeight: FontWeight.w700))),
+      ]),
+    );
+  }
+}
+
 class _DataUsedPanel extends StatelessWidget {
   const _DataUsedPanel({required this.inputSummary});
 
@@ -1654,37 +1920,6 @@ class _WaterValueChips extends StatelessWidget {
             ),
           ),
       ]);
-}
-
-class _DesignReadinessBanner extends StatelessWidget {
-  const _DesignReadinessBanner({required this.readiness});
-
-  final ({String label, String reason}) readiness;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: NbsColors.warningAmber.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(8),
-          border:
-              Border.all(color: NbsColors.warningAmber.withValues(alpha: 0.28)),
-        ),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Icon(Icons.engineering_outlined, color: NbsColors.warningAmber),
-          const SizedBox(width: 10),
-          Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                Text('Design readiness: ${readiness.label}',
-                    style: const TextStyle(fontWeight: FontWeight.w800)),
-                const SizedBox(height: 4),
-                Text(readiness.reason),
-              ])),
-        ]),
-      );
 }
 
 class _ImplementationWorkspace extends StatelessWidget {
@@ -2198,6 +2433,33 @@ class _ReportPreview extends StatelessWidget {
           '${values.length} water-quality values used.',
         ],
         emptyText: 'No project input summary is available.',
+      ),
+      const SizedBox(height: 14),
+      _TextBlockList(
+        title: 'Site context',
+        values: [
+          if (response.locationContext.station != null)
+            'Site/station: ${response.locationContext.station}',
+          if (response.locationContext.district != null)
+            'District: ${response.locationContext.district}',
+          if (response.locationContext.streamContext != null)
+            'River context: ${response.locationContext.streamContext}',
+          ...response.locationContext.contextNotes,
+        ],
+        emptyText: 'No verified site profile is available for this run.',
+      ),
+      const SizedBox(height: 14),
+      _TextBlockList(
+        title: 'Design readiness',
+        values: [
+          response.designReadiness.shortLabel,
+          response.designReadiness.explanation,
+          ...response.designReadiness.reasons,
+          for (final item in response.designReadiness.inputChecklist)
+            '${item.label}: ${_readinessStatusLabel(item.status)}',
+          ...response.designReadiness.requiredNextSteps,
+        ],
+        emptyText: 'Design-readiness information is unavailable.',
       ),
       const SizedBox(height: 14),
       _TextBlockList(
@@ -6119,6 +6381,14 @@ String _titleFromSnake(String value) {
       .map((part) => '${part[0].toUpperCase()}${part.substring(1)}')
       .join(' ');
 }
+
+String _readinessStatusLabel(String status) => switch (status) {
+      'available' => 'Available',
+      'needs_field_verification' => 'Needs field verification',
+      'not_required_for_current_screening' =>
+        'Not required for current screening',
+      _ => 'Missing',
+    };
 
 String _displayParameter(String? value, {String? fallback}) {
   return switch (value?.toLowerCase()) {

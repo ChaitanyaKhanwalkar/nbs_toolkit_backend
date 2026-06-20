@@ -15,6 +15,7 @@ from app.db.session import get_db
 from app.engines.applicability_filter import ApplicabilityFilterEngine
 from app.engines.candidate_filtering import CandidateFilteringEngine
 from app.engines.component_recommendation import IndividualNbsRecommendationEngine
+from app.engines.design_readiness import DesignReadinessEngine
 from app.engines.input_normalization import InputContext
 from app.engines.train_recommendation import (
     PROVISIONAL_WARNING,
@@ -23,7 +24,12 @@ from app.engines.train_recommendation import (
 from app.engines.treatment_need import TreatmentNeedBundle
 from app.repositories import EngineDataRepository
 from app.schemas import RecommendationRequest, RecommendationResponse
-from app.services import NbsCatalogService, PlantCatalogService, ScientificWorkflowService
+from app.services import (
+    LocationContextService,
+    NbsCatalogService,
+    PlantCatalogService,
+    ScientificWorkflowService,
+)
 from app.services.reference_data_service import ReferenceDataService
 
 router = APIRouter(prefix="/recommend", tags=["recommendation"])
@@ -69,6 +75,14 @@ def get_plant_catalog_service(
     return PlantCatalogService(db)
 
 
+def get_location_context_service(
+    db: Annotated[Session, Depends(get_db)],
+) -> LocationContextService:
+    """Build the read-only location-intelligence service for one request."""
+
+    return LocationContextService(db)
+
+
 @router.post("", response_model=RecommendationResponse)
 def run_local_recommendation_workflow(
     request: RecommendationRequest,
@@ -92,6 +106,10 @@ def run_local_recommendation_workflow(
         PlantCatalogService,
         Depends(get_plant_catalog_service),
     ],
+    location_service: Annotated[
+        LocationContextService,
+        Depends(get_location_context_service),
+    ],
 ) -> dict[str, Any]:
     """Run the staged A-L workflow and return safe recommendation assembly output."""
 
@@ -114,6 +132,8 @@ def run_local_recommendation_workflow(
             "step_completed": None,
             "use_case": request.use_case,
             "location_profile": None,
+            "location_context": {},
+            "design_readiness": {},
             "input_summary": {},
             "contaminant_gaps": [],
             "ranked_trains": [],
@@ -162,6 +182,18 @@ def run_local_recommendation_workflow(
         context=request.context,
         contaminant_gaps=_contaminant_gaps(payload),
     )
+    input_summary = _input_summary(payload)
+    location_context = location_service.build(
+        region_id=request.region_id,
+        station=request.station,
+        context=request.context,
+    )
+    design_readiness = DesignReadinessEngine().assess(
+        measured_observations=input_summary["data_used"],
+        context=request.context,
+        location_context=location_context,
+        ranked_trains=train_result["ranked_trains"],
+    )
     citations = _resolve_citations(
         assembly_bundle,
         reference_service,
@@ -177,7 +209,9 @@ def run_local_recommendation_workflow(
         "step_completed": payload.get("step_completed"),
         "use_case": _use_case(payload, request.use_case),
         "location_profile": _location_profile(payload),
-        "input_summary": _input_summary(payload),
+        "location_context": location_context,
+        "design_readiness": design_readiness,
+        "input_summary": input_summary,
         "contaminant_gaps": _contaminant_gaps(payload),
         "ranked_trains": train_result["ranked_trains"],
         "component_recommendations": component_result["recommendations"],
@@ -240,6 +274,7 @@ def _location_profile(payload: dict[str, Any]) -> dict[str, Any] | None:
         "basin_id": normalized_input.get("basin_id"),
         "station": normalized_input.get("station"),
     }
+    return profile if any(value is not None for value in profile.values()) else None
 
 
 def _component_screen_bundles(
@@ -278,7 +313,6 @@ def _component_screen_bundles(
         rules=engine_data.list_applicability_rules(active_only=True),
     )
     return filtered_candidates.to_dict(), applicability.to_dict()
-    return profile if any(value is not None for value in profile.values()) else None
 
 
 def _workflow_status(

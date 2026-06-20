@@ -131,6 +131,13 @@ train. Context-only requests remain unscored and use a documented role ordering
 after A0: agricultural source-control components first, industrial components
 as polishing/buffer only, and high-order/mainstem options off-channel only.
 
+`DesignReadinessEngine` is a separate post-ranking interpretation layer. It
+classifies output as early screening, planning-level, preliminary-design-ready,
+or needing expert review. The rules use only supplied water-quality values,
+explicit design/site context, verified location flags, and existing pH safety
+bounds. Its checklist preserves missing values as missing and mapped profile
+values as needing field verification; it does not size systems or change rank.
+
 Steps A through K and Step L-A do not create API routes or `/recommend`.
 
 They do not:

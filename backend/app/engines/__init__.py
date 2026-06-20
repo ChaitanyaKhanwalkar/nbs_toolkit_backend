@@ -25,6 +25,7 @@ from app.engines.confidence_scoring import (
     ConfidenceScoringEngine,
 )
 from app.engines.component_recommendation import IndividualNbsRecommendationEngine
+from app.engines.design_readiness import DesignReadinessEngine
 from app.engines.mcda_matrix import (
     McdaMatrixBuilder,
     McdaMatrixBundle,
@@ -115,6 +116,7 @@ __all__ = [
     "ConfidenceScoringBundle",
     "ConfidenceScoringEngine",
     "IndividualNbsRecommendationEngine",
+    "DesignReadinessEngine",
     "InputContext",
     "InputNormalizationEngine",
     "McdaMatrixBuilder",

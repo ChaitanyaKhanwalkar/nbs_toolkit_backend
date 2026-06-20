@@ -66,6 +66,8 @@ class RecommendationResponse(RawResponseModel):
     step_completed: str | None = None
     use_case: str | None = None
     location_profile: dict[str, Any] | None = None
+    location_context: dict[str, Any] = Field(default_factory=dict)
+    design_readiness: dict[str, Any] = Field(default_factory=dict)
     input_summary: dict[str, Any] = Field(default_factory=dict)
     contaminant_gaps: list[dict[str, Any]] = Field(default_factory=list)
     ranked_trains: list[dict[str, Any]] = Field(default_factory=list)

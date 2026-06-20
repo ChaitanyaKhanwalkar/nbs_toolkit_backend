@@ -24,6 +24,16 @@ The local `/recommend` route must call `ScientificWorkflowService.run(...)`
 with `max_step="L"`, keep temporary weights visibly provisional, and follow
 `backend/docs/SCIENTIFIC_RECOMMENDATION_ENGINE.md`.
 
+The recommendation response also attaches two non-ranking decision-support
+objects:
+
+- `location_context` contains verified site fields, request context, placement
+  flags, and explicit missing-site information. Coordinates are null unless
+  both values exist in stored site records.
+- `design_readiness` applies transparent conservative rules after ranking. It
+  does not change TOPSIS rank or confidence and does not perform engineering
+  sizing.
+
 ## Local Route Smoke Test
 
 Run this from the `backend/` folder after installing requirements:

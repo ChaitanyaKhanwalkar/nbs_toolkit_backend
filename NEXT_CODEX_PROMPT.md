@@ -2,30 +2,30 @@
 
 Work in `C:\Users\Ecosoul Enviro\OneDrive\Desktop\NBSGCT`.
 
-Read `AGENTS.md`, `codex prompt.txt`, `CODEX_PHASE_ABCD_HANDOFF.md`,
-`HANDOFF (1).md`, and the canonical DB documentation before editing.
+Read `AGENTS.md`, `codex prompt.txt`, `CODEX_PHASE_EF_HANDOFF.md`, the available
+project handoffs, and canonical-data documentation before editing.
 
-Phase A+B+C+D v1 is complete. First verify the current checkpoint:
+Phase E+F is complete. First verify:
 
 1. backend pytest
 2. Flutter analyze
 3. Flutter tests
 4. `git diff --check`
 
-Next recommended phase: report and evidence maturity.
+Recommended next phase: field/design-input collection and preliminary planning
+workflow.
 
-- Perform human browser QA of JSON/CSV downloads and browser print layout.
-- Design a publication-grade, DPR-style report only after agreeing the exact
-  required sections and review workflow.
-- Expand references or videos only from supplied/reviewed authoritative source
-  records. Do not invent citations or search-derived scientific claims.
-- Keep the canonical database authoritative and preserve repository/service/
-  engine boundaries.
-- Preserve train-first wastewater logic, A0-before-ranking, unknown-not-zero,
-  industrial pretreatment, mainstem safety, agricultural source control, and
-  invasive-plant safeguards.
-- Do not add expert weights or health-risk values without expert-reviewed data.
-
-Known deferred items are curated video references, polished generated PDF,
-DPR-grade report generation, external reference expansion, and a dedicated
-simple/expert mode toggle.
+- Add a progressive design-input form for design flow, peak flow, available
+  land, groundwater, flood risk, inlet/outlet levels, slope/soil verification,
+  and O&M ownership.
+- Keep every field optional until supplied; missing remains unknown, never zero.
+- Preserve the Phase E+F readiness engine as the backend authority.
+- Do not substitute stored river discharge for wastewater/design flow.
+- Show units and validation clearly without implying engineering approval.
+- Add interactive browser QA when the Windows in-app browser sandbox is
+  available.
+- Do not add external map tiles, fabricated coordinates, design values, expert
+  weights, health-risk values, or unreviewed citations.
+- Preserve train-first wastewater logic, A0-before-ranking, industrial
+  pretreatment, pH neutralization, mainstem off-channel safety, agricultural
+  source control, and invasive-plant safeguards.

@@ -69,6 +69,38 @@ class RecommendationReport {
         'water_quality_values_used': input.dataUsed,
         'site_and_source_context': input.context,
       },
+      'location_context': {
+        'station': response.locationContext.station,
+        'river': response.locationContext.river,
+        'district': response.locationContext.district,
+        'basin': response.locationContext.basin,
+        'sub_basin': response.locationContext.subBasin,
+        'stream_order': response.locationContext.streamOrder,
+        'stream_context': response.locationContext.streamContext,
+        'intervention_position': response.locationContext.interventionPosition,
+        'pollution_source_type': response.locationContext.pollutionSourceType,
+        'pollution_source_record_count':
+            response.locationContext.pollutionSourceRecordCount,
+        'coordinates_available': response.locationContext.coordinatesAvailable,
+        'latitude': response.locationContext.latitude,
+        'longitude': response.locationContext.longitude,
+        'context_flags': response.locationContext.contextFlags,
+        'missing_site_information':
+            response.locationContext.missingSiteInformation,
+      },
+      'design_readiness': {
+        'level': response.designReadiness.level,
+        'short_label': response.designReadiness.shortLabel,
+        'explanation': response.designReadiness.explanation,
+        'reasons': response.designReadiness.reasons,
+        'missing_inputs': response.designReadiness.missingInputs,
+        'required_next_steps': response.designReadiness.requiredNextSteps,
+        'expert_review_required': response.designReadiness.expertReviewRequired,
+        'input_checklist': [
+          for (final item in response.designReadiness.inputChecklist)
+            {'key': item.key, 'label': item.label, 'status': item.status},
+        ],
+      },
       'recommended_treatment_train': trainPayload,
       'individual_nbs_components': [
         for (final component in response.componentRecommendations)
@@ -104,6 +136,9 @@ String _buildSummary(
     '',
     'Input basis: ${_workflowLabel(response.inputSummary.workflowMode)}',
     'Water-quality values used: ${response.inputSummary.dataUsed.length}',
+    'Site context: ${response.locationContext.station ?? response.locationContext.district ?? 'Not selected'}',
+    'Design readiness: ${response.designReadiness.shortLabel}',
+    response.designReadiness.explanation,
   ];
   if (train == null) {
     lines.add('Recommended treatment train: No ranked option available');
@@ -148,6 +183,14 @@ String _buildCsv(Map<String, dynamic> payload) {
   final input = payload['project_input_summary'] as Map<String, dynamic>;
   for (final entry in input.entries) {
     addValue('project_input_summary', 'input', entry.key, entry.value);
+  }
+  final location = payload['location_context'] as Map<String, dynamic>;
+  for (final entry in location.entries) {
+    addValue('location_context', 'site', entry.key, entry.value);
+  }
+  final readiness = payload['design_readiness'] as Map<String, dynamic>;
+  for (final entry in readiness.entries) {
+    addValue('design_readiness', 'readiness', entry.key, entry.value);
   }
   final train = payload['recommended_treatment_train'];
   if (train is Map<String, dynamic>) {

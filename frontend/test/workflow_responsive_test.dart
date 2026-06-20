@@ -77,6 +77,48 @@ void main() {
     final response = RecommendationResponse.fromJson({
       'workflow_status': 'completed',
       'use_case': 'discharge_inland',
+      'location_context': {
+        'region_id': 20,
+        'station': 'Test Narmada Station',
+        'river': 'Narmada',
+        'district': 'Test district',
+        'stream_order': 5,
+        'stream_context': 'Mainstem or high-order river',
+        'coordinates_available': false,
+        'context_flags': {
+          'mainstem_or_high_order': true,
+          'off_channel_required': true,
+          'site_context_incomplete': true,
+        },
+        'missing_site_information': ['Verified coordinates'],
+        'context_notes': [
+          'Off-channel treatment only. Do not build treatment cells inside the river channel.',
+        ],
+      },
+      'design_readiness': {
+        'level': 'needs_expert_review',
+        'short_label': 'Expert review needed',
+        'explanation': 'Mainstem placement requires expert review.',
+        'reasons': [
+          'Mainstem/high-order placement requires off-channel treatment.'
+        ],
+        'missing_inputs': ['Flow rate / design flow', 'Available land'],
+        'required_next_steps': ['Develop an off-channel layout.'],
+        'expert_review_required': true,
+        'input_checklist': [
+          {
+            'key': 'design_flow',
+            'label': 'Flow rate / design flow',
+            'status': 'missing'
+          },
+          {'key': 'bod', 'label': 'BOD', 'status': 'available'},
+          {
+            'key': 'site_slope',
+            'label': 'Slope',
+            'status': 'needs_field_verification'
+          },
+        ],
+      },
       'ranked_trains': [
         {
           'train_id': 1,
@@ -142,6 +184,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('Uploaded file'), findsOneWidget);
     expect(find.text('User CSV'), findsNothing);
+    expect(find.text('Design readiness'), findsWidgets);
+    expect(find.text('Expert review needed'), findsOneWidget);
     await tester.ensureVisible(find.text('Report and export'));
     await tester.pumpAndSettle();
     expect(find.text('Copy summary'), findsOneWidget);
@@ -150,10 +194,25 @@ void main() {
     await tester.tap(find.text('Report preview'));
     await tester.pumpAndSettle();
     expect(find.text('Planning-level report preview'), findsOneWidget);
+    expect(find.text('Design readiness'), findsWidgets);
+    expect(find.textContaining('Flow rate / design flow'), findsWidgets);
     expect(find.text('Print / save as PDF'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.tap(find.byTooltip('Close report preview'));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Location'));
+    await tester.tap(find.text('Location'));
+    await tester.pumpAndSettle();
+    expect(find.text('Location intelligence'), findsOneWidget);
+    expect(find.text('Basin context schematic'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.ensureVisible(find.text('Design readiness'));
+    await tester.tap(find.text('Design readiness'));
+    await tester.pumpAndSettle();
+    expect(find.text('Missing before design'), findsOneWidget);
+    expect(find.text('Flow rate / design flow'), findsOneWidget);
+    expect(find.text('Needs field verification'), findsOneWidget);
+    expect(tester.takeException(), isNull);
     await tester.ensureVisible(find.text('NbS Components'));
     await tester.tap(find.text('NbS Components'));
     await tester.pumpAndSettle();

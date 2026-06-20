@@ -17,6 +17,9 @@ Current rules:
 - Services do not calculate pollutant exceedance, health risk, AHP weights, TOPSIS rankings, or recommendations.
 - Services should preserve `source_id` fields where the data includes them.
 - `scientific_workflow_service.py` coordinates existing Scientific Engine Steps A-E and returns staged bundles only.
+- `location_context_service.py` combines site/profile records with request
+  context for display and safety flags. It never fabricates a map point or
+  design input and does not rank candidates.
 
 Do not create a `recommendation_service.py` until the project is ready for real recommendation logic.
 
