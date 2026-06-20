@@ -273,6 +273,20 @@ class RecommendationApi {
     );
   }
 
+  Future<Map<String, dynamic>> loadLearningCatalogue() async {
+    final response = await _client
+        .get(Uri.parse('$_baseUrl/api/v1/catalogue'))
+        .timeout(const Duration(seconds: 30));
+    if (response.statusCode != 200) {
+      throw RecommendationApiException('Could not load the learning catalogue.');
+    }
+    final decoded = jsonDecode(response.body);
+    if (decoded is! Map<String, dynamic>) {
+      throw RecommendationApiException('Catalogue response was not a valid object.');
+    }
+    return decoded;
+  }
+
 }
 
 String _cleanBaseUrl(String rawBaseUrl) {

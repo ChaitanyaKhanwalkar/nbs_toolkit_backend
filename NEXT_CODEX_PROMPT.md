@@ -1,36 +1,35 @@
-# Continue NBSGCT Big Upgrade - Module 4
+# Recommended Future Work After the Big Upgrade
 
-Work in:
-`C:\Users\Ecosoul Enviro\OneDrive\Desktop\NBSGCT`
+The four approved upgrade modules are complete. Before further implementation:
 
-Read `AGENTS.md`, `codex prompt.txt`, and
-`CODEX_BIG_UPGRADE_HANDOFF.md` first.
+1. Run the backend and Flutter web app together.
+2. Review these cases interactively:
+   - domestic sewage with BOD/COD/TSS/pH
+   - industrial wastewater at pH 3
+   - high-order/mainstem site-only context
+   - agricultural pollution-source screening
+   - valid, partial, and invalid CSV uploads
+3. Confirm the catalogue and component wording with the scientific reviewer.
+4. Select the next scoped priority:
+   - expert calibration workflow for criteria weights and confidence rules
+   - richer source/citation browser
+   - authenticated project saving and comparison
+   - PDF/CSV decision-report export
+   - field monitoring and longitudinal sample management
+   - accessibility/localization audit
+   - deployment and production observability
 
-Modules 1-3 are complete. Continue autonomously with Module 4:
-Catalogue and learning workspace upgrade.
+Preserve these constraints in future work:
 
-Required work:
+- Do not replace or mutate the canonical database without an approved migration.
+- Do not invent health-risk values, standards, weights, efficiencies, or sources.
+- Keep A0 before ranking and confidence separate from technical match.
+- Keep treatment trains primary for wastewater.
+- Keep industrial, pH, mainstem, agricultural, and invasive-plant safeguards.
 
-1. Add/improve a Treatment Train Catalogue with sequence, role, use-case
-   suitability, strengths, limitations, pretreatment, O&M, components/plants,
-   and source IDs where canonical records exist.
-2. Add an Individual NbS Catalogue with family, role, pollutants, suitable and
-   unsuitable contexts, standalone boundary, design/maintenance, plants, and
-   sources.
-3. Add a Plant Catalogue with species, mapped component, planting zone or
-   ecological role where present, evidence level, and invasive warning.
-4. Upgrade learning sections with treatment sequence, schematic/cross-section
-   explanation, component explanation, planting zones, monitoring points, O&M
-   checklist, and curated source IDs.
-5. Use only canonical fields and existing source IDs. Do not add random links,
-   uncited content, invented design values, or invasive recommendations.
-6. Keep catalogue pages concise, searchable/scannable where practical, and
-   professional.
-7. Add tests for catalogue rendering/data and empty states where practical.
+Current verified baseline:
 
-After Module 4, run the complete backend/Flutter/diff gate. Refresh both
-continuation files with final status and recommended future work, attempt the
-checkpoint commit `Module 4: Add catalogue and learning workspace upgrades`,
-and stop only after the full upgrade is verified. If commit alone is blocked by
-approval limits, create the required module snapshot/status files and finish
-with the uncommitted state documented accurately.
+- backend pytest: 43 passed
+- Flutter analyze: no issues
+- Flutter tests: 10 passed
+- git diff --check: clean

@@ -2,6 +2,7 @@
 
 from app.services.data_availability_service import DataAvailabilityService
 from app.services.nbs_catalog_service import NbsCatalogService
+from app.services.catalogue_service import CatalogueService
 from app.services.plant_catalog_service import PlantCatalogService
 from app.services.pollution_context_service import PollutionContextService
 from app.services.reference_data_service import ReferenceDataService
@@ -17,6 +18,7 @@ from app.services.water_data_service import WaterDataService
 __all__ = [
     "DataAvailabilityService",
     "NbsCatalogService",
+    "CatalogueService",
     "PlantCatalogService",
     "PollutionContextService",
     "ReferenceDataService",

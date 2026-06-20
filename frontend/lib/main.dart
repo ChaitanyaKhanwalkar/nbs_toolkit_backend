@@ -31,6 +31,7 @@ enum AppView {
   results,
   detail,
   about,
+  catalogue,
 }
 
 class NbsToolkitShell extends StatefulWidget {
@@ -107,6 +108,7 @@ class _NbsToolkitShellState extends State<NbsToolkitShell> {
           onSelectSite: () => _openEntry('Select Narmada Site / Station'),
           onPollutionScreening: () => _openEntry('Pollution Source Screening'),
           onUploadWater: () => _openEntry('Upload Water Data'),
+          onCatalogue: () => _show(AppView.catalogue),
           onAbout: _openAbout,
         ),
       AppView.entry => AnalysisSetupScreen(
@@ -130,6 +132,10 @@ class _NbsToolkitShellState extends State<NbsToolkitShell> {
           onBack: () => _show(AppView.results),
         ),
       AppView.about => MethodAboutScreen(onBack: _backFromAbout),
+      AppView.catalogue => CatalogueScreen(
+          api: _api,
+          onBack: () => _show(AppView.home),
+        ),
     };
   }
 }

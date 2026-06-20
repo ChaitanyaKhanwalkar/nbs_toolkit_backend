@@ -8,6 +8,7 @@ from fastapi import APIRouter
 
 from app.api.routes import (
     availability,
+    catalogue,
     nbs,
     plants,
     pollution,
@@ -30,4 +31,5 @@ api_router.include_router(plants.router)
 api_router.include_router(pollution.router)
 api_router.include_router(river.router)
 api_router.include_router(availability.router)
+api_router.include_router(catalogue.router)
 api_router.include_router(recommendation.router)

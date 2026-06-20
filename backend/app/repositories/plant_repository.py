@@ -57,3 +57,35 @@ class PlantRepository(BaseRepository):
         if nbs_id is not None:
             statement = statement.where(PlantSolutionMap.nbs_id == nbs_id)
         return int(self.session.scalar(statement) or 0)
+
+    def list_catalogue_mappings(self) -> list[dict[str, object]]:
+        """Return plant records joined to every explicit NbS mapping."""
+
+        return self.fetch_mappings(
+            """
+            SELECT
+                p.id,
+                p.plant_species,
+                p.locational_availability,
+                p.climate_preference,
+                p.soil_type,
+                p.water_needs,
+                p.ecological_role,
+                p.plant_type,
+                p.native_status,
+                p.invasive,
+                p.metals_pollutants,
+                p.evidence_note,
+                p.pollution_tolerance,
+                p.optimal_water_type,
+                p.source_id AS plant_source_id,
+                pm.nbs_id,
+                n.solution AS nbs_name,
+                pm.basis,
+                pm.source_id AS mapping_source_id
+            FROM plants AS p
+            LEFT JOIN plant_solution_map AS pm ON pm.plant_id = p.id
+            LEFT JOIN nbs_options AS n ON n.id = pm.nbs_id
+            ORDER BY p.plant_species, pm.nbs_id
+            """
+        )

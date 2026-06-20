@@ -97,6 +97,12 @@ plants, pollution context, river context, and data availability checks. They
 match the service layer where possible and keep fields optional because some
 research data may be incomplete.
 
+`CatalogueService` powers the read-only `GET /api/v1/catalogue` learning
+workspace. It aggregates treatment-train sequences, individual NbS profiles,
+plant mappings, O&M/design fields, and source IDs through repositories. It does
+not rank options. Invasive plant rows remain visible only as explicit
+do-not-recommend learning warnings.
+
 `backend/app/schemas/engine.py` describes safe JSON shapes for existing
 internal scientific engine bundles from Steps A-K and Step L-A. It is for future
 serialization and testing only; it does not create workflow routes or final
@@ -209,6 +215,7 @@ Routes should not directly query database tables and should not contain scientif
 The current API routes are mounted under `/api/v1`. GET routes expose reference
 data, site profiles, water observations, standards, NbS catalogue records,
 plants, pollution context, river context, and data availability checks.
+`GET /api/v1/catalogue` returns the three canonical learning catalogues.
 `POST /api/v1/recommend` is the only versioned POST route; it is a thin local
 wrapper around `ScientificWorkflowService.run(..., max_step="L")`.
 

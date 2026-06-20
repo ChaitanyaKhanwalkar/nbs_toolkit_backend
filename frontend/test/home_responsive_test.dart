@@ -21,6 +21,7 @@ void main() {
           onSelectSite: () {},
           onPollutionScreening: () {},
           onUploadWater: () {},
+          onCatalogue: () {},
         ),
       ),
     );
@@ -43,5 +44,6 @@ void main() {
     await pumpHome(tester, const Size(1280, 900));
     expect(tester.takeException(), isNull);
     expect(find.text('Measured Water Quality'), findsOneWidget);
+    expect(find.text('Catalogue'), findsOneWidget);
   });
 }

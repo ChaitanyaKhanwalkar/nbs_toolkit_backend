@@ -139,6 +139,7 @@ class HomeDashboard extends StatelessWidget {
     required this.onSelectSite,
     required this.onPollutionScreening,
     required this.onUploadWater,
+    required this.onCatalogue,
   });
 
   final VoidCallback onStartRecommendation;
@@ -146,12 +147,18 @@ class HomeDashboard extends StatelessWidget {
   final VoidCallback onSelectSite;
   final VoidCallback onPollutionScreening;
   final VoidCallback onUploadWater;
+  final VoidCallback onCatalogue;
 
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
       title: 'NbS Toolkit',
       actions: [
+        TextButton.icon(
+          onPressed: onCatalogue,
+          icon: const Icon(Icons.menu_book_outlined),
+          label: const Text('Catalogue'),
+        ),
         TextButton.icon(
           onPressed: onAbout,
           icon: const Icon(Icons.science_outlined),
@@ -2402,6 +2409,230 @@ class DetailScreen extends StatelessWidget {
     );
   }
 }
+
+class CatalogueScreen extends StatefulWidget {
+  const CatalogueScreen({super.key, required this.api, required this.onBack});
+
+  final RecommendationApi api;
+  final VoidCallback onBack;
+
+  @override
+  State<CatalogueScreen> createState() => _CatalogueScreenState();
+}
+
+class _CatalogueScreenState extends State<CatalogueScreen> {
+  Map<String, dynamic>? _catalogue;
+  String? _error;
+  String _query = '';
+  int _section = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _error = null);
+    try {
+      final value = await widget.api.loadLearningCatalogue();
+      if (mounted) setState(() => _catalogue = value);
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    }
+  }
+
+  List<Map<String, dynamic>> _rows(String key) {
+    final raw = _catalogue?[key];
+    if (raw is! List) return const [];
+    final rows = raw.whereType<Map<String, dynamic>>().toList();
+    final query = _query.trim().toLowerCase();
+    if (query.isEmpty) return rows;
+    return rows.where((row) => row.values.join(' ').toLowerCase().contains(query)).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final keys = ['treatment_trains', 'nbs_components', 'plants'];
+    final rows = _rows(keys[_section]);
+    return AppScaffold(
+      title: 'Catalogue & Learning',
+      leading: BackButton(onPressed: widget.onBack),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Canonical learning workspace', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900)),
+        const SizedBox(height: 6),
+        Text('Explore stored treatment sequences, component evidence, planting mappings, monitoring, and O&M notes.', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: NbsColors.mutedGrey)),
+        const SizedBox(height: 14),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          ChoiceChip(label: const Text('Treatment Trains'), avatar: const Icon(Icons.account_tree_outlined, size: 17), selected: _section == 0, onSelected: (_) => setState(() => _section = 0)),
+          ChoiceChip(label: const Text('NbS Components'), avatar: const Icon(Icons.water_outlined, size: 17), selected: _section == 1, onSelected: (_) => setState(() => _section = 1)),
+          ChoiceChip(label: const Text('Plants'), avatar: const Icon(Icons.grass_outlined, size: 17), selected: _section == 2, onSelected: (_) => setState(() => _section = 2)),
+        ]),
+        const SizedBox(height: 12),
+        TextField(
+          decoration: const InputDecoration(prefixIcon: Icon(Icons.search), labelText: 'Search catalogue'),
+          onChanged: (value) => setState(() => _query = value),
+        ),
+        const SizedBox(height: 14),
+        if (_error != null)
+          _AlertBanner.compact(icon: Icons.error_outline, color: Colors.red, title: 'Catalogue unavailable', message: _error!)
+        else if (_catalogue == null)
+          const Center(child: Padding(padding: EdgeInsets.all(28), child: CircularProgressIndicator()))
+        else if (rows.isEmpty)
+          const _DetailSection(title: 'No catalogue matches', child: Text('Try a broader search term.'))
+        else if (_section == 0)
+          for (final row in rows) Padding(padding: const EdgeInsets.only(bottom: 10), child: _TrainCatalogueCard(row: row))
+        else if (_section == 1)
+          for (final row in rows) Padding(padding: const EdgeInsets.only(bottom: 10), child: _NbsCatalogueCard(row: row))
+        else
+          for (final row in rows) Padding(padding: const EdgeInsets.only(bottom: 10), child: _PlantCatalogueCard(row: row)),
+      ]),
+    );
+  }
+}
+
+class _TrainCatalogueCard extends StatelessWidget {
+  const _TrainCatalogueCard({required this.row});
+
+  final Map<String, dynamic> row;
+
+  @override
+  Widget build(BuildContext context) {
+    final steps = _catalogueMaps(row['sequence_steps']);
+    final useCases = _catalogueMaps(row['use_case_suitability']);
+    final components = _catalogueMaps(row['components']);
+    final plants = _catalogueMaps(row['plants']);
+    return AppCard(
+      padding: EdgeInsets.zero,
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.all(14),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        title: Text(row['name']?.toString() ?? 'Treatment train', style: const TextStyle(fontWeight: FontWeight.w900)),
+        subtitle: Text(row['intended_role']?.toString() ?? 'Role not recorded'),
+        children: [
+          _CatalogueFlow(steps: [for (final step in steps) step['step_label']?.toString() ?? 'Stage']),
+          const SizedBox(height: 12),
+          _TextBlockList(
+            title: 'Use-case suitability evidence',
+            values: [for (final item in useCases) '${_titleFromSnake(item['use_case']?.toString() ?? 'use case')}: pass ${item['pass_count'] ?? 0}, conditional ${item['marginal_count'] ?? 0}, fail ${item['fail_count'] ?? 0}, unknown ${item['unknown_count'] ?? 0}'],
+            emptyText: 'No use-case matrix record is available.',
+          ),
+          const SizedBox(height: 12),
+          _TextBlockList(title: 'Strengths', values: _catalogueStrings(row['strengths']), emptyText: 'No train-specific strength note is recorded.'),
+          const SizedBox(height: 12),
+          _TextBlockList(title: 'Limitations', values: _catalogueStrings(row['limitations']), emptyText: 'Limitations require site-specific validation.'),
+          const SizedBox(height: 12),
+          _TextBlockList(title: 'Pretreatment needs', values: _catalogueStrings(row['pretreatment_needs']), emptyText: 'No additional canonical pretreatment field is recorded.'),
+          const SizedBox(height: 12),
+          _TextBlockList(title: 'O&M and monitoring checklist', values: _catalogueStrings(row['om_notes']), emptyText: 'No train-specific O&M record is available.'),
+          const SizedBox(height: 12),
+          _TextBlockList(title: 'Components', values: [for (final item in components) '${item['name'] ?? 'Component'} - ${item['role'] ?? 'role not recorded'}'], emptyText: 'No linked component is recorded.'),
+          const SizedBox(height: 12),
+          _TextBlockList(title: 'Planting zones / mappings', values: [for (final plant in plants) '${plant['plant_species'] ?? 'Plant'} - ${plant['nbs'] ?? 'mapped component'}'], emptyText: 'No explicit plant mapping is recorded; local validation is required.'),
+          const SizedBox(height: 12),
+          _SourceIdWrap(sourceIds: _catalogueSourceIds(row['source_ids'])),
+        ],
+      ),
+    );
+  }
+}
+
+class _NbsCatalogueCard extends StatelessWidget {
+  const _NbsCatalogueCard({required this.row});
+
+  final Map<String, dynamic> row;
+
+  @override
+  Widget build(BuildContext context) {
+    final plants = _catalogueMaps(row['plants']);
+    return AppCard(
+      padding: EdgeInsets.zero,
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.all(14),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        title: Text(row['solution']?.toString() ?? 'NbS component', style: const TextStyle(fontWeight: FontWeight.w900)),
+        subtitle: Text('${row['family'] ?? 'Family not recorded'} | ${row['catalogue_role'] ?? 'Role not recorded'}'),
+        children: [
+          _TextBlockList(title: 'Pollutants with numeric sourced records', values: _catalogueStrings(row['pollutants_treated']), emptyText: 'No numeric pollutant-removal record is available.'),
+          const SizedBox(height: 12),
+          _TextBlockList(title: 'Where suitable', values: _catalogueStrings(row['where_suitable']), emptyText: 'Site suitability requires local validation.'),
+          const SizedBox(height: 12),
+          _TextBlockList(title: 'Where not suitable', values: _catalogueStrings(row['where_not_suitable']), emptyText: 'Context-specific A0 screening is required.'),
+          const SizedBox(height: 12),
+          _TextBlockList(title: 'Cross-section / design notes', values: _catalogueStrings(row['design_notes']), emptyText: 'No canonical design cross-section note is available.'),
+          const SizedBox(height: 12),
+          _TextBlockList(title: 'Maintenance and monitoring', values: _catalogueStrings(row['maintenance_notes']), emptyText: 'No canonical maintenance note is available.'),
+          const SizedBox(height: 12),
+          _TextBlockList(title: 'Plant links', values: [for (final plant in plants) plant['plant_species']?.toString() ?? 'Mapped plant'], emptyText: 'Planting guidance requires local validation.'),
+          const SizedBox(height: 12),
+          Text(row['standalone_suitability']?.toString() ?? 'Context-specific screening required.', style: const TextStyle(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 12),
+          _SourceIdWrap(sourceIds: _catalogueSourceIds(row['source_ids'])),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlantCatalogueCard extends StatelessWidget {
+  const _PlantCatalogueCard({required this.row});
+
+  final Map<String, dynamic> row;
+
+  @override
+  Widget build(BuildContext context) {
+    final invasive = row['recommendation_status'] == 'do_not_recommend_invasive';
+    final mappings = _catalogueMaps(row['mapped_components']);
+    return AppCard(
+      padding: EdgeInsets.zero,
+      borderColor: invasive ? Colors.red.withValues(alpha: 0.45) : NbsColors.cardBorder,
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.all(14),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        leading: Icon(invasive ? Icons.block_outlined : Icons.grass_outlined, color: invasive ? Colors.red : NbsColors.wetlandGreen),
+        title: Text(row['plant_species']?.toString() ?? 'Plant species', style: const TextStyle(fontWeight: FontWeight.w900)),
+        subtitle: Text(invasive ? 'Invasive - do not recommend for planting' : 'Catalogue mapping; local validation required'),
+        children: [
+          _TextBlockList(title: 'Mapped NbS components', values: [for (final item in mappings) '${item['name'] ?? 'Component'} - ${item['basis'] ?? 'mapping basis not recorded'}'], emptyText: 'No explicit component mapping is recorded.'),
+          const SizedBox(height: 12),
+          _TextBlockList(title: 'Planting zone and conditions', values: _uniqueStrings([row['plant_type']?.toString() ?? '', row['locational_availability']?.toString() ?? '', row['climate_preference']?.toString() ?? '', row['soil_type']?.toString() ?? '', row['water_needs']?.toString() ?? '']), emptyText: 'Planting conditions require local validation.'),
+          const SizedBox(height: 12),
+          _TextBlockList(title: 'Ecological / treatment role', values: _uniqueStrings([row['ecological_role']?.toString() ?? '', row['metals_pollutants']?.toString() ?? '', row['evidence_note']?.toString() ?? '']), emptyText: 'No ecological role is recorded.'),
+          const SizedBox(height: 12),
+          _SourceIdWrap(sourceIds: _catalogueSourceIds(row['source_ids'])),
+        ],
+      ),
+    );
+  }
+}
+
+class _CatalogueFlow extends StatelessWidget {
+  const _CatalogueFlow({required this.steps});
+
+  final List<String> steps;
+
+  @override
+  Widget build(BuildContext context) => Wrap(
+        spacing: 6,
+        runSpacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          for (var index = 0; index < steps.length; index++) ...[
+            Chip(label: Text(steps[index])),
+            if (index < steps.length - 1) const Icon(Icons.arrow_forward, size: 17),
+          ],
+        ],
+      );
+}
+
+List<Map<String, dynamic>> _catalogueMaps(dynamic value) =>
+    value is List ? value.whereType<Map<String, dynamic>>().toList() : const [];
+
+List<String> _catalogueStrings(dynamic value) =>
+    value is List ? value.map((item) => item.toString()).where((item) => item.trim().isNotEmpty).toList() : const [];
+
+List<int> _catalogueSourceIds(dynamic value) =>
+    value is List ? value.whereType<num>().map((item) => item.toInt()).toList() : const [];
 
 class MethodAboutScreen extends StatelessWidget {
   const MethodAboutScreen({super.key, required this.onBack});
