@@ -475,6 +475,31 @@ def test_csv_upload_normalizes_common_parameter_aliases() -> None:
     ]
 
 
+def test_csv_upload_normalizes_common_phosphorus_aliases() -> None:
+    aliases = [
+        "phosphate-P",
+        "phosphate P",
+        "phosphate phosphorus",
+        "orthophosphate",
+        "ortho-phosphate",
+        "PO4 P",
+        "PO4-P",
+        "total phosphorus",
+        "TP",
+        "phosphorus",
+    ]
+    response = _upload_csv(
+        "parameter,value,unit\n"
+        + "\n".join(f"{alias},2,mg/L" for alias in aliases)
+        + "\n"
+    )
+
+    assert response.status_code == 200, response.text
+    rows = response.json()["observations_used"]
+    assert len(rows) == len(aliases)
+    assert {row["parameter"] for row in rows} == {"phosphate_p"}
+
+
 def test_csv_upload_skips_non_numeric_and_unknown_rows_with_warnings() -> None:
     response = _upload_csv(
         "parameter,value,unit\nBOD,abc,mg/L\nrandom thing,123,mg/L\npH,7.1,\n"

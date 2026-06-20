@@ -1,0 +1,208 @@
+/// Builds practitioner-readable recommendation summaries and structured exports.
+library;
+
+import 'dart:convert';
+
+import '../models/recommendation_models.dart';
+
+const planningLevelDisclaimer =
+    'This is a planning-level decision-support output. It is not a final engineering design. Confirm flow, pollutant loads, land availability, hydraulics, and site constraints before implementation.';
+
+class RecommendationReport {
+  RecommendationReport._({
+    required this.payload,
+    required this.summary,
+    required this.csv,
+  });
+
+  final Map<String, dynamic> payload;
+  final String summary;
+  final String csv;
+
+  String get json => const JsonEncoder.withIndent('  ').convert(payload);
+
+  String get baseFileName => 'nbs_recommendation_report';
+
+  factory RecommendationReport.fromResponse(RecommendationResponse response) {
+    final train =
+        response.rankedTrains.isEmpty ? null : response.rankedTrains.first;
+    final input = response.inputSummary;
+    final evidence = [
+      for (final citation in response.citations)
+        {
+          'id': citation.id,
+          'label': citation.display,
+          if (citation.citation != null) 'citation': citation.citation,
+          if (citation.type != null) 'type': citation.type,
+          if (citation.url != null) 'url': citation.url,
+          if (citation.license != null) 'license': citation.license,
+        },
+    ];
+    final trainPayload = train == null
+        ? null
+        : {
+            'name': train.name,
+            'rank': train.rank,
+            'technical_match': train.matchScore,
+            'result_confidence': train.confidenceScore,
+            'confidence_label': train.confidenceLabel,
+            'implementation_role': train.implementationRole,
+            'applicability_status': train.applicabilityStatus,
+            'why_recommended': train.whyRecommended,
+            'use_case_suitability': train.useCaseVerdicts,
+            'pretreatment_requirements': train.pretreatmentRequirements,
+            'treatment_sequence': train.treatmentSequence,
+            'pollutant_gaps': train.pollutantGapBreakdown,
+            'important_limitations': train.caveats,
+            'data_gaps': train.dataGaps,
+            'implementation_guidance': train.implementationGuidance,
+            'evidence_record_ids': train.sourceIds,
+          };
+    final payload = <String, dynamic>{
+      'report_type': 'Narmada NbS planning-level recommendation',
+      'method': 'criteria-weighted TOPSIS after applicability screening',
+      'project_input_summary': {
+        'workflow_mode': input.workflowMode,
+        'use_case': response.useCase,
+        'observation_count': input.observationCount,
+        'selected_parameters': input.selectedParameters,
+        'water_quality_values_used': input.dataUsed,
+        'site_and_source_context': input.context,
+      },
+      'recommended_treatment_train': trainPayload,
+      'individual_nbs_components': [
+        for (final component in response.componentRecommendations)
+          {
+            'name': component.name,
+            'role': component.role,
+            'suitability_score': component.suitabilityScore,
+            'standalone_suitability': component.standaloneSuitability,
+            'pollutants_addressed': component.pollutantsAddressed,
+            'key_constraints': component.keyConstraints,
+            'implementation_guidance': component.implementationGuidance,
+            'evidence_record_ids': component.sourceIds,
+          },
+      ],
+      'global_data_gaps': response.globalGaps,
+      'evidence_records': evidence,
+      'disclaimer': planningLevelDisclaimer,
+    };
+    final summary = _buildSummary(response, train);
+    return RecommendationReport._(
+      payload: payload,
+      summary: summary,
+      csv: _buildCsv(payload),
+    );
+  }
+}
+
+String _buildSummary(
+    RecommendationResponse response, TrainRecommendation? train) {
+  final lines = <String>[
+    'NARMADA NBS PLANNING-LEVEL RECOMMENDATION',
+    'Method: criteria-weighted TOPSIS after applicability screening',
+    '',
+    'Input basis: ${_workflowLabel(response.inputSummary.workflowMode)}',
+    'Water-quality values used: ${response.inputSummary.dataUsed.length}',
+  ];
+  if (train == null) {
+    lines.add('Recommended treatment train: No ranked option available');
+  } else {
+    lines.addAll([
+      '',
+      'Recommended treatment train: ${train.name}',
+      'Technical match: ${train.matchPercent}',
+      'Result confidence: ${_confidenceLabel(train)}',
+      if (train.implementationRole != null) 'Role: ${train.implementationRole}',
+      if (train.whyRecommended.isNotEmpty) 'Why: ${train.whyRecommended.first}',
+      if (train.pretreatmentRequirements.isNotEmpty)
+        'Pretreatment: ${train.pretreatmentRequirements.join('; ')}',
+      if (train.useCaseVerdicts.isNotEmpty)
+        'Use-case suitability: ${train.useCaseVerdicts.entries.map((item) => '${_title(item.key)}: ${_title(item.value)}').join('; ')}',
+      if (train.dataGaps.isNotEmpty) 'Data gaps: ${train.dataGaps.join('; ')}',
+    ]);
+  }
+  lines.addAll(['', planningLevelDisclaimer]);
+  return lines.join('\n');
+}
+
+String _buildCsv(Map<String, dynamic> payload) {
+  final rows = <List<Object?>>[
+    ['section', 'item', 'field', 'value'],
+  ];
+  void addValue(String section, String item, String field, Object? value) {
+    if (value is Iterable) {
+      for (final entry in value) {
+        rows.add([section, item, field, _flatValue(entry)]);
+      }
+    } else if (value is Map) {
+      for (final entry in value.entries) {
+        rows.add(
+            [section, item, '$field.${entry.key}', _flatValue(entry.value)]);
+      }
+    } else {
+      rows.add([section, item, field, _flatValue(value)]);
+    }
+  }
+
+  final input = payload['project_input_summary'] as Map<String, dynamic>;
+  for (final entry in input.entries) {
+    addValue('project_input_summary', 'input', entry.key, entry.value);
+  }
+  final train = payload['recommended_treatment_train'];
+  if (train is Map<String, dynamic>) {
+    for (final entry in train.entries) {
+      addValue('recommended_treatment_train', 'rank_1', entry.key, entry.value);
+    }
+  }
+  final components = payload['individual_nbs_components'] as List<dynamic>;
+  for (var index = 0; index < components.length; index++) {
+    final component = components[index] as Map<String, dynamic>;
+    for (final entry in component.entries) {
+      addValue('individual_nbs_components', 'component_${index + 1}', entry.key,
+          entry.value);
+    }
+  }
+  for (final gap in payload['global_data_gaps'] as List<dynamic>) {
+    addValue('data_gaps', 'global', 'gap', gap);
+  }
+  for (final record in payload['evidence_records'] as List<dynamic>) {
+    final evidence = record as Map<String, dynamic>;
+    for (final entry in evidence.entries) {
+      addValue('evidence_records', 'evidence_${evidence['id']}', entry.key,
+          entry.value);
+    }
+  }
+  addValue('disclaimer', 'planning_level', 'text', payload['disclaimer']);
+  return rows.map((row) => row.map(_csvCell).join(',')).join('\r\n');
+}
+
+String _flatValue(Object? value) {
+  if (value == null) return '';
+  if (value is Map || value is List) return jsonEncode(value);
+  return value.toString();
+}
+
+String _csvCell(Object? value) {
+  final text = value?.toString() ?? '';
+  return '"${text.replaceAll('"', '""')}"';
+}
+
+String _workflowLabel(String? value) => switch (value) {
+      'uploaded_water_quality' => 'Uploaded water-quality data',
+      'manual_measured_water_quality' => 'Measured water-quality values',
+      'site_context_only' => 'Station and site context',
+      'pollution_source_screening' => 'Pollution-source and site context',
+      _ => 'Available project inputs',
+    };
+
+String _confidenceLabel(TrainRecommendation train) {
+  if ((train.confidenceScore ?? 0) <= 0) return 'Data-limited';
+  return train.confidencePercent;
+}
+
+String _title(String value) => value
+    .split('_')
+    .where((part) => part.isNotEmpty)
+    .map((part) => '${part[0].toUpperCase()}${part.substring(1)}')
+    .join(' ');

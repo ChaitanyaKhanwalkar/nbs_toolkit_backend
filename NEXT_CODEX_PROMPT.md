@@ -1,35 +1,31 @@
-# Recommended Future Work After the Big Upgrade
+# Next Codex Prompt
 
-The four approved upgrade modules are complete. Before further implementation:
+Work in `C:\Users\Ecosoul Enviro\OneDrive\Desktop\NBSGCT`.
 
-1. Run the backend and Flutter web app together.
-2. Review these cases interactively:
-   - domestic sewage with BOD/COD/TSS/pH
-   - industrial wastewater at pH 3
-   - high-order/mainstem site-only context
-   - agricultural pollution-source screening
-   - valid, partial, and invalid CSV uploads
-3. Confirm the catalogue and component wording with the scientific reviewer.
-4. Select the next scoped priority:
-   - expert calibration workflow for criteria weights and confidence rules
-   - richer source/citation browser
-   - authenticated project saving and comparison
-   - PDF/CSV decision-report export
-   - field monitoring and longitudinal sample management
-   - accessibility/localization audit
-   - deployment and production observability
+Read `AGENTS.md`, `codex prompt.txt`, `CODEX_PHASE_ABCD_HANDOFF.md`,
+`HANDOFF (1).md`, and the canonical DB documentation before editing.
 
-Preserve these constraints in future work:
+Phase A+B+C+D v1 is complete. First verify the current checkpoint:
 
-- Do not replace or mutate the canonical database without an approved migration.
-- Do not invent health-risk values, standards, weights, efficiencies, or sources.
-- Keep A0 before ranking and confidence separate from technical match.
-- Keep treatment trains primary for wastewater.
-- Keep industrial, pH, mainstem, agricultural, and invasive-plant safeguards.
+1. backend pytest
+2. Flutter analyze
+3. Flutter tests
+4. `git diff --check`
 
-Current verified baseline:
+Next recommended phase: report and evidence maturity.
 
-- backend pytest: 43 passed
-- Flutter analyze: no issues
-- Flutter tests: 10 passed
-- git diff --check: clean
+- Perform human browser QA of JSON/CSV downloads and browser print layout.
+- Design a publication-grade, DPR-style report only after agreeing the exact
+  required sections and review workflow.
+- Expand references or videos only from supplied/reviewed authoritative source
+  records. Do not invent citations or search-derived scientific claims.
+- Keep the canonical database authoritative and preserve repository/service/
+  engine boundaries.
+- Preserve train-first wastewater logic, A0-before-ranking, unknown-not-zero,
+  industrial pretreatment, mainstem safety, agricultural source control, and
+  invasive-plant safeguards.
+- Do not add expert weights or health-risk values without expert-reviewed data.
+
+Known deferred items are curated video references, polished generated PDF,
+DPR-grade report generation, external reference expansion, and a dedicated
+simple/expert mode toggle.

@@ -15,6 +15,7 @@ from app.engines.input_normalization import normalize_match_key
 from app.repositories import EngineDataRepository, PlantRepository
 from app.services.nbs_catalog_service import NbsCatalogService
 from app.services.plant_catalog_service import PlantCatalogService
+from app.services.reference_data_service import ReferenceDataService
 
 
 class CatalogueService:
@@ -25,14 +26,20 @@ class CatalogueService:
         self.nbs = NbsCatalogService(session)
         self.plants = PlantCatalogService(session)
         self.plant_repository = PlantRepository(session)
+        self.references = ReferenceDataService(session)
 
     def get_catalogue(self) -> dict[str, Any]:
         """Return all three catalogues with transparent missing-data notes."""
 
+        trains = self._treatment_trains()
+        components = self._nbs_components()
+        plants = self._plant_catalogue()
+        source_ids = _source_ids(trains, components, plants)
         return {
-            "treatment_trains": self._treatment_trains(),
-            "nbs_components": self._nbs_components(),
-            "plants": self._plant_catalogue(),
+            "treatment_trains": trains,
+            "nbs_components": components,
+            "plants": plants,
+            "evidence_records": self.references.get_citations_for_ids(source_ids),
             "notes": [
                 "Catalogue records are descriptive and do not replace context-specific A0 screening.",
                 "Plant catalogue rows marked invasive are learning warnings and must not be recommended for planting.",
@@ -99,6 +106,11 @@ class CatalogueService:
                     ],
                     "plants": plants.get(train_id, []),
                     "source_ids": source_ids,
+                    "evidence_groups": {
+                        "Performance evidence": _source_ids(card),
+                        "Design guidance": _source_ids(design_rows),
+                        "Planting evidence": _source_ids(plants.get(train_id, [])),
+                    },
                 }
             )
         return result
@@ -175,6 +187,11 @@ class CatalogueService:
                         designs,
                         mapped_plants,
                     ),
+                    "evidence_groups": {
+                        "Performance evidence": _source_ids(removal),
+                        "Design guidance": _source_ids(implementation, designs),
+                        "Planting evidence": _source_ids(mapped_plants),
+                    },
                     "missing_sections": profile.get("missing_sections") or [],
                 }
             )
@@ -208,6 +225,7 @@ class CatalogueService:
                 | {
                     "mapped_components": [],
                     "source_ids": [],
+                    "evidence_groups": {"Planting evidence": []},
                 },
             )
             if row.get("nbs_id") is not None:
@@ -220,6 +238,10 @@ class CatalogueService:
                 )
             for key in ("plant_source_id", "mapping_source_id"):
                 _append_source_id(plant["source_ids"], row.get(key))
+                _append_source_id(
+                    plant["evidence_groups"]["Planting evidence"],
+                    row.get(key),
+                )
             plant["recommendation_status"] = (
                 "do_not_recommend_invasive"
                 if row.get("invasive") == 1

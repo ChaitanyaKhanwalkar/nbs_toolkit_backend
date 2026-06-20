@@ -8,7 +8,8 @@ import 'package:nbs_toolkit_frontend/theme/nbs_theme.dart';
 class _FakeRecommendationApi extends RecommendationApi {
   @override
   Future<List<SiteOption>> listSites() async => [
-        SiteOption(regionId: 20, station: 'Test Narmada Station', streamOrder: 5),
+        SiteOption(
+            regionId: 20, station: 'Test Narmada Station', streamOrder: 5),
       ];
 
   @override
@@ -58,6 +59,8 @@ void main() {
   testWidgets('upload workflow fits at 768x1024', (tester) async {
     await pumpSetup(tester, const Size(768, 1024), 'Upload Water Data');
     expect(find.text('Copy template'), findsOneWidget);
+    expect(find.text('Example upload format'), findsOneWidget);
+    expect(find.text('CSV template'), findsNothing);
     expect(find.textContaining('Blank values remain unknown'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -115,8 +118,11 @@ void main() {
       'input_summary': {
         'observation_count': 4,
         'selected_parameters': ['bod', 'cod', 'tss', 'ph'],
+        'data_used': [
+          {'parameter': 'bod', 'value': 80, 'unit': 'mg_l'},
+        ],
         'context': {
-          'workflow_mode': 'manual_measured_water_quality',
+          'workflow_mode': 'uploaded_water_quality',
           'pollution_source_type': 'domestic_sewage',
         },
       },
@@ -133,6 +139,20 @@ void main() {
         ),
       ),
     );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Uploaded file'), findsOneWidget);
+    expect(find.text('User CSV'), findsNothing);
+    await tester.ensureVisible(find.text('Report and export'));
+    await tester.pumpAndSettle();
+    expect(find.text('Copy summary'), findsOneWidget);
+    expect(find.text('Export JSON'), findsOneWidget);
+    expect(find.text('Export CSV'), findsOneWidget);
+    await tester.tap(find.text('Report preview'));
+    await tester.pumpAndSettle();
+    expect(find.text('Planning-level report preview'), findsOneWidget);
+    expect(find.text('Print / save as PDF'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.byTooltip('Close report preview'));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('NbS Components'));
     await tester.tap(find.text('NbS Components'));

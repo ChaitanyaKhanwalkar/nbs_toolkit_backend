@@ -14,6 +14,7 @@ def test_learning_catalogue_exposes_all_canonical_sections() -> None:
     assert len(payload["nbs_components"]) == 28
     assert len(payload["plants"]) > 0
     assert payload["notes"]
+    assert payload["evidence_records"]
 
 
 def test_train_catalogue_includes_sequence_om_and_provenance() -> None:
@@ -24,6 +25,7 @@ def test_train_catalogue_includes_sequence_om_and_provenance() -> None:
     assert len(train["use_case_suitability"]) == 3
     assert train["om_notes"]
     assert train["source_ids"]
+    assert train["evidence_groups"]["Design guidance"]
 
 
 def test_component_catalogue_preserves_missing_data_and_safety_boundaries() -> None:

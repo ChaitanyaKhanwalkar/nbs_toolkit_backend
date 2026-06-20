@@ -34,6 +34,9 @@ class _FakeCatalogueApi extends RecommendationApi {
             ],
             'plants': <Map<String, dynamic>>[],
             'source_ids': [14],
+            'evidence_groups': {
+              'Performance evidence': [14],
+            },
           },
         ],
         'nbs_components': [
@@ -50,6 +53,9 @@ class _FakeCatalogueApi extends RecommendationApi {
             'plants': <Map<String, dynamic>>[],
             'standalone_suitability': 'Context-specific A0 screening required.',
             'source_ids': [14],
+            'evidence_groups': {
+              'Design guidance': [14],
+            },
           },
         ],
         'plants': [
@@ -62,6 +68,17 @@ class _FakeCatalogueApi extends RecommendationApi {
               {'name': 'Constructed Wetland', 'basis': 'Canonical mapping'},
             ],
             'source_ids': [14],
+            'evidence_groups': {
+              'Planting evidence': [14],
+            },
+          },
+        ],
+        'evidence_records': [
+          {
+            'id': 14,
+            'short': 'CPHEEO treatment guidance',
+            'citation': 'CPHEEO treatment guidance reference.',
+            'type': 'guidance',
           },
         ],
       };
@@ -97,8 +114,29 @@ void main() {
     await pumpCatalogue(tester);
     await tester.tap(find.text('Plants'));
     await tester.pumpAndSettle();
+    expect(find.text('Not recommended / invasive'), findsOneWidget);
     expect(find.text('Example invasive plant'), findsOneWidget);
-    expect(find.text('Invasive - do not recommend for planting'), findsOneWidget);
+    expect(
+      find.text(
+        'Not recommended. This species is invasive and should not be used for planting.',
+      ),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('catalogue resolves grouped evidence to readable labels',
+      (tester) async {
+    await pumpCatalogue(tester);
+    await tester.tap(find.text('Canonical treatment train'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('View evidence'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('View evidence'));
+    await tester.pumpAndSettle();
+    expect(find.text('Performance evidence'), findsOneWidget);
+    expect(find.text('CPHEEO treatment guidance'), findsOneWidget);
+    expect(find.text('Evidence record 14'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

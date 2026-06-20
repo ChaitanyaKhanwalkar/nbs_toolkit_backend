@@ -590,7 +590,7 @@ class Citation {
   }
 
   /// Best human-readable label for the citation.
-  String get display => citation ?? short ?? 'Source $id';
+  String get display => short ?? citation ?? 'Evidence record $id';
 }
 
 class CriterionBreakdown {
