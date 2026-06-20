@@ -505,19 +505,22 @@ class _AnalysisSetupScreenState extends State<AnalysisSetupScreen> {
         ],
       );
 
-  Widget _sourceAndPositionSelectors() => Row(children: [
-        Expanded(child: DropdownButtonFormField<String>(initialValue: _source, decoration: const InputDecoration(labelText: 'Pollution source context'), items: const [
+  Widget _sourceAndPositionSelectors() => LayoutBuilder(builder: (context, constraints) {
+      final sourceField = DropdownButtonFormField<String>(isExpanded: true, initialValue: _source, decoration: const InputDecoration(labelText: 'Pollution source context'), items: const [
           DropdownMenuItem(value: 'domestic_sewage', child: Text('Domestic sewage')),
           DropdownMenuItem(value: 'high_agriculture_only_no_water_data', child: Text('Agricultural runoff')),
           DropdownMenuItem(value: 'industrial_or_mixed_industrial', child: Text('Industrial / mixed industrial')),
-        ], onChanged: (value) => setState(() => _source = value!))),
-        const SizedBox(width: 12),
-        Expanded(child: DropdownButtonFormField<String>(initialValue: _position, decoration: const InputDecoration(labelText: 'Intervention position'), items: const [
+        ], onChanged: (value) => setState(() => _source = value!));
+      final positionField = DropdownButtonFormField<String>(isExpanded: true, initialValue: _position, decoration: const InputDecoration(labelText: 'Intervention position'), items: const [
           DropdownMenuItem(value: 'off_channel_or_stp_polishing', child: Text('Off-channel / STP polishing')),
           DropdownMenuItem(value: 'in_channel', child: Text('In-channel')),
           DropdownMenuItem(value: 'standalone_primary_treatment', child: Text('Standalone primary treatment')),
-        ], onChanged: (value) => setState(() => _position = value!))),
-      ]);
+        ], onChanged: (value) => setState(() => _position = value!));
+      if (constraints.maxWidth < 680) {
+        return Column(children: [sourceField, const SizedBox(height: 12), positionField]);
+      }
+      return Row(children: [Expanded(child: sourceField), const SizedBox(width: 12), Expanded(child: positionField)]);
+    });
 
   Widget _uploadPanel() => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -543,6 +546,8 @@ class _AnalysisSetupScreenState extends State<AnalysisSetupScreen> {
           ),
           const SizedBox(height: 6),
           Text('The unit column is optional for now. Values must be numeric. Blank values remain unknown and are never converted to zero.', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: NbsColors.mutedGrey)),
+          const SizedBox(height: 6),
+          Text('Unsupported parameters and nonnumeric rows are skipped and reported below; skipped rows reduce result confidence.', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: NbsColors.mutedGrey)),
           const SizedBox(height: 6),
           Text('Accepted aliases include BOD/BOD5, COD, TSS, NH4-N, NO3-N, PO4-P/TP, pH, DO, TDS, EC, turbidity, and faecal coliform/FC.', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: NbsColors.mutedGrey)),
           if (_csvValidation != null) ...[
@@ -1040,7 +1045,7 @@ class ResultsScreen extends StatelessWidget {
             label: 'Summary',
             icon: Icons.dashboard_outlined,
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              _DetailSection(title: 'Recommended action', child: Text(practicalRecommendation, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800, height: 1.4))),
+              _DetailSection(title: 'What this means', child: Text(practicalRecommendation, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800, height: 1.4))),
               const SizedBox(height: 12),
               _ResultsHero(response: response, bundle: bundle, topRecommendation: topTrain),
               const SizedBox(height: 12),
@@ -1060,7 +1065,7 @@ class ResultsScreen extends StatelessWidget {
               const SizedBox(height: 14),
               _DetailSection(title: 'Why this recommendation?', child: _ReadableBulletList(values: whyReasons, emptyText: 'A top recommendation was not available for explanation.')),
               const SizedBox(height: 14),
-              _DetailSection(title: 'Key caution', child: Text(keyCaution)),
+              _DetailSection(title: 'Important limitation', child: Text(keyCaution)),
               const SizedBox(height: 14),
               const _ExportPlaceholder(),
             ]),
@@ -1194,9 +1199,9 @@ class _DataBasisCard extends StatelessWidget {
           const SizedBox(height: 10),
           Wrap(spacing: 9, runSpacing: 9, children: [
             StatusPill(label: 'Data basis', value: dataBasis.basis, color: NbsColors.researchBlue),
-            StatusPill(label: 'Current sample', value: dataBasis.currentSample, color: NbsColors.riverTeal),
+            StatusPill(label: 'Water-quality input', value: dataBasis.currentSample, color: NbsColors.riverTeal),
             StatusPill(label: 'Design readiness', value: readiness.label, color: NbsColors.warningAmber),
-            StatusPill(label: 'Confidence basis', value: dataBasis.confidenceBasis, color: NbsColors.wetlandGreen),
+            StatusPill(label: 'Why this confidence level', value: dataBasis.confidenceBasis, color: NbsColors.wetlandGreen),
           ]),
         ]),
       );
@@ -1223,7 +1228,7 @@ class _DataUsedPanel extends StatelessWidget {
         Text('Source: $sourceLabel', style: const TextStyle(fontWeight: FontWeight.w800)),
         const SizedBox(height: 8),
         if (rows.isEmpty)
-          const Text('No user-supplied current sample was used. Canonical station/source context supports screening where available.')
+          const Text('No user-supplied water-quality input was used. Canonical station/source context supports screening where available.')
         else
           Wrap(spacing: 8, runSpacing: 8, children: [
             for (final row in rows)
@@ -1480,7 +1485,7 @@ class _DataGapsWorkspace extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         if (response.inputSummary.isContextOnly) ...[
-          const _AlertBanner.compact(icon: Icons.info_outline, color: NbsColors.warningAmber, title: 'Current sample status', message: 'Current sample not provided. Screening uses canonical site/source context; recent measured values are recommended before design.'),
+          const _AlertBanner.compact(icon: Icons.info_outline, color: NbsColors.warningAmber, title: 'Water-quality input', message: 'Water-quality input not supplied. Screening uses canonical site/source context; recent measured values are recommended before design.'),
           const SizedBox(height: 14),
         ],
         _DetailSection(title: 'Required before design', child: _ReadableBulletList(values: groupedData['required'] ?? const [], emptyText: 'No mandatory design input was identified from this payload.')),
@@ -1590,7 +1595,7 @@ class TrainRecommendationCard extends StatelessWidget {
               for (final entry in train.useCaseVerdicts.entries)
                 Tooltip(
                   message: entry.value == 'unknown'
-                      ? 'This use case cannot be concluded without a current sample or sufficient evidence.'
+                      ? 'This use case cannot be concluded without current water-quality input or sufficient evidence.'
                       : '${_titleFromSnake(entry.key)} suitability from available canonical evidence.',
                   child: _MetricChip(
                     label: '${_titleFromSnake(entry.key)} suitability',
@@ -2105,7 +2110,7 @@ class RecommendationCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 5),
                     Text(
-                      'Ranked by TOPSIS closeness - Confidence calculated separately',
+                      'Technical match uses TOPSIS; result confidence is calculated separately.',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: NbsColors.mutedGrey,
                           ),
@@ -2122,7 +2127,7 @@ class RecommendationCard extends StatelessWidget {
                                 scoreChips,
                                 const SizedBox(height: 10),
                                 _ScoreBar(
-                                  label: 'Match score',
+                                  label: 'Technical match',
                                   value: item.matchScore,
                                   color: NbsColors.researchBlue,
                                 ),
@@ -2137,7 +2142,7 @@ class RecommendationCard extends StatelessWidget {
                       scoreChips,
                       const SizedBox(height: 10),
                       _ScoreBar(
-                        label: 'Match score',
+                        label: 'Technical match',
                         value: item.matchScore,
                         color: NbsColors.researchBlue,
                       ),
@@ -2230,18 +2235,18 @@ class DetailScreen extends StatelessWidget {
                   spacing: 10,
                   runSpacing: 10,
                   children: [
-                    StatusPill(label: 'Match score', value: item.matchPercent),
+                    StatusPill(label: 'Technical match', value: item.matchPercent),
                     StatusPill(
                       label: 'TOPSIS closeness',
                       value: item.topsisPercent,
                     ),
                     StatusPill(
-                      label: 'Confidence score',
+                      label: 'Result confidence',
                       value: item.confidencePercent,
                       color: NbsColors.wetlandGreen,
                     ),
                     StatusPill(
-                      label: 'Confidence label',
+                      label: 'Confidence level',
                       value: _displayConfidenceLabel(item.confidenceLabel),
                       color: NbsColors.wetlandGreen,
                     ),
@@ -2270,8 +2275,8 @@ class DetailScreen extends StatelessWidget {
                 const SizedBox(height: 14),
                 const _ReadableBulletList(
                   values: [
-                    'Match score is TOPSIS closeness.',
-                    'Confidence is calculated separately and does not change rank.',
+                    'Technical match is TOPSIS closeness for the supplied problem and context.',
+                    'Result confidence reflects data completeness, evidence coverage, and context quality; it does not change rank.',
                     'Plant matches do not affect rank.',
                     'Site suitability reflects available metadata and active applicability rules.',
                     'Detailed calibration notes are available in the Method panel.',
@@ -2426,7 +2431,7 @@ class MethodAboutScreen extends StatelessWidget {
           _MethodCard(
             title: 'Ranking method',
             body:
-                'TOPSIS compares candidate options against ideal best and worst cases. The displayed match score is the TOPSIS closeness value.',
+                'TOPSIS compares candidate options against ideal best and worst cases. The displayed technical match is the TOPSIS closeness value.',
           ),
           SizedBox(height: 12),
           _MethodCard(
@@ -3957,14 +3962,14 @@ class _MethodCard extends StatelessWidget {
   final mode = response.inputSummary.workflowMode;
   final hasCurrentSample = response.inputSummary.observationCount > 0;
   final basis = switch (mode) {
-    'uploaded_water_quality' => 'CSV + canonical references',
-    'manual_measured_water_quality' => 'User input + canonical references',
+    'uploaded_water_quality' => 'User CSV + sourced evidence database',
+    'manual_measured_water_quality' => 'User measurements + sourced evidence database',
     'site_context_only' || 'pollution_source_screening' => 'Canonical station / context data',
     _ => hasCurrentSample ? 'Mixed data basis' : 'Canonical context data',
   };
   return (
     basis: basis,
-    currentSample: hasCurrentSample ? 'Provided' : 'Not provided',
+    currentSample: hasCurrentSample ? 'Supplied' : 'Not supplied',
     confidenceBasis: response.inputSummary.isContextOnly
         ? 'Context-based / data-limited'
         : hasCurrentSample
@@ -3999,7 +4004,7 @@ List<String> _cleanDataGaps(
   if (response.inputSummary.isContextOnly || currentSampleGap) {
     values.insert(
       0,
-      'Current sample not provided. Screening uses canonical site/source context; recent measured values are recommended before design.',
+      'Water-quality input not supplied. Screening uses canonical site/source context; recent measured values are recommended before design.',
     );
   }
   if (train?.allUseCasesUnknown == true) {
@@ -4026,7 +4031,7 @@ List<String> _cleanContextGuidance(
   if (response.inputSummary.isContextOnly || replacedSampleMessage) {
     values.insert(
       0,
-      'This recommendation uses canonical Narmada station/context data where available. No user-supplied current sample was provided, so design-level pass/fail should be field-verified before implementation.',
+      'This recommendation uses canonical Narmada station/context data where available. No user-supplied current water-quality input was provided, so design-level pass/fail should be field-verified before implementation.',
     );
   }
   return _uniqueStrings(values);
@@ -4110,13 +4115,13 @@ Map<String, List<Map<String, dynamic>>> _groupPlantMappings(
   }
   if (train?.dataGaps.isNotEmpty == true) {
     return (
-      label: 'Screening-level recommendation',
-      reason: 'Measured values support comparison, but reported evidence and site/design gaps require validation.',
+      label: 'Planning-level result',
+      reason: 'Measured values support comparison, but reported evidence and site/design gaps require validation before engineering design.',
     );
   }
   return (
-    label: 'Screening-level recommendation',
-    reason: 'Measured water-quality data support option screening; preliminary engineering and site validation remain required.',
+    label: 'Planning-level result',
+    reason: 'Measured water-quality data support planning; engineering design and site validation remain required.',
   );
 }
 

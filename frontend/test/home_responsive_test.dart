@@ -38,4 +38,10 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('Pollution Source Screening'), findsOneWidget);
   });
+
+  testWidgets('Home cards do not overflow at 1280x900', (tester) async {
+    await pumpHome(tester, const Size(1280, 900));
+    expect(tester.takeException(), isNull);
+    expect(find.text('Measured Water Quality'), findsOneWidget);
+  });
 }
