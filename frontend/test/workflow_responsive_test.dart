@@ -8,9 +8,8 @@ import 'package:nbs_toolkit_frontend/theme/nbs_theme.dart';
 class _FakeRecommendationApi extends RecommendationApi {
   @override
   Future<List<SiteOption>> listSites() async => [
-        SiteOption(
-            regionId: 20, station: 'Test Narmada Station', streamOrder: 5),
-      ];
+    SiteOption(regionId: 20, station: 'Test Narmada Station', streamOrder: 5),
+  ];
 
   @override
   Future<int> pollutionSourceCount(int regionId) async => 2;
@@ -24,11 +23,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
   }
 
-  Future<void> pumpSetup(
-    WidgetTester tester,
-    Size size,
-    String mode,
-  ) async {
+  Future<void> pumpSetup(WidgetTester tester, Size size, String mode) async {
     await setViewport(tester, size);
     await tester.pumpWidget(
       MaterialApp(
@@ -44,15 +39,13 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('pollution selectors stack without overflow at 390x844',
-      (tester) async {
-    await pumpSetup(
-      tester,
-      const Size(390, 844),
-      'Pollution Source Screening',
-    );
+  testWidgets('pollution selectors stack without overflow at 390x844', (
+    tester,
+  ) async {
+    await pumpSetup(tester, const Size(390, 844), 'Pollution Source Screening');
     expect(find.text('Pollution source context'), findsOneWidget);
     expect(find.text('Intervention position'), findsOneWidget);
+    expect(find.text('Narmada site / station'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -100,7 +93,7 @@ void main() {
         'short_label': 'Expert review needed',
         'explanation': 'Mainstem placement requires expert review.',
         'reasons': [
-          'Mainstem/high-order placement requires off-channel treatment.'
+          'Mainstem/high-order placement requires off-channel treatment.',
         ],
         'missing_inputs': ['Flow rate / design flow', 'Available land'],
         'required_next_steps': ['Develop an off-channel layout.'],
@@ -109,13 +102,13 @@ void main() {
           {
             'key': 'design_flow',
             'label': 'Flow rate / design flow',
-            'status': 'missing'
+            'status': 'missing',
           },
           {'key': 'bod', 'label': 'BOD', 'status': 'available'},
           {
             'key': 'site_slope',
             'label': 'Slope',
-            'status': 'needs_field_verification'
+            'status': 'needs_field_verification',
           },
         ],
       },
@@ -141,6 +134,59 @@ void main() {
           ],
         },
       ],
+      'sizing_estimates': [
+        {
+          'train_id': 1,
+          'train_name': 'DEWATS modular train',
+          'basis': 'population_equivalent',
+          'estimate_label': 'Approximately 240-400 m2',
+          'estimated_area_low_m2': 240,
+          'estimated_area_high_m2': 400,
+          'land_fit': 'borderline',
+          'full_component_coverage': true,
+          'inputs_used': ['Population equivalent: 100 people'],
+          'missing_inputs': ['Confirm design flow'],
+          'design_caution': 'This is a screening estimate.',
+          'source_ids': [30],
+        },
+      ],
+      'scenario_comparison': {
+        'comparison_scope': 'current_ranked_alternatives',
+        'current_scenario': {'workflow_mode': 'uploaded_water_quality'},
+        'options': [
+          {
+            'train_id': 1,
+            'name': 'DEWATS modular train',
+            'rank': 1,
+            'technical_match': 0.78,
+            'result_confidence': 0.52,
+            'design_readiness': 'needs_expert_review',
+            'land_demand': 'Approximately 240-400 m2',
+            'land_fit': 'borderline',
+            'om_intensity': 'Moderate',
+            'warnings': ['Keep the train off-channel.'],
+          },
+        ],
+        'component_options': [
+          {
+            'nbs_id': 17,
+            'name': 'Filter Strip / Vegetated Buffer',
+            'role': 'source_control',
+            'standalone_suitability': 'source_control_only',
+            'applicability_status': 'allowed',
+            'key_constraints': ['Not treatment for raw sewage.'],
+          },
+        ],
+        'takeaways': [
+          {
+            'label': 'Best overall fit',
+            'train_id': 1,
+            'train_name': 'DEWATS modular train',
+            'explanation': 'This is the highest ranked current alternative.',
+          },
+        ],
+        'limitations': ['Run a new case to compare different inputs.'],
+      },
       'component_recommendations': [
         {
           'nbs_id': 17,
@@ -182,12 +228,15 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.textContaining('Uploaded file'), findsOneWidget);
-    expect(find.text('User CSV'), findsNothing);
-    expect(find.text('Design readiness'), findsWidgets);
+    expect(find.text('What we recommend'), findsOneWidget);
+    expect(find.text('Pollutant gaps and train coverage'), findsNothing);
+    expect(find.text('Report and export'), findsNothing);
+    expect(find.text('Design readiness'), findsOneWidget);
     expect(find.text('Expert review needed'), findsOneWidget);
-    await tester.ensureVisible(find.text('Report and export'));
+    await tester.ensureVisible(find.text('Export'));
+    await tester.tap(find.text('Export'));
     await tester.pumpAndSettle();
+    expect(find.text('Report and export'), findsOneWidget);
     expect(find.text('Copy summary'), findsOneWidget);
     expect(find.text('Export JSON'), findsOneWidget);
     expect(find.text('Export CSV'), findsOneWidget);
@@ -195,29 +244,33 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Planning-level report preview'), findsOneWidget);
     expect(find.text('Design readiness'), findsWidgets);
+    expect(find.text('Sizing and land'), findsOneWidget);
+    expect(find.text('Scenario comparison'), findsOneWidget);
     expect(find.textContaining('Flow rate / design flow'), findsWidgets);
     expect(find.text('Print / save as PDF'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.tap(find.byTooltip('Close report preview'));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Location'));
-    await tester.tap(find.text('Location'));
+    await tester.ensureVisible(find.text('Site and design checks'));
+    await tester.tap(find.text('Site and design checks'));
     await tester.pumpAndSettle();
     expect(find.text('Location intelligence'), findsOneWidget);
-    expect(find.text('Basin context schematic'), findsOneWidget);
+    expect(find.text('River and intervention context'), findsOneWidget);
     expect(tester.takeException(), isNull);
-    await tester.ensureVisible(find.text('Design readiness'));
-    await tester.tap(find.text('Design readiness'));
-    await tester.pumpAndSettle();
-    expect(find.text('Missing before design'), findsOneWidget);
-    expect(find.text('Flow rate / design flow'), findsOneWidget);
-    expect(find.text('Needs field verification'), findsOneWidget);
+    expect(find.text('Information still needed before design'), findsWidgets);
+    expect(find.text('Flow rate / design flow'), findsWidgets);
+    expect(find.textContaining('checked in the field'), findsWidgets);
     expect(tester.takeException(), isNull);
-    await tester.ensureVisible(find.text('NbS Components'));
-    await tester.tap(find.text('NbS Components'));
+    await tester.ensureVisible(find.text('Sizing'));
+    await tester.tap(find.text('Sizing'));
     await tester.pumpAndSettle();
-
-    expect(find.text('How to read this section'), findsOneWidget);
+    expect(find.text('Sizing and land estimate'), findsOneWidget);
+    expect(find.textContaining('Approximately 240-400 m2'), findsWidgets);
+    await tester.ensureVisible(find.text('Compare options'));
+    await tester.tap(find.text('Compare options'));
+    await tester.pumpAndSettle();
+    expect(find.text('Best overall fit'), findsOneWidget);
+    expect(find.text('Supporting component comparison'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

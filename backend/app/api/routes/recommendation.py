@@ -16,6 +16,8 @@ from app.engines.applicability_filter import ApplicabilityFilterEngine
 from app.engines.candidate_filtering import CandidateFilteringEngine
 from app.engines.component_recommendation import IndividualNbsRecommendationEngine
 from app.engines.design_readiness import DesignReadinessEngine
+from app.engines.scenario_comparison import ScenarioComparisonEngine
+from app.engines.sizing_estimator import SizingEstimator
 from app.engines.input_normalization import InputContext
 from app.engines.train_recommendation import (
     PROVISIONAL_WARNING,
@@ -134,6 +136,8 @@ def run_local_recommendation_workflow(
             "location_profile": None,
             "location_context": {},
             "design_readiness": {},
+            "sizing_estimates": [],
+            "scenario_comparison": {},
             "input_summary": {},
             "contaminant_gaps": [],
             "ranked_trains": [],
@@ -194,6 +198,22 @@ def run_local_recommendation_workflow(
         location_context=location_context,
         ranked_trains=train_result["ranked_trains"],
     )
+    sizing_estimates = SizingEstimator(engine_data).estimate(
+        ranked_trains=train_result["ranked_trains"],
+        context=request.context,
+    )
+    sizing_by_train = {
+        int(row["train_id"]): row for row in sizing_estimates
+    }
+    for train in train_result["ranked_trains"]:
+        train["sizing_estimate"] = sizing_by_train.get(int(train["train_id"]), {})
+    scenario_comparison = ScenarioComparisonEngine().compare(
+        ranked_trains=train_result["ranked_trains"],
+        component_recommendations=component_result["recommendations"],
+        sizing_estimates=sizing_estimates,
+        design_readiness=design_readiness,
+        context=request.context,
+    )
     citations = _resolve_citations(
         assembly_bundle,
         reference_service,
@@ -211,6 +231,8 @@ def run_local_recommendation_workflow(
         "location_profile": _location_profile(payload),
         "location_context": location_context,
         "design_readiness": design_readiness,
+        "sizing_estimates": sizing_estimates,
+        "scenario_comparison": scenario_comparison,
         "input_summary": input_summary,
         "contaminant_gaps": _contaminant_gaps(payload),
         "ranked_trains": train_result["ranked_trains"],

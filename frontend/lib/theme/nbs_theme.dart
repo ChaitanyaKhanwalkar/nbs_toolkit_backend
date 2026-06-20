@@ -31,7 +31,8 @@ class NbsTheme {
       useMaterial3: true,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: NbsColors.softBackground,
-      fontFamily: 'Arial',
+      fontFamily: 'Inter',
+      fontFamilyFallback: const ['Arial', 'sans-serif'],
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.white,
         foregroundColor: NbsColors.deepNavy,
@@ -60,7 +61,10 @@ class NbsTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: NbsColors.researchBlue, width: 1.5),
+          borderSide: const BorderSide(
+            color: NbsColors.researchBlue,
+            width: 1.5,
+          ),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(

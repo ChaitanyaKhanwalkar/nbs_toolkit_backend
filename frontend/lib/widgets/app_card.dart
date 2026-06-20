@@ -31,10 +31,7 @@ class AppCard extends StatelessWidget {
       child: Stack(
         children: [
           if (artwork != null) Positioned.fill(child: artwork!),
-          Padding(
-            padding: padding,
-            child: child,
-          ),
+          Padding(padding: padding, child: child),
         ],
       ),
     );
@@ -76,19 +73,17 @@ class StatusPill extends StatelessWidget {
           Text(
             label,
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: onDark
-                      ? const Color(0xFFCFE7F5)
-                      : NbsColors.mutedGrey,
-                  fontWeight: FontWeight.w700,
-                ),
+              color: onDark ? const Color(0xFFCFE7F5) : NbsColors.mutedGrey,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
             value,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: onDark ? NbsColors.textOnDark : NbsColors.deepNavy,
-                  fontWeight: FontWeight.w800,
-                ),
+              color: onDark ? NbsColors.textOnDark : NbsColors.deepNavy,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ],
       ),
@@ -116,20 +111,18 @@ class SectionTitle extends StatelessWidget {
         Text(
           title,
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: onDark ? NbsColors.textOnDark : NbsColors.deepNavy,
-                fontWeight: FontWeight.w800,
-              ),
+            color: onDark ? NbsColors.textOnDark : NbsColors.deepNavy,
+            fontWeight: FontWeight.w800,
+          ),
         ),
         if (subtitle != null) ...[
           const SizedBox(height: 6),
           Text(
             subtitle!,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: onDark
-                      ? const Color(0xFFCFE7F5)
-                      : NbsColors.mutedGrey,
-                  height: 1.4,
-                ),
+              color: onDark ? const Color(0xFFCFE7F5) : NbsColors.mutedGrey,
+              height: 1.4,
+            ),
           ),
         ],
       ],

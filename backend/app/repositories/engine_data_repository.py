@@ -355,6 +355,7 @@ class EngineDataRepository(BaseRepository):
             SELECT DISTINCT
                 ts.train_id,
                 ts.nbs_id,
+                n.solution,
                 f.area_per_pe_low,
                 f.area_per_pe_high,
                 f.olr_g_m2_d,
@@ -364,6 +365,7 @@ class EngineDataRepository(BaseRepository):
                 f.note
             FROM train_step AS ts
             JOIN nbs_footprint AS f ON f.nbs_id = ts.nbs_id
+            JOIN nbs_options AS n ON n.id = ts.nbs_id
             ORDER BY ts.train_id, ts.nbs_id
             """
         )

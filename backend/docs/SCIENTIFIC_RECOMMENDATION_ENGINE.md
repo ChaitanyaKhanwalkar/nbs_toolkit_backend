@@ -800,7 +800,22 @@ Use these labels in code/docs:
 
 ---
 
-## 24. Final engine statement
+## 24. Post-ranking interpretation outputs
+
+The API may also return two post-ranking interpretation objects:
+
+- `sizing_estimates` uses only supplied flow or population and canonical
+  footprint evidence. It is a bounded screening estimate, not engineering
+  design.
+- `scenario_comparison` summarizes the current ranked alternatives without
+  changing rank and lists supporting components without treating them as train
+  replacements. Different input scenarios must be run independently.
+
+Both outputs preserve unknown evidence as unknown and expose their limitations.
+
+---
+
+## 25. Final engine statement
 
 The recommendation engine must be:
 

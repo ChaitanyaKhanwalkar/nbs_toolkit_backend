@@ -105,6 +105,10 @@ class TrainRecommendationEngine:
                 ),
                 "treatment_sequence": _treatment_sequence(steps.get(train_id, [])),
                 "nbs_components": _nbs_components(steps.get(train_id, [])),
+                "om_intensity": _om_intensity_label(
+                    designs.get(train_id, []),
+                    steps.get(train_id, []),
+                ),
                 "suitable_plants": plants.get(train_id, []),
                 "selected_use_case": use_case,
                 "evidence_source_ids": _evidence_ids(
@@ -577,6 +581,29 @@ def _om_cost(designs: list[dict[str, Any]], steps: list[dict[str, Any]]) -> floa
         elif energy == "power dependent":
             values.append(1.0)
     return sum(values) / len(values) if values else None
+
+
+def _om_intensity_label(
+    designs: list[dict[str, Any]],
+    steps: list[dict[str, Any]],
+) -> str:
+    """Summarize stored O&M/energy descriptors without changing rank."""
+
+    descriptors = [
+        normalize_match_key(row.get("skill_om_intensity")) for row in designs
+    ]
+    energy = [normalize_match_key(row.get("energy_class")) for row in steps]
+    if any("high" in value for value in descriptors) or any(
+        value == "power dependent" for value in energy
+    ):
+        return "Higher"
+    if any("moderate" in value for value in descriptors) or any(
+        value == "low power" for value in energy
+    ):
+        return "Moderate"
+    if descriptors or energy:
+        return "Lower"
+    return "Not recorded"
 
 
 def _apply_topsis(candidates: list[dict[str, Any]], weights: list[dict[str, Any]]) -> None:

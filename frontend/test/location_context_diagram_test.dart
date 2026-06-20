@@ -7,8 +7,9 @@ import 'package:nbs_toolkit_frontend/models/recommendation_models.dart';
 import 'package:nbs_toolkit_frontend/widgets/location_context_diagram.dart';
 
 void main() {
-  testWidgets('no-coordinate mainstem schematic renders without overflow',
-      (tester) async {
+  testWidgets('no-coordinate mainstem schematic renders without overflow', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -35,13 +36,15 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Basin context schematic'), findsOneWidget);
+    expect(find.text('River and intervention context'), findsOneWidget);
+    expect(find.textContaining('not a surveyed map'), findsOneWidget);
     expect(find.textContaining('Do not build treatment cells'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('verified coordinates select the local site schematic',
-      (tester) async {
+  testWidgets('verified coordinates are labelled without inventing geometry', (
+    tester,
+  ) async {
     final location = LocationContext.fromJson({
       'station': 'Verified station',
       'coordinates_available': true,
@@ -51,16 +54,20 @@ void main() {
     });
     await tester.pumpWidget(
       MaterialApp(
-        home: Scaffold(
-          body: LocationContextDiagram(location: location),
-        ),
+        home: Scaffold(body: LocationContextDiagram(location: location)),
       ),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Local site schematic'), findsOneWidget);
-    expect(find.textContaining('Verified location: 21.7000, 72.9000'),
-        findsOneWidget);
+    expect(find.text('River and intervention context'), findsOneWidget);
+    expect(
+      find.textContaining('schematic, not surveyed geometry'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Verified location: 21.7000, 72.9000'),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 }

@@ -138,6 +138,18 @@ explicit design/site context, verified location flags, and existing pH safety
 bounds. Its checklist preserves missing values as missing and mapped profile
 values as needing field verification; it does not size systems or change rank.
 
+`SizingEstimator` adds a separate screening-level footprint interpretation. It
+uses user-supplied design flow or population only when matching canonical
+footprint or hydraulic-loading records exist. It reports evidence coverage,
+missing inputs, source IDs, and land fit. Partial component coverage never
+produces a positive land-fit claim.
+
+`ScenarioComparisonEngine` packages the already-ranked alternatives for one
+run and lists eligible supporting components with their stored roles and
+constraints. It does not rerank options or fill evidence gaps. Comparing
+different water-quality, site, or land inputs requires separate recommendation
+runs.
+
 Steps A through K and Step L-A do not create API routes or `/recommend`.
 
 They do not:

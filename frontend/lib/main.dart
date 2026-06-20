@@ -23,16 +23,7 @@ class NbsToolkitApp extends StatelessWidget {
   }
 }
 
-enum AppView {
-  splash,
-  home,
-  entry,
-  loading,
-  results,
-  detail,
-  about,
-  catalogue,
-}
+enum AppView { splash, home, entry, loading, results, detail, about, catalogue }
 
 class NbsToolkitShell extends StatefulWidget {
   const NbsToolkitShell({super.key});
@@ -46,6 +37,7 @@ class _NbsToolkitShellState extends State<NbsToolkitShell> {
   AppView _view = AppView.splash;
   AppView _previousView = AppView.home;
   RecommendationResponse? _response;
+  final List<RecommendationResponse> _previousResponses = [];
   RecommendationItem? _selectedItem;
   String? _errorMessage;
   String _entryMode = 'Measured Water Quality';
@@ -58,7 +50,10 @@ class _NbsToolkitShellState extends State<NbsToolkitShell> {
   }
 
   Future<void> _runAnalysis(AnalysisInput input) async {
-    setState(() { _errorMessage = null; _view = AppView.loading; });
+    setState(() {
+      _errorMessage = null;
+      _view = AppView.loading;
+    });
     try {
       final response = await _api.runContextualRecommendation(
         observations: input.observations,
@@ -67,15 +62,32 @@ class _NbsToolkitShellState extends State<NbsToolkitShell> {
         context: input.context,
       );
       if (!mounted) return;
-      setState(() { _response = response; _selectedItem = null; _view = AppView.results; });
+      setState(() {
+        if (_response != null) {
+          _previousResponses.insert(0, _response!);
+          if (_previousResponses.length > 4) {
+            _previousResponses.removeLast();
+          }
+        }
+        _response = response;
+        _selectedItem = null;
+        _view = AppView.results;
+      });
     } catch (error) {
       if (!mounted) return;
-      setState(() { _errorMessage = error.toString(); _view = AppView.entry; });
+      setState(() {
+        _errorMessage = error.toString();
+        _view = AppView.entry;
+      });
     }
   }
 
   void _openEntry(String mode) {
-    setState(() { _entryMode = mode; _errorMessage = null; _view = AppView.entry; });
+    setState(() {
+      _entryMode = mode;
+      _errorMessage = null;
+      _view = AppView.entry;
+    });
   }
 
   void _openDetail(RecommendationItem item) {
@@ -104,38 +116,39 @@ class _NbsToolkitShellState extends State<NbsToolkitShell> {
     return switch (_view) {
       AppView.splash => SplashScreen(onStart: () => _show(AppView.home)),
       AppView.home => HomeDashboard(
-          onStartRecommendation: () => _openEntry('Measured Water Quality'),
-          onSelectSite: () => _openEntry('Select Narmada Site / Station'),
-          onPollutionScreening: () => _openEntry('Pollution Source Screening'),
-          onUploadWater: () => _openEntry('Upload Water Data'),
-          onCatalogue: () => _show(AppView.catalogue),
-          onAbout: _openAbout,
-        ),
+        onStartRecommendation: () => _openEntry('Measured Water Quality'),
+        onSelectSite: () => _openEntry('Select Narmada Site / Station'),
+        onPollutionScreening: () => _openEntry('Pollution Source Screening'),
+        onUploadWater: () => _openEntry('Upload Water Data'),
+        onCatalogue: () => _show(AppView.catalogue),
+        onAbout: _openAbout,
+      ),
       AppView.entry => AnalysisSetupScreen(
-          api: _api,
-          mode: _entryMode,
-          onRun: _runAnalysis,
-          onBack: () => _show(AppView.home),
-          errorMessage: _errorMessage,
-        ),
+        api: _api,
+        mode: _entryMode,
+        onRun: _runAnalysis,
+        onBack: () => _show(AppView.home),
+        errorMessage: _errorMessage,
+      ),
       AppView.loading => const LoadingScreen(),
       AppView.results => ResultsScreen(
-          response: _response!,
-          onViewDetail: _openDetail,
-          onNewRun: () => _show(AppView.entry),
-          onHome: () => _show(AppView.home),
-          onAbout: _openAbout,
-        ),
+        response: _response!,
+        previousScenarios: _previousResponses,
+        onViewDetail: _openDetail,
+        onNewRun: () => _show(AppView.entry),
+        onHome: () => _show(AppView.home),
+        onAbout: _openAbout,
+      ),
       AppView.detail => DetailScreen(
-          item: _selectedItem!,
-          citations: _response?.citations ?? const [],
-          onBack: () => _show(AppView.results),
-        ),
+        item: _selectedItem!,
+        citations: _response?.citations ?? const [],
+        onBack: () => _show(AppView.results),
+      ),
       AppView.about => MethodAboutScreen(onBack: _backFromAbout),
       AppView.catalogue => CatalogueScreen(
-          api: _api,
-          onBack: () => _show(AppView.home),
-        ),
+        api: _api,
+        onBack: () => _show(AppView.home),
+      ),
     };
   }
 }

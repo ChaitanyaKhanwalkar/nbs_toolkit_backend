@@ -29,7 +29,7 @@ void main() {
         {
           'key': 'design_flow',
           'label': 'Flow rate / design flow',
-          'status': 'missing'
+          'status': 'missing',
         },
       ],
     },
@@ -56,6 +56,58 @@ void main() {
         'evidence_source_ids': [14],
       },
     ],
+    'sizing_estimates': [
+      {
+        'train_id': 3,
+        'train_name': 'DEWATS modular train',
+        'basis': 'population_equivalent',
+        'estimate_label': 'Approximately 240-400 m2',
+        'estimated_area_low_m2': 240,
+        'estimated_area_high_m2': 400,
+        'land_fit': 'borderline',
+        'full_component_coverage': true,
+        'inputs_used': ['Population equivalent: 100 people'],
+        'missing_inputs': ['Confirm design flow'],
+        'design_caution': 'This is a screening estimate.',
+        'source_ids': [14],
+      },
+    ],
+    'scenario_comparison': {
+      'comparison_scope': 'current_ranked_alternatives',
+      'current_scenario': {'workflow_mode': 'uploaded_water_quality'},
+      'options': [
+        {
+          'train_id': 3,
+          'name': 'DEWATS modular train',
+          'rank': 1,
+          'technical_match': 0.78,
+          'result_confidence': 0.52,
+          'land_demand': 'Approximately 240-400 m2',
+          'land_fit': 'borderline',
+          'om_intensity': 'Moderate',
+          'warnings': ['Confirm hydraulic loading.'],
+        },
+      ],
+      'component_options': [
+        {
+          'nbs_id': 17,
+          'name': 'Planted gravel filter',
+          'role': 'polishing',
+          'standalone_suitability': 'only_as_part_of_train',
+          'applicability_status': 'allowed',
+          'key_constraints': ['Use after primary treatment.'],
+        },
+      ],
+      'takeaways': [
+        {
+          'label': 'Best overall fit',
+          'train_id': 3,
+          'train_name': 'DEWATS modular train',
+          'explanation': 'This is the highest ranked current alternative.',
+        },
+      ],
+      'limitations': ['Run a new case to compare different inputs.'],
+    },
     'component_recommendations': [
       {
         'nbs_id': 17,
@@ -93,6 +145,9 @@ void main() {
       'DEWATS modular train',
     );
     expect(decoded['individual_nbs_components'], isNotEmpty);
+    expect(decoded['sizing_and_land'], isNotEmpty);
+    expect(decoded['scenario_comparison']['options'], isNotEmpty);
+    expect(decoded['scenario_comparison']['component_options'], isNotEmpty);
     expect(decoded['evidence_records'], isNotEmpty);
     expect(decoded['disclaimer'], planningLevelDisclaimer);
   });
@@ -104,10 +159,17 @@ void main() {
     expect(report.csv, contains('"recommended_treatment_train"'));
     expect(report.csv, contains('"design_readiness"'));
     expect(report.csv, contains('"location_context"'));
+    expect(report.csv, contains('"sizing_and_land"'));
+    expect(report.csv, contains('"scenario_comparison"'));
     expect(report.csv, contains('"evidence_records"'));
     expect(report.summary, contains('DEWATS modular train'));
     expect(report.summary, contains('Technical match: 78.0%'));
     expect(report.summary, contains('Design readiness: Ready for planning'));
+    expect(
+      report.summary,
+      contains('Sizing and land: Approximately 240-400 m2'),
+    );
+    expect(report.summary, contains('Best overall fit'));
     expect(report.summary, contains(planningLevelDisclaimer));
   });
 }

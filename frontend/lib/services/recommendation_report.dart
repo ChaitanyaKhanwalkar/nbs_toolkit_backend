@@ -24,8 +24,9 @@ class RecommendationReport {
   String get baseFileName => 'nbs_recommendation_report';
 
   factory RecommendationReport.fromResponse(RecommendationResponse response) {
-    final train =
-        response.rankedTrains.isEmpty ? null : response.rankedTrains.first;
+    final train = response.rankedTrains.isEmpty
+        ? null
+        : response.rankedTrains.first;
     final input = response.inputSummary;
     final evidence = [
       for (final citation in response.citations)
@@ -102,6 +103,67 @@ class RecommendationReport {
         ],
       },
       'recommended_treatment_train': trainPayload,
+      'sizing_and_land': [
+        for (final estimate in response.sizingEstimates)
+          {
+            'train_id': estimate.trainId,
+            'train_name': estimate.trainName,
+            'basis': estimate.basis,
+            'estimated_land_need': estimate.estimateLabel,
+            'estimated_area_low_m2': estimate.estimatedAreaLowM2,
+            'estimated_area_high_m2': estimate.estimatedAreaHighM2,
+            'area_per_person_band': estimate.areaPerPersonBand,
+            'land_fit': estimate.landFit,
+            'full_component_coverage': estimate.fullComponentCoverage,
+            'inputs_used': estimate.inputsUsed,
+            'missing_inputs': estimate.missingInputs,
+            'design_caution': estimate.designCaution,
+            'evidence_record_ids': estimate.sourceIds,
+          },
+      ],
+      'scenario_comparison': {
+        'scope': response.scenarioComparison.scope,
+        'current_scenario': response.scenarioComparison.currentScenario,
+        'options': [
+          for (final option in response.scenarioComparison.options)
+            {
+              'train_id': option.trainId,
+              'name': option.name,
+              'rank': option.rank,
+              'technical_match': option.technicalMatch,
+              'result_confidence': option.resultConfidence,
+              'confidence_label': option.confidenceLabel,
+              'design_readiness': option.designReadiness,
+              'land_demand': option.landDemand,
+              'land_fit': option.landFit,
+              'operation_and_maintenance': option.omIntensity,
+              'applicability_status': option.applicabilityStatus,
+              'warnings': option.warnings,
+            },
+        ],
+        'component_options': [
+          for (final component in response.scenarioComparison.componentOptions)
+            {
+              'nbs_id': component.nbsId,
+              'name': component.name,
+              'role': component.role,
+              'suitability_score': component.suitabilityScore,
+              'standalone_suitability': component.standaloneSuitability,
+              'applicability_status': component.applicabilityStatus,
+              'key_constraints': component.keyConstraints,
+            },
+        ],
+        'takeaways': [
+          for (final takeaway in response.scenarioComparison.takeaways)
+            {
+              'label': takeaway.label,
+              'train_id': takeaway.trainId,
+              'train_name': takeaway.trainName,
+              'explanation': takeaway.explanation,
+            },
+        ],
+        'limitations': response.scenarioComparison.limitations,
+      },
       'individual_nbs_components': [
         for (final component in response.componentRecommendations)
           {
@@ -129,7 +191,9 @@ class RecommendationReport {
 }
 
 String _buildSummary(
-    RecommendationResponse response, TrainRecommendation? train) {
+  RecommendationResponse response,
+  TrainRecommendation? train,
+) {
   final lines = <String>[
     'NARMADA NBS PLANNING-LEVEL RECOMMENDATION',
     'Method: criteria-weighted TOPSIS after applicability screening',
@@ -157,6 +221,23 @@ String _buildSummary(
       if (train.dataGaps.isNotEmpty) 'Data gaps: ${train.dataGaps.join('; ')}',
     ]);
   }
+  if (response.sizingEstimates.isNotEmpty) {
+    final sizing = response.sizingEstimates.first;
+    lines.addAll([
+      '',
+      'Sizing and land: ${sizing.estimateLabel}',
+      'Likely land fit: ${_title(sizing.landFit)}',
+      'Sizing caution: ${sizing.designCaution}',
+    ]);
+  }
+  if (response.scenarioComparison.takeaways.isNotEmpty) {
+    lines.addAll([
+      '',
+      'Comparison takeaways:',
+      for (final takeaway in response.scenarioComparison.takeaways)
+        '${takeaway.label}: ${takeaway.explanation}',
+    ]);
+  }
   lines.addAll(['', planningLevelDisclaimer]);
   return lines.join('\n');
 }
@@ -172,8 +253,12 @@ String _buildCsv(Map<String, dynamic> payload) {
       }
     } else if (value is Map) {
       for (final entry in value.entries) {
-        rows.add(
-            [section, item, '$field.${entry.key}', _flatValue(entry.value)]);
+        rows.add([
+          section,
+          item,
+          '$field.${entry.key}',
+          _flatValue(entry.value),
+        ]);
       }
     } else {
       rows.add([section, item, field, _flatValue(value)]);
@@ -198,12 +283,32 @@ String _buildCsv(Map<String, dynamic> payload) {
       addValue('recommended_treatment_train', 'rank_1', entry.key, entry.value);
     }
   }
+  final sizing = payload['sizing_and_land'] as List<dynamic>;
+  for (var index = 0; index < sizing.length; index++) {
+    final estimate = sizing[index] as Map<String, dynamic>;
+    for (final entry in estimate.entries) {
+      addValue(
+        'sizing_and_land',
+        'estimate_${index + 1}',
+        entry.key,
+        entry.value,
+      );
+    }
+  }
+  final comparison = payload['scenario_comparison'] as Map<String, dynamic>;
+  for (final entry in comparison.entries) {
+    addValue('scenario_comparison', 'current_run', entry.key, entry.value);
+  }
   final components = payload['individual_nbs_components'] as List<dynamic>;
   for (var index = 0; index < components.length; index++) {
     final component = components[index] as Map<String, dynamic>;
     for (final entry in component.entries) {
-      addValue('individual_nbs_components', 'component_${index + 1}', entry.key,
-          entry.value);
+      addValue(
+        'individual_nbs_components',
+        'component_${index + 1}',
+        entry.key,
+        entry.value,
+      );
     }
   }
   for (final gap in payload['global_data_gaps'] as List<dynamic>) {
@@ -212,8 +317,12 @@ String _buildCsv(Map<String, dynamic> payload) {
   for (final record in payload['evidence_records'] as List<dynamic>) {
     final evidence = record as Map<String, dynamic>;
     for (final entry in evidence.entries) {
-      addValue('evidence_records', 'evidence_${evidence['id']}', entry.key,
-          entry.value);
+      addValue(
+        'evidence_records',
+        'evidence_${evidence['id']}',
+        entry.key,
+        entry.value,
+      );
     }
   }
   addValue('disclaimer', 'planning_level', 'text', payload['disclaimer']);
@@ -232,12 +341,12 @@ String _csvCell(Object? value) {
 }
 
 String _workflowLabel(String? value) => switch (value) {
-      'uploaded_water_quality' => 'Uploaded water-quality data',
-      'manual_measured_water_quality' => 'Measured water-quality values',
-      'site_context_only' => 'Station and site context',
-      'pollution_source_screening' => 'Pollution-source and site context',
-      _ => 'Available project inputs',
-    };
+  'uploaded_water_quality' => 'Uploaded water-quality data',
+  'manual_measured_water_quality' => 'Measured water-quality values',
+  'site_context_only' => 'Station and site context',
+  'pollution_source_screening' => 'Pollution-source and site context',
+  _ => 'Available project inputs',
+};
 
 String _confidenceLabel(TrainRecommendation train) {
   if ((train.confidenceScore ?? 0) <= 0) return 'Data-limited';

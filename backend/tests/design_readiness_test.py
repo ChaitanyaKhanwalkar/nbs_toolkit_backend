@@ -241,3 +241,5 @@ def test_recommendation_api_returns_location_and_readiness_objects() -> None:
     assert payload["location_context"]["coordinates_available"] is False
     assert payload["design_readiness"]["level"] == "planning_level_result"
     assert payload["design_readiness"]["input_checklist"]
+    assert payload["sizing_estimates"]
+    assert payload["scenario_comparison"]["options"]

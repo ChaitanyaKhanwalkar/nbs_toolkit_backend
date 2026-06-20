@@ -1,4 +1,4 @@
-/// Draws a local, offline site-context schematic without external map tiles.
+/// Draws an offline, data-labelled river and intervention context schematic.
 library;
 
 import 'package:flutter/material.dart';
@@ -22,58 +22,98 @@ class LocationContextDiagram extends StatelessWidget {
         border: Border.all(color: NbsColors.cardBorder),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(
-          location.coordinatesAvailable
-              ? 'Local site schematic'
-              : 'Basin context schematic',
-          style: Theme.of(context)
-              .textTheme
-              .titleMedium
-              ?.copyWith(fontWeight: FontWeight.w900),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          location.coordinatesAvailable
-              ? 'Marker uses verified stored coordinates. The drawing is schematic, not a basemap.'
-              : 'Verified coordinates are unavailable. This is a context diagram, not a geographic map.',
-          style: Theme.of(context)
-              .textTheme
-              .bodySmall
-              ?.copyWith(color: NbsColors.mutedGrey),
-        ),
-        const SizedBox(height: 12),
-        AspectRatio(
-          aspectRatio: 2.15,
-          child: CustomPaint(
-            painter: _LocationContextPainter(
-              showSite:
-                  location.station != null || location.coordinatesAvailable,
-              highOrder: highOrder,
-              offChannelRequired:
-                  location.contextFlags['off_channel_required'] == true,
-            ),
-            child: const SizedBox.expand(),
-          ),
-        ),
-        if (location.coordinatesAvailable) ...[
-          const SizedBox(height: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Text(
-            'Verified location: ${location.latitude!.toStringAsFixed(4)}, ${location.longitude!.toStringAsFixed(4)}',
-            style: const TextStyle(fontWeight: FontWeight.w700),
+            'River and intervention context',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
           ),
-        ],
-        if (highOrder) ...[
+          const SizedBox(height: 4),
+          Text(
+            location.coordinatesAvailable
+                ? 'The site marker uses verified stored coordinates. Lines and intervention positions are schematic, not surveyed geometry.'
+                : 'Verified coordinates are unavailable. This is a schematic context view, not a surveyed map.',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: NbsColors.mutedGrey),
+          ),
+          const SizedBox(height: 12),
+          AspectRatio(
+            aspectRatio: 2.15,
+            child: CustomPaint(
+              painter: _LocationContextPainter(
+                showSite:
+                    location.station != null || location.coordinatesAvailable,
+                highOrder: highOrder,
+                offChannelRequired:
+                    location.contextFlags['off_channel_required'] == true,
+                interventionPosition: location.interventionPosition,
+              ),
+              child: const SizedBox.expand(),
+            ),
+          ),
+          if (location.coordinatesAvailable) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Verified location: ${location.latitude!.toStringAsFixed(4)}, ${location.longitude!.toStringAsFixed(4)}',
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ],
           const SizedBox(height: 8),
-          const Text(
-            'Off-channel treatment only. Do not build treatment cells inside the river channel.',
-            style: TextStyle(
-                color: NbsColors.warningAmber, fontWeight: FontWeight.w800),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (location.station != null)
+                _ContextLabel(label: 'Site', value: location.station!),
+              if (location.district != null)
+                _ContextLabel(label: 'District', value: location.district!),
+              if (location.basin != null)
+                _ContextLabel(label: 'Basin', value: location.basin!),
+              if (location.river != null)
+                _ContextLabel(label: 'River', value: location.river!),
+            ],
           ),
+          if (highOrder) ...[
+            const SizedBox(height: 8),
+            const Text(
+              'Off-channel treatment only. Do not build treatment cells inside the river channel.',
+              style: TextStyle(
+                color: NbsColors.warningAmber,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
         ],
-      ]),
+      ),
     );
   }
+}
+
+class _ContextLabel extends StatelessWidget {
+  const _ContextLabel({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      border: Border.all(color: NbsColors.cardBorder),
+      borderRadius: BorderRadius.circular(6),
+    ),
+    child: Text(
+      '$label: $value',
+      style: Theme.of(
+        context,
+      ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
+    ),
+  );
 }
 
 class _LocationContextPainter extends CustomPainter {
@@ -81,11 +121,13 @@ class _LocationContextPainter extends CustomPainter {
     required this.showSite,
     required this.highOrder,
     required this.offChannelRequired,
+    required this.interventionPosition,
   });
 
   final bool showSite;
   final bool highOrder;
   final bool offChannelRequired;
+  final String? interventionPosition;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -121,6 +163,10 @@ class _LocationContextPainter extends CustomPainter {
       Offset(size.width * 0.37, size.height * 0.39),
       drain,
     );
+
+    final interception = Offset(size.width * 0.37, size.height * 0.43);
+    canvas.drawCircle(interception, 7, Paint()..color = NbsColors.deepNavy);
+    _label(canvas, size, 'intervention point', 0.32, 0.50);
 
     if (offChannelRequired) {
       final cellRect = Rect.fromLTWH(
@@ -167,11 +213,26 @@ class _LocationContextPainter extends CustomPainter {
       _label(canvas, size, 'selected site', 0.28, 0.18);
     }
     _label(
-        canvas, size, highOrder ? 'main river' : 'river context', 0.72, 0.25);
+      canvas,
+      size,
+      highOrder ? 'main river' : 'river context',
+      0.72,
+      0.25,
+    );
     _label(canvas, size, 'drain / inflow', 0.08, 0.76);
+    if (interventionPosition != null && interventionPosition!.isNotEmpty) {
+      _label(canvas, size, interventionPosition!, 0.02, 0.04, width: 0.40);
+    }
   }
 
-  void _label(Canvas canvas, Size size, String text, double x, double y) {
+  void _label(
+    Canvas canvas,
+    Size size,
+    String text,
+    double x,
+    double y, {
+    double width = 0.28,
+  }) {
     final painter = TextPainter(
       text: TextSpan(
         text: text,
@@ -182,7 +243,7 @@ class _LocationContextPainter extends CustomPainter {
         ),
       ),
       textDirection: TextDirection.ltr,
-    )..layout(maxWidth: size.width * 0.28);
+    )..layout(maxWidth: size.width * width);
     painter.paint(canvas, Offset(size.width * x, size.height * y));
   }
 
@@ -190,5 +251,6 @@ class _LocationContextPainter extends CustomPainter {
   bool shouldRepaint(covariant _LocationContextPainter oldDelegate) =>
       oldDelegate.showSite != showSite ||
       oldDelegate.highOrder != highOrder ||
-      oldDelegate.offChannelRequired != offChannelRequired;
+      oldDelegate.offChannelRequired != offChannelRequired ||
+      oldDelegate.interventionPosition != interventionPosition;
 }

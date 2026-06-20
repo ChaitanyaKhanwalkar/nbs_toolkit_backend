@@ -21,12 +21,12 @@ class SiteOption {
   final double? drainageAreaKm2;
 
   factory SiteOption.fromJson(Map<String, dynamic> json) => SiteOption(
-        regionId: (json['region_id'] as num).toInt(),
-        station: json['station']?.toString() ?? 'Station',
-        streamOrder: (json['stream_order_strahler'] as num?)?.toInt(),
-        dischargeCms: (json['nat_discharge_cms'] as num?)?.toDouble(),
-        drainageAreaKm2: (json['drainage_area_km2'] as num?)?.toDouble(),
-      );
+    regionId: (json['region_id'] as num).toInt(),
+    station: json['station']?.toString() ?? 'Station',
+    streamOrder: (json['stream_order_strahler'] as num?)?.toInt(),
+    dischargeCms: (json['nat_discharge_cms'] as num?)?.toDouble(),
+    drainageAreaKm2: (json['drainage_area_km2'] as num?)?.toDouble(),
+  );
 }
 
 class UploadedWaterCsv {
@@ -70,9 +70,8 @@ class CsvValidationSummary {
 
   factory CsvValidationSummary.fromJson(Map<String, dynamic>? json) {
     final value = json ?? const <String, dynamic>{};
-    List<String> strings(String key) => (value[key] as List?)
-            ?.map((item) => item.toString())
-            .toList() ??
+    List<String> strings(String key) =>
+        (value[key] as List?)?.map((item) => item.toString()).toList() ??
         <String>[];
     int integer(String key) => (value[key] as num?)?.toInt() ?? 0;
     return CsvValidationSummary(
@@ -91,32 +90,30 @@ class CsvValidationSummary {
   }
 
   Map<String, dynamic> toJson() => {
-        'rows_read': rowsRead,
-        'rows_used': rowsUsed,
-        'blank_rows': blankRows,
-        'blank_parameters': blankParameters,
-        'blank_values': blankValues,
-        'unknown_parameters': unknownParameters,
-        'non_numeric_values': nonNumericValues,
-        'missing_headers': missingHeaders,
-        'warnings': warnings,
-        'errors': errors,
-        'is_valid': isValid,
-      };
+    'rows_read': rowsRead,
+    'rows_used': rowsUsed,
+    'blank_rows': blankRows,
+    'blank_parameters': blankParameters,
+    'blank_values': blankValues,
+    'unknown_parameters': unknownParameters,
+    'non_numeric_values': nonNumericValues,
+    'missing_headers': missingHeaders,
+    'warnings': warnings,
+    'errors': errors,
+    'is_valid': isValid,
+  };
 }
 
 class RecommendationApi {
-  RecommendationApi({
-    http.Client? client,
-    String? baseUrl,
-  })  : _client = client ?? http.Client(),
-        _baseUrl = _cleanBaseUrl(
-          baseUrl ??
-              const String.fromEnvironment(
-                'API_BASE_URL',
-                defaultValue: 'http://127.0.0.1:8000',
-              ),
-        );
+  RecommendationApi({http.Client? client, String? baseUrl})
+    : _client = client ?? http.Client(),
+      _baseUrl = _cleanBaseUrl(
+        baseUrl ??
+            const String.fromEnvironment(
+              'API_BASE_URL',
+              defaultValue: 'http://127.0.0.1:8000',
+            ),
+      );
 
   final http.Client _client;
   final String _baseUrl;
@@ -131,7 +128,12 @@ class RecommendationApi {
       observations: [
         {'parameter': 'bod', 'value': bod, 'unit': 'mg_l', 'source_id': 101},
         {'parameter': 'tss', 'value': tss, 'unit': 'mg_l', 'source_id': 101},
-        {'parameter': 'nitrate_n', 'value': nitrateN, 'unit': 'mg_l', 'source_id': 102},
+        {
+          'parameter': 'nitrate_n',
+          'value': nitrateN,
+          'unit': 'mg_l',
+          'source_id': 102,
+        },
         {'parameter': 'ph', 'value': ph, 'unit': 'ph_units', 'source_id': 102},
       ],
     );
@@ -188,7 +190,9 @@ class RecommendationApi {
 
     final decoded = jsonDecode(bodyText);
     if (decoded is! Map<String, dynamic>) {
-      throw RecommendationApiException('Backend response was not a valid object.');
+      throw RecommendationApiException(
+        'Backend response was not a valid object.',
+      );
     }
 
     final parsed = RecommendationResponse.fromJson(decoded);
@@ -212,9 +216,9 @@ class RecommendationApi {
     final decoded = jsonDecode(response.body);
     return decoded is List
         ? decoded
-            .whereType<Map<String, dynamic>>()
-            .map(SiteOption.fromJson)
-            .toList()
+              .whereType<Map<String, dynamic>>()
+              .map(SiteOption.fromJson)
+              .toList()
         : <SiteOption>[];
   }
 
@@ -226,7 +230,9 @@ class RecommendationApi {
       return 0;
     }
     final decoded = jsonDecode(response.body);
-    final rows = decoded is Map<String, dynamic> ? decoded['pollution_sources'] : null;
+    final rows = decoded is Map<String, dynamic>
+        ? decoded['pollution_sources']
+        : null;
     return rows is List ? rows.length : 0;
   }
 
@@ -235,11 +241,17 @@ class RecommendationApi {
     required String filename,
     String useCase = 'discharge_inland',
   }) async {
-    final request = http.MultipartRequest(
-      'POST',
-      Uri.parse('$_baseUrl/api/v1/water/upload?use_case=$useCase'),
-    )..files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename));
-    final streamed = await _client.send(request).timeout(const Duration(seconds: 30));
+    final request =
+        http.MultipartRequest(
+            'POST',
+            Uri.parse('$_baseUrl/api/v1/water/upload?use_case=$useCase'),
+          )
+          ..files.add(
+            http.MultipartFile.fromBytes('file', bytes, filename: filename),
+          );
+    final streamed = await _client
+        .send(request)
+        .timeout(const Duration(seconds: 30));
     final response = await http.Response.fromStream(streamed);
     final decoded = jsonDecode(response.body);
     if (response.statusCode != 200) {
@@ -278,15 +290,18 @@ class RecommendationApi {
         .get(Uri.parse('$_baseUrl/api/v1/catalogue'))
         .timeout(const Duration(seconds: 30));
     if (response.statusCode != 200) {
-      throw RecommendationApiException('Could not load the learning catalogue.');
+      throw RecommendationApiException(
+        'Could not load the learning catalogue.',
+      );
     }
     final decoded = jsonDecode(response.body);
     if (decoded is! Map<String, dynamic>) {
-      throw RecommendationApiException('Catalogue response was not a valid object.');
+      throw RecommendationApiException(
+        'Catalogue response was not a valid object.',
+      );
     }
     return decoded;
   }
-
 }
 
 String _cleanBaseUrl(String rawBaseUrl) {
