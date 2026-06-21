@@ -280,5 +280,11 @@ def _extreme_ph(value: Any) -> bool:
 def _present(context: dict[str, Any], key: str) -> bool:
     """Return true for explicitly supplied non-empty context values."""
 
+    aliases = {
+        "design_flow": "design_flow_m3_d",
+        "available_land": "available_land_m2",
+    }
     value = context.get(key)
+    if value is None or value == "":
+        value = context.get(aliases.get(key, ""))
     return value is not None and value != ""

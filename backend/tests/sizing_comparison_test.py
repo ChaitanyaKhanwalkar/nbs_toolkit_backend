@@ -33,8 +33,8 @@ def _train(train_id=1, components=(10, 11)):
     }
 
 
-def test_population_band_produces_bounded_area_and_land_fit() -> None:
-    """Stored component m2/person ranges may be summed for supplied population."""
+def test_population_without_flow_does_not_invent_absolute_area() -> None:
+    """Population-only evidence must not become a precise area or land-fit claim."""
 
     repository = FakeFootprintRepository(
         [
@@ -61,9 +61,11 @@ def test_population_band_produces_bounded_area_and_land_fit() -> None:
         context={"population_equivalent": 100, "available_land_m2": 350},
     )[0]
 
-    assert result["estimated_area_low_m2"] == 150
-    assert result["estimated_area_high_m2"] == 300
-    assert result["land_fit"] == "fits"
+    assert result["estimated_area_low_m2"] is None
+    assert result["estimated_area_high_m2"] is None
+    assert result["land_fit"] == "insufficient_data"
+    assert result["flow_status"] == "missing"
+    assert "provide design flow" in result["estimate_label"]
     assert result["full_component_coverage"] is True
     assert result["source_ids"] == [1, 2]
 
@@ -109,6 +111,20 @@ def test_flow_estimate_uses_only_stored_hydraulic_loading_rates() -> None:
     assert result["estimated_area_low_m2"] == 300
     assert result["estimated_area_high_m2"] == 300
     assert result["land_fit"] == "likely_too_little_land"
+
+
+def test_missing_footprint_evidence_keeps_sizing_unavailable() -> None:
+    """A supplied flow must not create area when no canonical footprint exists."""
+
+    result = SizingEstimator(FakeFootprintRepository([])).estimate(
+        ranked_trains=[_train()],
+        context={"design_flow_m3_d": 10, "available_land_m2": 500},
+    )[0]
+
+    assert result["estimated_area_low_m2"] is None
+    assert result["estimated_area_high_m2"] is None
+    assert result["land_fit"] == "insufficient_data"
+    assert result["sizing_confidence"] == "insufficient_data"
 
 
 def test_comparison_preserves_rank_and_exposes_takeaways() -> None:
@@ -159,3 +175,6 @@ def test_comparison_preserves_rank_and_exposes_takeaways() -> None:
     )
     assert result["comparison_scope"] == "current_ranked_alternatives"
     assert result["component_options"][0]["name"] == "Filter strip"
+    assert result["options"][0]["key_strength"] is None
+    assert "confirming flow" in result["options"][0]["when_to_choose"]
+    assert any(row["label"] == "Strongest evidence" for row in result["takeaways"])

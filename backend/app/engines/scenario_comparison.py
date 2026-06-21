@@ -24,6 +24,11 @@ class ScenarioComparisonEngine:
         sizing_by_train = {
             int(row["train_id"]): row for row in sizing_estimates
         }
+        source_type = str(context.get("pollution_source_type") or "").lower()
+        off_channel = context.get("intervention_position") in {
+            "off_channel_or_stp_polishing",
+            "in_channel",
+        } or _is_high_order(context.get("stream_order"))
         options = []
         for train in ranked_trains:
             train_id = int(train["train_id"])
@@ -44,6 +49,16 @@ class ScenarioComparisonEngine:
                         train.get("applicability_result") or {}
                     ).get("status"),
                     "warnings": list(train.get("caveats") or [])[:2],
+                    "key_strength": _first_text(train.get("why_recommended")),
+                    "key_limitation": _first_text(
+                        train.get("caveats")
+                        or train.get("pretreatment_requirements")
+                    ),
+                    "when_to_choose": _when_to_choose(
+                        train=train,
+                        source_type=source_type,
+                        off_channel=off_channel,
+                    ),
                 }
             )
 
@@ -79,6 +94,26 @@ class ScenarioComparisonEngine:
                     ),
                 }
             )
+        confidence_candidates = [
+            option
+            for option in options
+            if isinstance(option.get("result_confidence"), (int, float))
+        ]
+        if confidence_candidates:
+            strongest = max(
+                confidence_candidates,
+                key=lambda row: row["result_confidence"],
+            )
+            takeaways.append(
+                {
+                    "label": "Strongest evidence",
+                    "train_id": strongest["train_id"],
+                    "train_name": strongest["name"],
+                    "explanation": (
+                        "This option has the highest result-confidence score among the current alternatives."
+                    ),
+                }
+            )
         maintenance_order = {"Lower": 0, "Moderate": 1, "Higher": 2}
         maintenance_candidates = [
             option
@@ -98,6 +133,15 @@ class ScenarioComparisonEngine:
                     "explanation": (
                         "Stored O&M and energy descriptors indicate the lowest relative intensity among current alternatives."
                     ),
+                }
+            )
+        if design_readiness.get("expert_review_required"):
+            takeaways.append(
+                {
+                    "label": "Needs expert review",
+                    "train_id": options[0]["train_id"] if options else None,
+                    "train_name": options[0]["name"] if options else None,
+                    "explanation": design_readiness.get("explanation"),
                 }
             )
         return {
@@ -133,3 +177,37 @@ class ScenarioComparisonEngine:
                 "Unknown footprint or O&M evidence remains unknown and is not scored as zero.",
             ],
         }
+
+
+def _first_text(values: Any) -> str | None:
+    """Return the first existing explanation without creating new evidence."""
+
+    if isinstance(values, list) and values:
+        return str(values[0])
+    return None
+
+
+def _is_high_order(value: Any) -> bool:
+    """Return whether a supplied stream order triggers mainstem safeguards."""
+
+    try:
+        return float(value) >= 5
+    except (TypeError, ValueError):
+        return False
+
+
+def _when_to_choose(
+    *, train: dict[str, Any], source_type: str, off_channel: bool
+) -> str:
+    """Describe selection conditions using existing safety context only."""
+
+    if "industrial" in source_type:
+        return "Choose only when effective ETP/CETP pretreatment and required neutralization are already planned."
+    if "agricultur" in source_type:
+        return "Choose only for collected runoff after field and edge-of-field source controls are in place."
+    if off_channel:
+        return "Choose only for an off-channel layout with safe interception, access, and monitored return flow."
+    role = str(train.get("implementation_role") or "").strip()
+    if role:
+        return f"Choose when the project needs this option for its stored role: {role}."
+    return "Choose after confirming flow, land, site conditions, and pretreatment requirements."

@@ -2,30 +2,32 @@
 
 Work in `C:\Users\Ecosoul Enviro\OneDrive\Desktop\NBSGCT`.
 
-Read `AGENTS.md`, `codex prompt.txt`, `CODEX_PHASE_EF_HANDOFF.md`, the available
-project handoffs, and canonical-data documentation before editing.
+Read `AGENTS.md`, `CODEX_PHASE_GH_GUIDED_UX_HANDOFF.md`, the canonical-data
+documentation, and recent git history before editing.
 
-Phase E+F is complete. First verify:
+The guided UX, grouped design readiness, professional offline diagrams,
+three-state location display, strict screening-level sizing, scenario
+comparison, and concise report/export update are complete.
 
-1. backend pytest
-2. Flutter analyze
-3. Flutter tests
-4. `git diff --check`
+First verify:
 
-Recommended next phase: field/design-input collection and preliminary planning
-workflow.
+1. Backend pytest.
+2. Flutter analyze.
+3. Flutter tests, including visual goldens.
+4. `git diff --check`.
 
-- Add a progressive design-input form for design flow, peak flow, available
-  land, groundwater, flood risk, inlet/outlet levels, slope/soil verification,
-  and O&M ownership.
-- Keep every field optional until supplied; missing remains unknown, never zero.
-- Preserve the Phase E+F readiness engine as the backend authority.
-- Do not substitute stored river discharge for wastewater/design flow.
-- Show units and validation clearly without implying engineering approval.
-- Add interactive browser QA when the Windows in-app browser sandbox is
-  available.
-- Do not add external map tiles, fabricated coordinates, design values, expert
-  weights, health-risk values, or unreviewed citations.
-- Preserve train-first wastewater logic, A0-before-ranking, industrial
-  pretreatment, pH neutralization, mainstem off-channel safety, agricultural
-  source control, and invasive-plant safeguards.
+Recommended next phase: field pilot preparation and reviewed local geospatial
+data integration.
+
+- Gather practitioner feedback on the guided Summary and grouped checklist.
+- Define a reviewed field-input schema for peak flow, surveyed levels,
+  groundwater, flood risk, soil/infiltration, access, and O&M ownership.
+- Add local river geometry only when an authoritative reviewed asset and its
+  provenance are available.
+- Keep missing values unknown and preserve train-first, A0-before-ranking,
+  industrial pretreatment, pH neutralization, mainstem off-channel,
+  agricultural source-control, and invasive-plant safeguards.
+- Do not add external map tiles, fabricated geometry, expert weights,
+  health-risk values, or unsourced design constants.
+- Keep every new user-facing detail behind progressive disclosure unless it is
+  required for the immediate decision.

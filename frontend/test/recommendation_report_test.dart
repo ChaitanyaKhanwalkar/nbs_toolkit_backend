@@ -60,14 +60,17 @@ void main() {
       {
         'train_id': 3,
         'train_name': 'DEWATS modular train',
-        'basis': 'population_equivalent',
+        'basis': 'design_flow',
+        'flow_status': 'supplied',
+        'sizing_confidence': 'screening_band',
         'estimate_label': 'Approximately 240-400 m2',
         'estimated_area_low_m2': 240,
         'estimated_area_high_m2': 400,
         'land_fit': 'borderline',
         'full_component_coverage': true,
         'inputs_used': ['Population equivalent: 100 people'],
-        'missing_inputs': ['Confirm design flow'],
+        'missing_inputs': ['Confirm peak flow'],
+        'key_assumptions': ['The supplied design flow reaches each unit.'],
         'design_caution': 'This is a screening estimate.',
         'source_ids': [14],
       },
@@ -86,6 +89,10 @@ void main() {
           'land_fit': 'borderline',
           'om_intensity': 'Moderate',
           'warnings': ['Confirm hydraulic loading.'],
+          'key_strength': 'Suitable for decentralized sewage treatment.',
+          'key_limitation': 'Confirm hydraulic loading.',
+          'when_to_choose':
+              'Choose after confirming flow, land, and site conditions.',
         },
       ],
       'component_options': [
@@ -139,7 +146,15 @@ void main() {
 
     expect(decoded['project_input_summary'], isA<Map<String, dynamic>>());
     expect(decoded['location_context']['station'], 'Test station');
+    expect(
+      decoded['location_context']['map_status'],
+      contains('Schematic context'),
+    );
     expect(decoded['design_readiness']['short_label'], 'Ready for planning');
+    expect(
+      decoded['design_readiness']['grouped_input_checklist'],
+      isA<Map<String, dynamic>>(),
+    );
     expect(
       decoded['recommended_treatment_train']['name'],
       'DEWATS modular train',
@@ -148,6 +163,10 @@ void main() {
     expect(decoded['sizing_and_land'], isNotEmpty);
     expect(decoded['scenario_comparison']['options'], isNotEmpty);
     expect(decoded['scenario_comparison']['component_options'], isNotEmpty);
+    expect(
+      decoded['scenario_comparison']['options'][0]['when_to_choose'],
+      contains('confirming flow'),
+    );
     expect(decoded['evidence_records'], isNotEmpty);
     expect(decoded['disclaimer'], planningLevelDisclaimer);
   });

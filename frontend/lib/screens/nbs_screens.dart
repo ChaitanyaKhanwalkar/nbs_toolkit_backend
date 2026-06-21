@@ -963,7 +963,7 @@ class _AnalysisSetupScreenState extends State<AnalysisSetupScreen> {
               const _InfoNote(
                 icon: Icons.info_outline,
                 text:
-                    'Choose a site when you know it. If you continue without one, the toolkit will use source context only and clearly mark the missing location data.',
+                    'No site was selected. The result uses only the selected pollution-source context.',
               ),
             ],
             const SizedBox(height: 14),
@@ -1433,23 +1433,20 @@ class ResultsScreen extends StatelessWidget {
       topTrain,
       sourceLocationGuidance,
     );
-    final nextData = _nextDataToCollect(response, topTrain, dataGaps);
     final practicalRecommendation = _practicalRecommendation(
       response,
       topTrain,
     );
     final keyCaution = _keyCaution(response, topTrain);
-    final groupedData = _groupDataActions(
-      response,
-      topTrain,
-      dataGaps,
-      nextData,
-    );
     final workspaceKey = GlobalKey<_SolutionWorkspaceState>();
     final summaryNextSteps = _uniqueStrings([
       ...response.designReadiness.requiredNextSteps,
       ...sourceLocationGuidance,
+      if (!hasMeasuredData) 'Confirm recent water-quality values.',
+      'Check flow, land, and site conditions.',
+      'Review the option with a qualified engineer before design.',
     ]).take(3).toList();
+    final summaryWarning = _majorSummaryWarning(response, topTrain, dataGaps);
 
     return AppScaffold(
       title: 'Recommendation results',
@@ -1492,9 +1489,11 @@ class ResultsScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _DetailSection(
-                      title: 'What we recommend',
+                      title: 'Recommended option',
                       child: Text(
-                        practicalRecommendation,
+                        topTrain == null
+                            ? practicalRecommendation
+                            : 'We recommend ${topTrain.name} for this screening case. $practicalRecommendation',
                         style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(
                               fontWeight: FontWeight.w800,
@@ -1514,10 +1513,19 @@ class ResultsScreen extends StatelessWidget {
                         '$keyCaution ${response.designReadiness.explanation}',
                       ),
                     ),
+                    if (summaryWarning != null) ...[
+                      const SizedBox(height: 12),
+                      _AlertBanner.compact(
+                        icon: Icons.warning_amber_outlined,
+                        color: NbsColors.warningAmber,
+                        title: 'Important warning',
+                        message: summaryWarning,
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     _DetailSection(
                       title: 'What you should do next',
-                      child: _ReadableBulletList(
+                      child: _NumberedActionList(
                         values: summaryNextSteps,
                         emptyText:
                             'Review the result with a qualified practitioner before design.',
@@ -1527,7 +1535,9 @@ class ResultsScreen extends StatelessWidget {
                     _SummaryNavigation(
                       onWhy: () => workspaceKey.currentState?.select(1),
                       onChecks: () => workspaceKey.currentState?.select(2),
+                      onSizing: () => workspaceKey.currentState?.select(5),
                       onCompare: () => workspaceKey.currentState?.select(6),
+                      onLearn: () => workspaceKey.currentState?.select(7),
                       onExport: () => workspaceKey.currentState?.select(8),
                     ),
                   ],
@@ -1549,10 +1559,7 @@ class ResultsScreen extends StatelessWidget {
               _WorkspacePanel(
                 label: 'Site and design checks',
                 icon: Icons.engineering_outlined,
-                child: _SiteDesignChecksWorkspace(
-                  response: response,
-                  groupedData: groupedData,
-                ),
+                child: _SiteDesignChecksWorkspace(response: response),
               ),
               _WorkspacePanel(
                 label: 'Implementation',
@@ -1803,13 +1810,17 @@ class _SummaryNavigation extends StatelessWidget {
   const _SummaryNavigation({
     required this.onWhy,
     required this.onChecks,
+    required this.onSizing,
     required this.onCompare,
+    required this.onLearn,
     required this.onExport,
   });
 
   final VoidCallback onWhy;
   final VoidCallback onChecks;
+  final VoidCallback onSizing;
   final VoidCallback onCompare;
+  final VoidCallback onLearn;
   final VoidCallback onExport;
 
   @override
@@ -1831,6 +1842,16 @@ class _SummaryNavigation extends StatelessWidget {
         onPressed: onCompare,
         icon: const Icon(Icons.compare_arrows_outlined),
         label: const Text('Compare options'),
+      ),
+      OutlinedButton.icon(
+        onPressed: onSizing,
+        icon: const Icon(Icons.square_foot_outlined),
+        label: const Text('Estimate land'),
+      ),
+      OutlinedButton.icon(
+        onPressed: onLearn,
+        icon: const Icon(Icons.schema_outlined),
+        label: const Text('View diagrams'),
       ),
       OutlinedButton.icon(
         onPressed: onExport,
@@ -1926,27 +1947,12 @@ class _WhyResultWorkspace extends StatelessWidget {
 }
 
 class _SiteDesignChecksWorkspace extends StatelessWidget {
-  const _SiteDesignChecksWorkspace({
-    required this.response,
-    required this.groupedData,
-  });
+  const _SiteDesignChecksWorkspace({required this.response});
 
   final RecommendationResponse response;
-  final Map<String, List<String>> groupedData;
 
   @override
   Widget build(BuildContext context) {
-    final missing = response.designReadiness.inputChecklist
-        .where((item) => item.status == 'missing')
-        .map((item) => item.label)
-        .toList();
-    final verify = response.designReadiness.inputChecklist
-        .where((item) => item.status == 'needs_field_verification')
-        .map(
-          (item) =>
-              '${item.label}: this still needs to be checked in the field.',
-        )
-        .toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1974,32 +1980,6 @@ class _SiteDesignChecksWorkspace extends StatelessWidget {
             ),
           ),
         ],
-        const SizedBox(height: 16),
-        _DetailSection(
-          title: 'Information still needed before design',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _TextBlockList(
-                title: 'Required before design',
-                values: missing,
-                emptyText: 'No required input is currently marked missing.',
-              ),
-              const SizedBox(height: 12),
-              _TextBlockList(
-                title: 'Needs field verification',
-                values: verify,
-                emptyText: 'No mapped value is waiting for field verification.',
-              ),
-              const SizedBox(height: 12),
-              _TextBlockList(
-                title: 'Useful for improving the result',
-                values: groupedData['ranking'] ?? const [],
-                emptyText: 'No additional ranking input was identified.',
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }
@@ -2020,7 +2000,7 @@ class _SizingWorkspace extends StatelessWidget {
         const _DetailSection(
           title: 'Sizing and land estimate',
           child: Text(
-            'This section uses only your supplied flow or population and stored footprint evidence. It is not a final design.',
+            'Enter design flow and available land to check a stored footprint range. Use this to compare options, not to build directly.',
           ),
         ),
         const SizedBox(height: 14),
@@ -2093,12 +2073,6 @@ class _SizingEstimateCard extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         _TextBlockList(
-          title: 'Inputs used',
-          values: estimate.inputsUsed,
-          emptyText: 'No flow, population, or land value was supplied.',
-        ),
-        const SizedBox(height: 10),
-        _TextBlockList(
           title: 'What to collect next',
           values: estimate.missingInputs,
           emptyText:
@@ -2106,10 +2080,39 @@ class _SizingEstimateCard extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Text(
-          estimate.designCaution,
+          'This is an early sizing estimate. A qualified engineer must confirm the final size.',
           style: Theme.of(
             context,
           ).textTheme.bodySmall?.copyWith(color: NbsColors.mutedGrey),
+        ),
+        const SizedBox(height: 8),
+        ExpansionTile(
+          tilePadding: EdgeInsets.zero,
+          childrenPadding: const EdgeInsets.only(bottom: 8),
+          title: const Text(
+            'Show calculations and assumptions',
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
+          children: [
+            _TextBlockList(
+              title: 'Inputs used',
+              values: estimate.inputsUsed,
+              emptyText: 'No flow, population, or land value was supplied.',
+            ),
+            const SizedBox(height: 10),
+            _TextBlockList(
+              title: 'Key assumptions',
+              values: estimate.keyAssumptions,
+              emptyText:
+                  'No calculation assumptions apply because an area was not estimated.',
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Footprint basis: ${_titleFromSnake(estimate.basis)}. Sizing confidence: ${_titleFromSnake(estimate.sizingConfidence)}.',
+            ),
+            const SizedBox(height: 8),
+            Text(estimate.designCaution),
+          ],
         ),
       ],
     ),
@@ -2172,10 +2175,29 @@ class _ComparisonWorkspace extends StatelessWidget {
           ),
         ],
         const SizedBox(height: 14),
-        for (final option in comparison.options)
+        for (final option in comparison.options.take(3))
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: _ComparisonOptionCard(option: option),
+          ),
+        if (comparison.options.length > 3)
+          AppCard(
+            padding: EdgeInsets.zero,
+            child: ExpansionTile(
+              tilePadding: const EdgeInsets.symmetric(horizontal: 14),
+              childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+              title: Text(
+                'Show all ${comparison.options.length} options',
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+              children: [
+                for (final option in comparison.options.skip(3))
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _ComparisonOptionCard(option: option),
+                  ),
+              ],
+            ),
           ),
         if (comparison.componentOptions.isNotEmpty) ...[
           const SizedBox(height: 14),
@@ -2280,6 +2302,19 @@ class _ComparisonOptionCard extends StatelessWidget {
           option.landDemand ??
               'The land estimate is not available for this option.',
         ),
+        if (option.keyStrength != null) ...[
+          const SizedBox(height: 8),
+          Text('Key strength: ${option.keyStrength}'),
+        ],
+        if (option.keyLimitation != null) ...[
+          const SizedBox(height: 6),
+          Text('Key limitation: ${option.keyLimitation}'),
+        ],
+        const SizedBox(height: 6),
+        Text(
+          option.whenToChoose,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
         if (option.warnings.isNotEmpty) ...[
           const SizedBox(height: 8),
           Text(
@@ -2312,7 +2347,7 @@ class _PreviousScenarioRow extends StatelessWidget {
         'Previous case ${index + 1}: ${train?.name ?? 'No ranked option'}',
       ),
       subtitle: Text(
-        '${_workflowLabelForUser(response.inputSummary.workflowMode)} • ${response.designReadiness.shortLabel} • ${train?.matchPercent ?? 'No match score'}',
+        '${_workflowLabelForUser(response.inputSummary.workflowMode)} | ${response.designReadiness.shortLabel} | ${train?.matchPercent ?? 'No match score'}',
       ),
     );
   }
@@ -2360,11 +2395,11 @@ class _LearnWorkspace extends StatelessWidget {
 }
 
 String _landFitSentence(String value) => switch (value) {
-  'fits' => 'The available land is at or above the complete screening range.',
+  'fits' => 'The available land appears enough for this early sizing estimate.',
   'borderline' =>
-    'The available land falls inside the screening range, so layout checks matter.',
+    'The available land may be enough, but layout and site checks could change the result.',
   'likely_too_little_land' =>
-    'The supplied land is below the complete screening range.',
+    'The available land appears smaller than the complete screening range.',
   _ =>
     'The toolkit cannot confirm land fit with the current inputs and evidence coverage.',
 };
@@ -2648,6 +2683,7 @@ class _DesignReadinessWorkspace extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final grouped = _groupReadinessInputs(readiness.inputChecklist);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -2670,11 +2706,28 @@ class _DesignReadinessWorkspace extends StatelessWidget {
         ),
         const SizedBox(height: 14),
         _DetailSection(
-          title: 'Information still needed before design',
+          title: 'Your input plan',
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              for (final item in readiness.inputChecklist)
-                _ReadinessChecklistRow(item: item),
+              _ReadinessGroup(
+                title: 'Needed to improve this result',
+                guidance: 'Start with these inputs first.',
+                items: grouped.improveResult,
+              ),
+              const SizedBox(height: 14),
+              _ReadinessGroup(
+                title: 'Needed before engineering design',
+                guidance:
+                    'These items are usually checked before engineering design.',
+                items: grouped.beforeDesign,
+              ),
+              const SizedBox(height: 14),
+              _ReadinessGroup(
+                title: 'Field checks',
+                guidance: 'These should be verified during a site visit.',
+                items: grouped.fieldChecks,
+              ),
             ],
           ),
         ),
@@ -2701,6 +2754,38 @@ class _DesignReadinessWorkspace extends StatelessWidget {
   }
 }
 
+class _ReadinessGroup extends StatelessWidget {
+  const _ReadinessGroup({
+    required this.title,
+    required this.guidance,
+    required this.items,
+  });
+
+  final String title;
+  final String guidance;
+  final List<ReadinessInput> items;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+      const SizedBox(height: 3),
+      Text(
+        guidance,
+        style: Theme.of(
+          context,
+        ).textTheme.bodySmall?.copyWith(color: NbsColors.mutedGrey),
+      ),
+      const SizedBox(height: 9),
+      if (items.isEmpty)
+        const Text('No item is currently listed in this group.')
+      else
+        for (final item in items) _ReadinessChecklistRow(item: item),
+    ],
+  );
+}
+
 class _ReadinessChecklistRow extends StatelessWidget {
   const _ReadinessChecklistRow({required this.item});
 
@@ -2717,14 +2802,14 @@ class _ReadinessChecklistRow extends StatelessWidget {
       'needs_field_verification' => (
         Icons.travel_explore_outlined,
         NbsColors.warningAmber,
-        'This still needs to be checked in the field.',
+        'Needs field check',
       ),
       'not_required_for_current_screening' => (
         Icons.remove_circle_outline,
         NbsColors.mutedGrey,
         'Not required for current screening',
       ),
-      _ => (Icons.radio_button_unchecked, Colors.red.shade700, 'Missing'),
+      _ => (Icons.radio_button_unchecked, NbsColors.mutedGrey, 'Missing'),
     };
     return Padding(
       padding: const EdgeInsets.only(bottom: 9),
@@ -3519,6 +3604,9 @@ class _ReportPreview extends StatelessWidget {
         ? null
         : response.rankedTrains.first;
     final values = response.inputSummary.dataUsed;
+    final readinessGroups = _groupReadinessInputs(
+      response.designReadiness.inputChecklist,
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -3538,7 +3626,9 @@ class _ReportPreview extends StatelessWidget {
           values: [
             'Workflow: ${_titleFromSnake(response.inputSummary.workflowMode ?? 'available inputs')}',
             'Use case: ${_titleFromSnake(response.useCase ?? 'not specified')}',
-            '${values.length} water-quality values used.',
+            values.isEmpty
+                ? 'No recent water-quality values were supplied.'
+                : '${values.length} recent water-quality values informed this result.',
           ],
           emptyText: 'No project input summary is available.',
         ),
@@ -3552,6 +3642,13 @@ class _ReportPreview extends StatelessWidget {
               'District: ${response.locationContext.district}',
             if (response.locationContext.streamContext != null)
               'River context: ${response.locationContext.streamContext}',
+            response.locationContext.coordinatesAvailable
+                ? 'Map status: verified stored location.'
+                : response.locationContext.station != null ||
+                      response.locationContext.district != null ||
+                      response.locationContext.river != null
+                ? 'Map status: schematic context only, not a surveyed map.'
+                : 'No verified map location is available for this case.',
             ...response.locationContext.contextNotes,
           ],
           emptyText: 'No verified site profile is available for this run.',
@@ -3563,11 +3660,36 @@ class _ReportPreview extends StatelessWidget {
             response.designReadiness.shortLabel,
             response.designReadiness.explanation,
             ...response.designReadiness.reasons,
-            for (final item in response.designReadiness.inputChecklist)
-              '${item.label}: ${_readinessStatusLabel(item.status)}',
             ...response.designReadiness.requiredNextSteps,
           ],
           emptyText: 'Design-readiness information is unavailable.',
+        ),
+        const SizedBox(height: 10),
+        _TextBlockList(
+          title: 'Needed to improve this result',
+          values: [
+            for (final item in readinessGroups.improveResult)
+              '${item.label}: ${_readinessStatusLabel(item.status)}',
+          ],
+          emptyText: 'No additional input is listed for this group.',
+        ),
+        const SizedBox(height: 10),
+        _TextBlockList(
+          title: 'Needed before engineering design',
+          values: [
+            for (final item in readinessGroups.beforeDesign)
+              '${item.label}: ${_readinessStatusLabel(item.status)}',
+          ],
+          emptyText: 'No additional input is listed for this group.',
+        ),
+        const SizedBox(height: 10),
+        _TextBlockList(
+          title: 'Field checks',
+          values: [
+            for (final item in readinessGroups.fieldChecks)
+              '${item.label}: ${_readinessStatusLabel(item.status)}',
+          ],
+          emptyText: 'No field check is currently listed.',
         ),
         const SizedBox(height: 14),
         _TextBlockList(
@@ -6775,6 +6897,49 @@ class _ReadableBulletList extends StatelessWidget {
   }
 }
 
+class _NumberedActionList extends StatelessWidget {
+  const _NumberedActionList({required this.values, required this.emptyText});
+
+  final List<String> values;
+  final String emptyText;
+
+  @override
+  Widget build(BuildContext context) {
+    if (values.isEmpty) return Text(emptyText);
+    return Column(
+      children: [
+        for (var index = 0; index < values.length; index++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 9),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 24,
+                  height: 24,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(
+                    color: NbsColors.researchBlue,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    '${index + 1}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 9),
+                Expanded(child: Text(_readableText(values[index]))),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 class _SourceIdWrap extends StatelessWidget {
   const _SourceIdWrap({required this.sourceIds, this.citationsById = const {}});
 
@@ -7269,6 +7434,71 @@ String _keyCaution(
       : 'Site survey, hydraulic design, regulatory review, and monitoring remain required.';
 }
 
+String? _majorSummaryWarning(
+  RecommendationResponse response,
+  TrainRecommendation? train,
+  List<String> dataGaps,
+) {
+  final context = response.inputSummary.context;
+  final source = context['pollution_source_type']?.toString() ?? '';
+  if (source.contains('industrial')) {
+    return 'Industrial or mixed wastewater needs ETP/CETP pretreatment. Confirm neutralization when pH is outside the treatment range.';
+  }
+  if (response.locationContext.contextFlags['off_channel_required'] == true) {
+    return 'Treatment must stay off-channel. Do not place treatment cells inside the main river channel.';
+  }
+  if (response.designReadiness.expertReviewRequired) {
+    return 'A qualified specialist should review the safety and site conditions before this option advances.';
+  }
+  if (response.inputSummary.observationCount == 0 || dataGaps.isNotEmpty) {
+    return 'Important data are still missing. Use this result for early screening, not engineering design.';
+  }
+  if (train?.applicabilityStatus == 'conditional') {
+    return 'This option is conditional. Follow the listed pretreatment and site checks before using it.';
+  }
+  return null;
+}
+
+({
+  List<ReadinessInput> improveResult,
+  List<ReadinessInput> beforeDesign,
+  List<ReadinessInput> fieldChecks,
+})
+_groupReadinessInputs(List<ReadinessInput> items) {
+  const improveKeys = {
+    'design_flow',
+    'available_land',
+    'bod',
+    'cod',
+    'tss',
+    'ph',
+    'nutrients',
+    'do',
+    'faecal_coliform___pathogens',
+  };
+  const fieldKeys = {
+    'site_slope',
+    'soil_infiltration',
+    'flood_risk',
+    'om_owner_capacity',
+  };
+  final improve = <ReadinessInput>[];
+  final before = <ReadinessInput>[];
+  final field = <ReadinessInput>[];
+  for (final item in items) {
+    if (improveKeys.contains(item.key)) {
+      improve.add(item);
+    } else if (fieldKeys.contains(item.key)) {
+      field.add(item);
+    } else {
+      before.add(item);
+    }
+  }
+  return (improveResult: improve, beforeDesign: before, fieldChecks: field);
+}
+
+// Retained for compatibility with older detail layouts.
+// ignore: unused_element
 Map<String, List<String>> _groupDataActions(
   RecommendationResponse response,
   TrainRecommendation? train,
@@ -7480,6 +7710,8 @@ String _trainLimitation(TrainRecommendation train) {
   return 'Site-specific design and monitoring validation remain required.';
 }
 
+// Retained for compatibility with older detail layouts.
+// ignore: unused_element
 List<String> _nextDataToCollect(
   RecommendationResponse response,
   TrainRecommendation? train,
@@ -7721,7 +7953,7 @@ String _titleFromSnake(String value) {
 
 String _readinessStatusLabel(String status) => switch (status) {
   'available' => 'Available',
-  'needs_field_verification' => 'This still needs to be checked in the field.',
+  'needs_field_verification' => 'Needs field check',
   'not_required_for_current_screening' => 'Not required for current screening',
   _ => 'Missing',
 };

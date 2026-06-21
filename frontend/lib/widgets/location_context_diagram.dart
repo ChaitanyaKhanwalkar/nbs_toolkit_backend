@@ -14,6 +14,36 @@ class LocationContextDiagram extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final highOrder = location.contextFlags['mainstem_or_high_order'] == true;
+    final hasContext =
+        location.coordinatesAvailable ||
+        location.station != null ||
+        location.river != null ||
+        location.district != null ||
+        location.basin != null;
+    if (!hasContext) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: NbsColors.softBackground,
+          border: Border.all(color: NbsColors.cardBorder),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.location_off_outlined, color: NbsColors.mutedGrey),
+            SizedBox(height: 8),
+            Text(
+              'No verified map location is available for this case.',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+            SizedBox(height: 4),
+            Text('Use the site checklist before design.'),
+          ],
+        ),
+      );
+    }
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
@@ -26,7 +56,9 @@ class LocationContextDiagram extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'River and intervention context',
+            location.coordinatesAvailable
+                ? 'Verified stored location'
+                : 'Schematic context view',
             style: Theme.of(
               context,
             ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
@@ -34,8 +66,8 @@ class LocationContextDiagram extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             location.coordinatesAvailable
-                ? 'The site marker uses verified stored coordinates. Lines and intervention positions are schematic, not surveyed geometry.'
-                : 'Verified coordinates are unavailable. This is a schematic context view, not a surveyed map.',
+                ? 'The station marker uses verified stored coordinates. The surrounding river and intervention lines remain schematic.'
+                : 'Schematic only, not a surveyed map. Verify the site position and levels before design.',
             style: Theme.of(
               context,
             ).textTheme.bodySmall?.copyWith(color: NbsColors.mutedGrey),
@@ -166,7 +198,7 @@ class _LocationContextPainter extends CustomPainter {
 
     final interception = Offset(size.width * 0.37, size.height * 0.43);
     canvas.drawCircle(interception, 7, Paint()..color = NbsColors.deepNavy);
-    _label(canvas, size, 'intervention point', 0.32, 0.50);
+    _label(canvas, size, 'Intervention point', 0.32, 0.50);
 
     if (offChannelRequired) {
       final cellRect = Rect.fromLTWH(
@@ -186,7 +218,7 @@ class _LocationContextPainter extends CustomPainter {
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2,
       );
-      _label(canvas, size, 'off-channel cell', 0.49, 0.71);
+      _label(canvas, size, 'Off-channel treatment', 0.49, 0.71);
       final returnFlow = Paint()
         ..color = NbsColors.riverTeal
         ..strokeWidth = 3
@@ -196,7 +228,7 @@ class _LocationContextPainter extends CustomPainter {
         Offset(size.width * 0.79, size.height * 0.50),
         returnFlow,
       );
-      _label(canvas, size, 'safe return', 0.75, 0.70);
+      _label(canvas, size, 'Safe return flow', 0.75, 0.70);
     }
 
     if (showSite) {
@@ -210,16 +242,16 @@ class _LocationContextPainter extends CustomPainter {
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2,
       );
-      _label(canvas, size, 'selected site', 0.28, 0.18);
+      _label(canvas, size, 'Selected site or station', 0.24, 0.14, width: 0.36);
     }
     _label(
       canvas,
       size,
-      highOrder ? 'main river' : 'river context',
+      highOrder ? 'Main river channel' : 'River / drain context',
       0.72,
       0.25,
     );
-    _label(canvas, size, 'drain / inflow', 0.08, 0.76);
+    _label(canvas, size, 'Drain or wastewater inflow', 0.04, 0.76, width: 0.36);
     if (interventionPosition != null && interventionPosition!.isNotEmpty) {
       _label(canvas, size, interventionPosition!, 0.02, 0.04, width: 0.40);
     }

@@ -36,7 +36,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('River and intervention context'), findsOneWidget);
+    expect(find.text('Schematic context view'), findsOneWidget);
     expect(find.textContaining('not a surveyed map'), findsOneWidget);
     expect(find.textContaining('Do not build treatment cells'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -59,15 +59,37 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('River and intervention context'), findsOneWidget);
+    expect(find.text('Verified stored location'), findsOneWidget);
     expect(
-      find.textContaining('schematic, not surveyed geometry'),
+      find.textContaining(
+        'surrounding river and intervention lines remain schematic',
+      ),
       findsOneWidget,
     );
     expect(
       find.textContaining('Verified location: 21.7000, 72.9000'),
       findsOneWidget,
     );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('missing location renders the explicit no-map state', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: LocationContextDiagram(location: LocationContext.fromJson({})),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('No verified map location is available for this case.'),
+      findsOneWidget,
+    );
+    expect(find.text('Use the site checklist before design.'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

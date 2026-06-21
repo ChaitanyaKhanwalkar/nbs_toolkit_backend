@@ -306,6 +306,8 @@ class SizingEstimate {
     required this.trainId,
     required this.trainName,
     required this.basis,
+    required this.flowStatus,
+    required this.sizingConfidence,
     required this.estimateLabel,
     required this.estimatedAreaLowM2,
     required this.estimatedAreaHighM2,
@@ -314,6 +316,7 @@ class SizingEstimate {
     required this.fullComponentCoverage,
     required this.inputsUsed,
     required this.missingInputs,
+    required this.keyAssumptions,
     required this.designCaution,
     required this.sourceIds,
   });
@@ -321,6 +324,8 @@ class SizingEstimate {
   final int trainId;
   final String trainName;
   final String basis;
+  final String flowStatus;
+  final String sizingConfidence;
   final String estimateLabel;
   final double? estimatedAreaLowM2;
   final double? estimatedAreaHighM2;
@@ -329,6 +334,7 @@ class SizingEstimate {
   final bool fullComponentCoverage;
   final List<String> inputsUsed;
   final List<String> missingInputs;
+  final List<String> keyAssumptions;
   final String designCaution;
   final List<int> sourceIds;
 
@@ -336,6 +342,11 @@ class SizingEstimate {
     trainId: _intValue(json['train_id']),
     trainName: _stringValue(json['train_name'], fallback: 'Treatment train'),
     basis: _stringValue(json['basis'], fallback: 'insufficient_data'),
+    flowStatus: _stringValue(json['flow_status'], fallback: 'missing'),
+    sizingConfidence: _stringValue(
+      json['sizing_confidence'],
+      fallback: 'insufficient_data',
+    ),
     estimateLabel: _stringValue(
       json['estimate_label'],
       fallback: 'Not enough information for a bounded estimate',
@@ -347,6 +358,7 @@ class SizingEstimate {
     fullComponentCoverage: json['full_component_coverage'] == true,
     inputsUsed: _stringList(json['inputs_used']),
     missingInputs: _stringList(json['missing_inputs']),
+    keyAssumptions: _stringList(json['key_assumptions']),
     designCaution: _stringValue(json['design_caution']),
     sourceIds: _intList(json['source_ids']),
   );
@@ -445,6 +457,9 @@ class ComparisonOption {
     required this.omIntensity,
     required this.applicabilityStatus,
     required this.warnings,
+    required this.keyStrength,
+    required this.keyLimitation,
+    required this.whenToChoose,
   });
 
   final int trainId;
@@ -459,25 +474,33 @@ class ComparisonOption {
   final String omIntensity;
   final String? applicabilityStatus;
   final List<String> warnings;
+  final String? keyStrength;
+  final String? keyLimitation;
+  final String whenToChoose;
 
-  factory ComparisonOption.fromJson(Map<String, dynamic> json) =>
-      ComparisonOption(
-        trainId: _intValue(json['train_id']),
-        name: _stringValue(json['name'], fallback: 'Treatment train'),
-        rank: _intValue(json['rank']),
-        technicalMatch: _nullableDouble(json['technical_match']),
-        resultConfidence: _nullableDouble(json['result_confidence']),
-        confidenceLabel: _nullableString(json['confidence_label']),
-        designReadiness: _nullableString(json['design_readiness']),
-        landDemand: _nullableString(json['land_demand']),
-        landFit: _stringValue(json['land_fit'], fallback: 'insufficient_data'),
-        omIntensity: _stringValue(
-          json['om_intensity'],
-          fallback: 'Not recorded',
-        ),
-        applicabilityStatus: _nullableString(json['applicability_status']),
-        warnings: _stringList(json['warnings']),
-      );
+  factory ComparisonOption.fromJson(
+    Map<String, dynamic> json,
+  ) => ComparisonOption(
+    trainId: _intValue(json['train_id']),
+    name: _stringValue(json['name'], fallback: 'Treatment train'),
+    rank: _intValue(json['rank']),
+    technicalMatch: _nullableDouble(json['technical_match']),
+    resultConfidence: _nullableDouble(json['result_confidence']),
+    confidenceLabel: _nullableString(json['confidence_label']),
+    designReadiness: _nullableString(json['design_readiness']),
+    landDemand: _nullableString(json['land_demand']),
+    landFit: _stringValue(json['land_fit'], fallback: 'insufficient_data'),
+    omIntensity: _stringValue(json['om_intensity'], fallback: 'Not recorded'),
+    applicabilityStatus: _nullableString(json['applicability_status']),
+    warnings: _stringList(json['warnings']),
+    keyStrength: _nullableString(json['key_strength']),
+    keyLimitation: _nullableString(json['key_limitation']),
+    whenToChoose: _stringValue(
+      json['when_to_choose'],
+      fallback:
+          'Choose after confirming flow, land, site conditions, and pretreatment requirements.',
+    ),
+  );
 }
 
 class ComparisonTakeaway {

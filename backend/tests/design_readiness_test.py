@@ -129,6 +129,19 @@ def test_preliminary_design_requires_explicit_design_and_site_inputs() -> None:
     assert result["expert_review_required"] is True
 
 
+def test_unit_explicit_flow_and_land_keys_are_recognized() -> None:
+    """Frontend sizing keys must count as supplied readiness inputs."""
+
+    result = _assess(
+        {"bod": 80, "cod": 200, "tss": 120, "ph": 7.2},
+        context={"design_flow_m3_d": 10, "available_land_m2": 500},
+    )
+    checklist = {item["key"]: item["status"] for item in result["input_checklist"]}
+
+    assert checklist["design_flow"] == "available"
+    assert checklist["available_land"] == "available"
+
+
 def test_location_context_never_invents_coordinates() -> None:
     """A station label without a verified profile must not create a map point."""
 

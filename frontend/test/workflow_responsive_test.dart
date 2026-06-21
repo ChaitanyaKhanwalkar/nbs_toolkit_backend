@@ -46,6 +46,12 @@ void main() {
     expect(find.text('Pollution source context'), findsOneWidget);
     expect(find.text('Intervention position'), findsOneWidget);
     expect(find.text('Narmada site / station'), findsOneWidget);
+    expect(
+      find.text(
+        'No site was selected. The result uses only the selected pollution-source context.',
+      ),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -138,14 +144,17 @@ void main() {
         {
           'train_id': 1,
           'train_name': 'DEWATS modular train',
-          'basis': 'population_equivalent',
+          'basis': 'design_flow',
+          'flow_status': 'supplied',
+          'sizing_confidence': 'screening_band',
           'estimate_label': 'Approximately 240-400 m2',
           'estimated_area_low_m2': 240,
           'estimated_area_high_m2': 400,
           'land_fit': 'borderline',
           'full_component_coverage': true,
           'inputs_used': ['Population equivalent: 100 people'],
-          'missing_inputs': ['Confirm design flow'],
+          'missing_inputs': ['Confirm peak flow'],
+          'key_assumptions': ['The supplied design flow reaches each unit.'],
           'design_caution': 'This is a screening estimate.',
           'source_ids': [30],
         },
@@ -165,6 +174,10 @@ void main() {
             'land_fit': 'borderline',
             'om_intensity': 'Moderate',
             'warnings': ['Keep the train off-channel.'],
+            'key_strength': 'Suitable for decentralized treatment.',
+            'key_limitation': 'Keep the train off-channel.',
+            'when_to_choose':
+                'Choose only for an off-channel layout with safe return flow.',
           },
         ],
         'component_options': [
@@ -228,11 +241,14 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('What we recommend'), findsOneWidget);
+    expect(find.text('Recommended option'), findsOneWidget);
     expect(find.text('Pollutant gaps and train coverage'), findsNothing);
     expect(find.text('Report and export'), findsNothing);
     expect(find.text('Design readiness'), findsOneWidget);
     expect(find.text('Expert review needed'), findsOneWidget);
+    expect(find.byIcon(Icons.warning_amber_outlined), findsWidgets);
+    expect(find.text('Estimate land'), findsOneWidget);
+    expect(find.text('View diagrams'), findsOneWidget);
     await tester.ensureVisible(find.text('Export'));
     await tester.tap(find.text('Export'));
     await tester.pumpAndSettle();
@@ -255,11 +271,14 @@ void main() {
     await tester.tap(find.text('Site and design checks'));
     await tester.pumpAndSettle();
     expect(find.text('Location intelligence'), findsOneWidget);
-    expect(find.text('River and intervention context'), findsOneWidget);
+    expect(find.text('Schematic context view'), findsOneWidget);
     expect(tester.takeException(), isNull);
-    expect(find.text('Information still needed before design'), findsWidgets);
+    expect(find.text('Your input plan'), findsOneWidget);
+    expect(find.text('Needed to improve this result'), findsOneWidget);
+    expect(find.text('Needed before engineering design'), findsOneWidget);
+    expect(find.text('Field checks'), findsOneWidget);
     expect(find.text('Flow rate / design flow'), findsWidgets);
-    expect(find.textContaining('checked in the field'), findsWidgets);
+    expect(find.text('Needs field check'), findsWidgets);
     expect(tester.takeException(), isNull);
     await tester.ensureVisible(find.text('Sizing'));
     await tester.tap(find.text('Sizing'));
@@ -271,6 +290,16 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Best overall fit'), findsOneWidget);
     expect(find.text('Supporting component comparison'), findsOneWidget);
+    await tester.ensureVisible(find.text('Why this result'));
+    await tester.tap(find.text('Why this result'));
+    await tester.pumpAndSettle();
+    expect(find.text('Show technical details'), findsOneWidget);
+    expect(find.textContaining('A0 applicability screening'), findsNothing);
+    await tester.ensureVisible(find.text('Show technical details'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Show technical details'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('A0 applicability screening'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

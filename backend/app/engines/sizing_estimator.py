@@ -68,19 +68,15 @@ def _estimate_train(
     basis = "insufficient_data"
     coverage_count = 0
     inputs_used: list[str] = []
-    if population is not None and pe_band[0] is not None:
-        estimate_low = pe_band[0] * population
-        estimate_high = pe_band[1] * population
-        coverage_count = pe_band[2]
-        basis = "population_equivalent"
-        inputs_used.append(f"Population equivalent: {population:g}")
-    elif design_flow is not None and flow_band[0] is not None:
+    if design_flow is not None and flow_band[0] is not None:
         estimate_low, estimate_high, coverage_count = flow_band
         basis = "design_flow"
         inputs_used.append(f"Design flow: {design_flow:g} m3/day")
     elif pe_band[0] is not None:
         coverage_count = pe_band[2]
         basis = "area_per_person_band"
+    if population is not None:
+        inputs_used.append(f"Population equivalent: {population:g}")
 
     full_coverage = component_count > 0 and coverage_count == component_count
     if available_land is not None:
@@ -92,8 +88,8 @@ def _estimate_train(
         full_coverage=full_coverage,
     )
     missing = []
-    if population is None and design_flow is None:
-        missing.append("Design flow or population equivalent")
+    if design_flow is None:
+        missing.append("Design flow")
     if available_land is None:
         missing.append("Available land")
     if not full_coverage:
@@ -119,6 +115,12 @@ def _estimate_train(
         "train_id": int(train["train_id"]),
         "train_name": train.get("name"),
         "basis": basis,
+        "flow_status": "supplied" if design_flow is not None else "missing",
+        "sizing_confidence": (
+            "screening_band"
+            if estimate_low is not None and full_coverage
+            else "insufficient_data"
+        ),
         "estimate_label": estimate_label,
         "estimated_area_low_m2": estimate_low,
         "estimated_area_high_m2": estimate_high,
@@ -129,6 +131,12 @@ def _estimate_train(
         "train_component_count": component_count,
         "inputs_used": inputs_used,
         "missing_inputs": missing,
+        "key_assumptions": [
+            "Every component with a stored hydraulic loading rate receives the supplied design flow.",
+            "No allowance for peak flow, setbacks, access, freeboard, or ancillary works is added.",
+        ]
+        if estimate_low is not None
+        else [],
         "design_caution": (
             "This is a screening estimate from stored component footprint evidence. "
             "Final sizing needs confirmed flow, pollutant loads, levels, soil, and a site survey."
@@ -214,8 +222,10 @@ def _estimate_label(
         prefix = "Estimated" if full_coverage else "Known components only"
         return f"{prefix}: {estimate_low:,.0f}-{estimate_high:,.0f} m2"
     if per_person_label is not None:
-        prefix = "Stored band" if full_coverage else "Known components"
-        return f"{prefix}: {per_person_label}"
+        prefix = (
+            "Stored footprint band" if full_coverage else "Known components only"
+        )
+        return f"{prefix}: {per_person_label}; provide design flow for an area estimate"
     return "Not enough footprint evidence for a bounded estimate"
 
 

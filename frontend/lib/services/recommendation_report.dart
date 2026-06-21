@@ -28,6 +28,9 @@ class RecommendationReport {
         ? null
         : response.rankedTrains.first;
     final input = response.inputSummary;
+    final readinessGroups = _groupReadinessForReport(
+      response.designReadiness.inputChecklist,
+    );
     final evidence = [
       for (final citation in response.citations)
         {
@@ -71,6 +74,7 @@ class RecommendationReport {
         'site_and_source_context': input.context,
       },
       'location_context': {
+        'map_status': _mapStatus(response.locationContext),
         'station': response.locationContext.station,
         'river': response.locationContext.river,
         'district': response.locationContext.district,
@@ -101,6 +105,7 @@ class RecommendationReport {
           for (final item in response.designReadiness.inputChecklist)
             {'key': item.key, 'label': item.label, 'status': item.status},
         ],
+        'grouped_input_checklist': readinessGroups,
       },
       'recommended_treatment_train': trainPayload,
       'sizing_and_land': [
@@ -109,6 +114,8 @@ class RecommendationReport {
             'train_id': estimate.trainId,
             'train_name': estimate.trainName,
             'basis': estimate.basis,
+            'flow_status': estimate.flowStatus,
+            'sizing_confidence': estimate.sizingConfidence,
             'estimated_land_need': estimate.estimateLabel,
             'estimated_area_low_m2': estimate.estimatedAreaLowM2,
             'estimated_area_high_m2': estimate.estimatedAreaHighM2,
@@ -117,6 +124,7 @@ class RecommendationReport {
             'full_component_coverage': estimate.fullComponentCoverage,
             'inputs_used': estimate.inputsUsed,
             'missing_inputs': estimate.missingInputs,
+            'key_assumptions': estimate.keyAssumptions,
             'design_caution': estimate.designCaution,
             'evidence_record_ids': estimate.sourceIds,
           },
@@ -139,6 +147,9 @@ class RecommendationReport {
               'operation_and_maintenance': option.omIntensity,
               'applicability_status': option.applicabilityStatus,
               'warnings': option.warnings,
+              'key_strength': option.keyStrength,
+              'key_limitation': option.keyLimitation,
+              'when_to_choose': option.whenToChoose,
             },
         ],
         'component_options': [
@@ -199,8 +210,11 @@ String _buildSummary(
     'Method: criteria-weighted TOPSIS after applicability screening',
     '',
     'Input basis: ${_workflowLabel(response.inputSummary.workflowMode)}',
-    'Water-quality values used: ${response.inputSummary.dataUsed.length}',
+    response.inputSummary.dataUsed.isEmpty
+        ? 'No recent water-quality values were supplied.'
+        : '${response.inputSummary.dataUsed.length} recent water-quality values informed this result.',
     'Site context: ${response.locationContext.station ?? response.locationContext.district ?? 'Not selected'}',
+    'Location display: ${_mapStatus(response.locationContext)}',
     'Design readiness: ${response.designReadiness.shortLabel}',
     response.designReadiness.explanation,
   ];
@@ -351,6 +365,57 @@ String _workflowLabel(String? value) => switch (value) {
 String _confidenceLabel(TrainRecommendation train) {
   if ((train.confidenceScore ?? 0) <= 0) return 'Data-limited';
   return train.confidencePercent;
+}
+
+String _mapStatus(LocationContext location) {
+  if (location.coordinatesAvailable) return 'Verified stored location';
+  if (location.station != null ||
+      location.river != null ||
+      location.district != null ||
+      location.basin != null) {
+    return 'Schematic context only; not a surveyed map';
+  }
+  return 'No verified map location is available';
+}
+
+Map<String, List<Map<String, String>>> _groupReadinessForReport(
+  List<ReadinessInput> items,
+) {
+  const improveKeys = {
+    'design_flow',
+    'available_land',
+    'bod',
+    'cod',
+    'tss',
+    'ph',
+    'nutrients',
+    'do',
+    'faecal_coliform___pathogens',
+  };
+  const fieldKeys = {
+    'site_slope',
+    'soil_infiltration',
+    'flood_risk',
+    'om_owner_capacity',
+  };
+  final result = <String, List<Map<String, String>>>{
+    'needed_to_improve_result': [],
+    'needed_before_engineering_design': [],
+    'field_checks': [],
+  };
+  for (final item in items) {
+    final key = improveKeys.contains(item.key)
+        ? 'needed_to_improve_result'
+        : fieldKeys.contains(item.key)
+        ? 'field_checks'
+        : 'needed_before_engineering_design';
+    result[key]!.add({
+      'key': item.key,
+      'label': item.label,
+      'status': item.status,
+    });
+  }
+  return result;
 }
 
 String _title(String value) => value

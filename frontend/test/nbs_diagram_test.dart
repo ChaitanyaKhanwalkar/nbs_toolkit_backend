@@ -28,9 +28,11 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Vertical Flow Wetland'), findsOneWidget);
-    expect(find.text('How it works'), findsOneWidget);
-    expect(find.text('What to watch for'), findsOneWidget);
-    await tester.tap(find.text('How it works'));
+    expect(find.text('What it shows'), findsOneWidget);
+    expect(find.text('When to use'), findsOneWidget);
+    expect(find.text('Watch out for'), findsOneWidget);
+    expect(find.text('Design notes'), findsOneWidget);
+    await tester.tap(find.text('Design notes'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Distribution pipes'), findsOneWidget);
     expect(tester.takeException(), isNull);

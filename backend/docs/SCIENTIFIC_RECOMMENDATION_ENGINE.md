@@ -804,9 +804,10 @@ Use these labels in code/docs:
 
 The API may also return two post-ranking interpretation objects:
 
-- `sizing_estimates` uses only supplied flow or population and canonical
-  footprint evidence. It is a bounded screening estimate, not engineering
-  design.
+- `sizing_estimates` uses supplied design flow and canonical hydraulic-loading
+  evidence for absolute area bands. Population-only cases may show a stored
+  per-person footprint band, but no absolute area or land-fit claim. It is a
+  screening estimate, not engineering design.
 - `scenario_comparison` summarizes the current ranked alternatives without
   changing rank and lists supporting components without treating them as train
   replacements. Different input scenarios must be run independently.

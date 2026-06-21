@@ -37,13 +37,6 @@ class NbsDiagramCard extends StatelessWidget {
               context,
             ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
           ),
-          const SizedBox(height: 3),
-          Text(
-            copy.fit,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: const Color(0xFF52636D)),
-          ),
           const SizedBox(height: 10),
           AspectRatio(
             aspectRatio: 2.1,
@@ -55,14 +48,22 @@ class NbsDiagramCard extends StatelessWidget {
           ),
           const SizedBox(height: 9),
           Text(
+            'What it shows',
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 4),
+          Text(
             copy.explanation,
             style: Theme.of(
               context,
             ).textTheme.bodyMedium?.copyWith(height: 1.4),
           ),
           const SizedBox(height: 6),
-          _DiagramDisclosure(title: 'How it works', values: copy.howItWorks),
-          _DiagramDisclosure(title: 'What to watch for', values: copy.watchFor),
+          _DiagramDisclosure(title: 'When to use', values: [copy.fit]),
+          _DiagramDisclosure(title: 'Watch out for', values: copy.watchFor),
+          _DiagramDisclosure(title: 'Design notes', values: copy.howItWorks),
         ],
       ),
     );
