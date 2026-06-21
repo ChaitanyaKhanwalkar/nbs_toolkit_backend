@@ -234,6 +234,10 @@ def run_local_recommendation_workflow(
         "sizing_estimates": sizing_estimates,
         "scenario_comparison": scenario_comparison,
         "input_summary": input_summary,
+        "parameter_coverage": _parameter_coverage(
+            input_summary,
+            train_result["ranked_trains"],
+        ),
         "contaminant_gaps": _contaminant_gaps(payload),
         "ranked_trains": train_result["ranked_trains"],
         "component_recommendations": component_result["recommendations"],
@@ -400,6 +404,59 @@ def _input_summary(payload: dict[str, Any]) -> dict[str, Any]:
         ],
         "context": normalized_input.get("context") or {},
     }
+
+
+def _parameter_coverage(
+    input_summary: dict[str, Any],
+    ranked_trains: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Summarize recognized and skipped input rows without hiding any value."""
+
+    top_breakdown = (
+        ranked_trains[0].get("pollutant_gap_breakdown") or []
+        if ranked_trains
+        else []
+    )
+    breakdown_by_parameter = {
+        str(row.get("parameter") or "").lower(): row for row in top_breakdown
+    }
+    rows = []
+    for observation in input_summary.get("data_used") or []:
+        parameter = str(observation.get("parameter") or "").lower()
+        gap = breakdown_by_parameter.get(parameter) or {}
+        category = gap.get("coverage_category") or "read_not_assessed"
+        rows.append(
+            {
+                **observation,
+                "coverage_category": category,
+                "coverage_label": gap.get("coverage_label")
+                or "Read, but not scored yet.",
+                "treatment_evidence_status": (
+                    "available"
+                    if gap.get("train_addresses_parameter") is True
+                    else "insufficient"
+                ),
+            }
+        )
+    csv_summary = (input_summary.get("context") or {}).get(
+        "csv_validation_summary"
+    )
+    if isinstance(csv_summary, dict):
+        for field in ("unknown_parameters", "non_numeric_values"):
+            for warning in csv_summary.get(field) or []:
+                rows.append(
+                    {
+                        "parameter": None,
+                        "display_name": str(warning),
+                        "value": None,
+                        "unit": None,
+                        "source": "user_csv",
+                        "coverage_category": "skipped",
+                        "coverage_label": "Not recognized or skipped.",
+                        "treatment_evidence_status": "not_applicable",
+                    }
+                )
+    return rows
 
 
 def _contaminant_gaps(payload: dict[str, Any]) -> list[dict[str, Any]]:

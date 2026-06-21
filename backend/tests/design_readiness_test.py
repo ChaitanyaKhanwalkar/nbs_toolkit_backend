@@ -41,7 +41,7 @@ def test_complete_core_panel_is_at_least_planning_level() -> None:
     result = _assess({"bod": 80, "cod": 200, "tss": 120, "ph": 7.2})
     assert result["level"] == "planning_level_result"
     assert result["short_label"] == "Ready for planning"
-    assert "Flow rate / design flow" in result["missing_inputs"]
+    assert "Treatment design flow" in result["missing_inputs"]
 
 
 def test_one_parameter_input_remains_early_screening() -> None:
@@ -140,6 +140,39 @@ def test_unit_explicit_flow_and_land_keys_are_recognized() -> None:
 
     assert checklist["design_flow"] == "available"
     assert checklist["available_land"] == "available"
+
+
+def test_river_discharge_does_not_satisfy_treatment_design_flow() -> None:
+    """Ambient receiving-water flow must stay separate from plant design flow."""
+
+    result = _assess(
+        {"bod": 80, "cod": 200, "tss": 120, "ph": 7.2},
+        location={
+            "river_discharge_cms": 125,
+            "context_flags": {"mainstem_or_high_order": False},
+        },
+    )
+    checklist = {item["key"]: item["status"] for item in result["input_checklist"]}
+
+    assert checklist["design_flow"] == "not_supplied"
+    assert checklist["river_discharge_context"] == "available"
+
+
+def test_mapped_slope_and_soil_require_field_verification() -> None:
+    """Stored spatial context is useful but must not look field-verified."""
+
+    result = _assess(
+        location={
+            "slope_mean": 2.1,
+            "soil_type": "stored soil class",
+            "context_flags": {"mainstem_or_high_order": False},
+        }
+    )
+    checklist = {item["key"]: item["status"] for item in result["input_checklist"]}
+
+    assert checklist["site_slope"] == "mapped_context_verify"
+    assert checklist["soil_infiltration"] == "mapped_context_verify"
+    assert checklist["available_land"] == "not_supplied"
 
 
 def test_location_context_never_invents_coordinates() -> None:
@@ -245,6 +278,10 @@ def test_recommendation_api_returns_location_and_readiness_objects() -> None:
                 "workflow_mode": "uploaded_water_quality",
                 "pollution_source_type": "domestic_sewage",
                 "intervention_position": "off_channel_or_stp_polishing",
+                "csv_validation_summary": {
+                    "unknown_parameters": ["Row 9: colour"],
+                    "non_numeric_values": [],
+                },
             },
         },
     )
@@ -256,3 +293,12 @@ def test_recommendation_api_returns_location_and_readiness_objects() -> None:
     assert payload["design_readiness"]["input_checklist"]
     assert payload["sizing_estimates"]
     assert payload["scenario_comparison"]["options"]
+    assert any(
+        row["coverage_category"] == "used_in_scoring"
+        for row in payload["parameter_coverage"]
+    )
+    assert any(
+        row["coverage_category"] == "skipped"
+        and "colour" in row["display_name"]
+        for row in payload["parameter_coverage"]
+    )

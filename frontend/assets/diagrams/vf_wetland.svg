@@ -1,0 +1,8 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 300">
+  <rect width="640" height="300" fill="#F7FAFC"/><rect x="120" y="82" width="400" height="150" rx="8" fill="#D8C2A4" stroke="#17324D" stroke-width="3"/>
+  <rect x="120" y="178" width="400" height="54" fill="#D9E7EA"/><path d="M85 110h70M485 248h82" stroke="#168AAD" stroke-width="10" fill="none"/><path d="M210 105v95m110-95v95m110-95v95" stroke="#168AAD" stroke-width="5"/>
+  <g stroke="#2E7D4F" stroke-width="5"><path d="M190 82V45m0 18-14-14m14 10 14-14M320 82V42m0 20-14-14m14 10 14-14M450 82V45m0 18-14-14m14 10 14-14"/></g>
+  
+  <g font-family="Inter,Arial" font-size="17" fill="#17324D"><text x="26" y="100">Inlet</text><text x="245" y="28">Planted media</text><text x="275" y="150">Downflow</text><text x="270" y="266">Underdrain</text><text x="548" y="241">Outlet</text></g>
+<polygon points="202,192 210,208 218,192" fill="#168AAD"/><polygon points="312,192 320,208 328,192" fill="#168AAD"/><polygon points="422,192 430,208 438,192" fill="#168AAD"/></svg>
+

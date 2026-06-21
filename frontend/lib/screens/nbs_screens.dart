@@ -83,29 +83,29 @@ class SplashScreen extends StatelessWidget {
                       const SizedBox(height: 28),
                       Text(
                         'NbS Toolkit',
-                        style: Theme.of(context).textTheme.displaySmall
-                            ?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w800,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.displaySmall?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                ),
                       ),
                       const SizedBox(height: 10),
                       Text(
                         'Guided by Nature, Powered by Science',
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(
-                              color: const Color(0xFFE0F2FE),
-                              fontWeight: FontWeight.w600,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  color: const Color(0xFFE0F2FE),
+                                  fontWeight: FontWeight.w600,
+                                ),
                       ),
                       const SizedBox(height: 14),
                       Text(
                         'Narmada Basin Decision Support Prototype',
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(
-                              color: const Color(0xFFBFD7EA),
-                              fontWeight: FontWeight.w500,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  color: const Color(0xFFBFD7EA),
+                                  fontWeight: FontWeight.w500,
+                                ),
                       ),
                       const SizedBox(height: 36),
                       SizedBox(
@@ -176,34 +176,32 @@ class HomeDashboard extends StatelessWidget {
               final isWide = constraints.maxWidth > 860;
               final cards = [
                 _ActionCard(
-                  title: 'Measured Water Quality',
-                  description:
-                      'Active - start a recommendation from lab values.',
+                  title: 'Start with measured values',
+                  description: 'Enter lab or field water-quality values.',
                   icon: Icons.analytics_outlined,
                   color: NbsColors.researchBlue,
                   onTap: onStartRecommendation,
                   emphasized: true,
                 ),
                 _ActionCard(
-                  title: 'Select Narmada Site/Station',
-                  description:
-                      'Choose a stored Narmada station and review its river context.',
+                  title: 'Start from a Narmada station',
+                  description: 'Use stored station and site context.',
                   icon: Icons.place_outlined,
                   color: NbsColors.riverTeal,
                   onTap: onSelectSite,
                 ),
                 _ActionCard(
-                  title: 'Pollution Source Screening',
+                  title: 'Start from pollution source',
                   description:
-                      'Screen domestic, agricultural, or industrial context.',
+                      'Screen domestic, agricultural, or industrial source contexts.',
                   icon: Icons.manage_search_outlined,
                   color: NbsColors.wetlandGreen,
                   onTap: onPollutionScreening,
                 ),
                 _ActionCard(
-                  title: 'Upload Water Data',
+                  title: 'Upload a water-quality file',
                   description:
-                      'Upload parameter, value, unit CSV data for gap analysis.',
+                      'Upload a CSV file with parameter and value columns.',
                   icon: Icons.upload_file_outlined,
                   color: NbsColors.warningAmber,
                   onTap: onUploadWater,
@@ -230,6 +228,8 @@ class HomeDashboard extends StatelessWidget {
               );
             },
           ),
+          const SizedBox(height: 18),
+          const _HowItWorksStrip(),
           const SizedBox(height: 18),
           const _StatusPanel(),
         ],
@@ -318,19 +318,16 @@ class _AnalysisSetupScreenState extends State<AnalysisSetupScreen> {
   @override
   void initState() {
     super.initState();
-    widget.api
-        .listSites()
-        .then((value) {
-          if (mounted) {
-            setState(() {
-              _sites = value;
-              _loadingSites = false;
-            });
-          }
-        })
-        .catchError((_) {
-          if (mounted) setState(() => _loadingSites = false);
+    widget.api.listSites().then((value) {
+      if (mounted) {
+        setState(() {
+          _sites = value;
+          _loadingSites = false;
         });
+      }
+    }).catchError((_) {
+      if (mounted) setState(() => _loadingSites = false);
+    });
   }
 
   @override
@@ -433,8 +430,7 @@ class _AnalysisSetupScreenState extends State<AnalysisSetupScreen> {
     if (_isMeasuredMode && !(_formKey.currentState?.validate() ?? false)) {
       return;
     }
-    final observations =
-        _uploaded ??
+    final observations = _uploaded ??
         (_isMeasuredMode ? _manualObservations() : <Map<String, dynamic>>[]);
     if (_isMeasuredMode && observations.isEmpty) {
       setState(() => _localError = 'Enter at least one measured parameter.');
@@ -546,268 +542,277 @@ class _AnalysisSetupScreenState extends State<AnalysisSetupScreen> {
   }
 
   Widget _siteSelector() => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      DropdownButtonFormField<SiteOption>(
-        isExpanded: true,
-        initialValue: _site,
-        decoration: InputDecoration(
-          labelText: _loadingSites
-              ? 'Loading stations...'
-              : 'Narmada site / station',
-          prefixIcon: const Icon(Icons.place_outlined),
-        ),
-        items: [
-          for (final site in _sites)
-            DropdownMenuItem(
-              value: site,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          DropdownButtonFormField<SiteOption>(
+            isExpanded: true,
+            initialValue: _site,
+            decoration: InputDecoration(
+              labelText: _loadingSites
+                  ? 'Loading stations...'
+                  : 'Narmada site / station',
+              prefixIcon: const Icon(Icons.place_outlined),
+            ),
+            items: [
+              for (final site in _sites)
+                DropdownMenuItem(
+                  value: site,
+                  child: Text(
+                    site.station,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+            ],
+            onChanged: _selectSite,
+          ),
+          if (_pollutionCount != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
               child: Text(
-                site.station,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                'The toolkit found $_pollutionCount stored pollution-source records for this area.',
               ),
             ),
-        ],
-        onChanged: _selectSite,
-      ),
-      if (_pollutionCount != null)
-        Padding(
-          padding: const EdgeInsets.only(top: 8),
-          child: Text(
-            'The toolkit found $_pollutionCount stored pollution-source records for this area.',
-          ),
-        ),
-      if (_site != null) ...[
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            if (_site!.streamOrder != null)
-              _ContextChip(
-                label: 'Stream order',
-                value: '${_site!.streamOrder}',
-              ),
-            if (_site!.dischargeCms != null)
-              _ContextChip(
-                label: 'Natural discharge',
-                value: '${_site!.dischargeCms!.toStringAsFixed(1)} m3/s',
-              ),
-            if (_site!.drainageAreaKm2 != null)
-              _ContextChip(
-                label: 'Drainage area',
-                value: '${_site!.drainageAreaKm2!.toStringAsFixed(0)} km2',
-              ),
+          if (_site != null) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (_site!.streamOrder != null)
+                  _ContextChip(
+                    label: 'Stream order',
+                    value: '${_site!.streamOrder}',
+                  ),
+                if (_site!.dischargeCms != null)
+                  _ContextChip(
+                    label: 'River discharge context',
+                    value: '${_site!.dischargeCms!.toStringAsFixed(1)} m³/s',
+                  ),
+                if (_site!.drainageAreaKm2 != null)
+                  _ContextChip(
+                    label: 'Drainage area',
+                    value: '${_site!.drainageAreaKm2!.toStringAsFixed(0)} km²',
+                  ),
+              ],
+            ),
           ],
-        ),
-      ],
-    ],
-  );
+        ],
+      );
 
   Widget _sourceAndPositionSelectors() => LayoutBuilder(
-    builder: (context, constraints) {
-      final sourceField = DropdownButtonFormField<String>(
-        isExpanded: true,
-        initialValue: _source,
-        decoration: const InputDecoration(
-          labelText: 'Pollution source context',
-        ),
-        items: const [
-          DropdownMenuItem(
-            value: 'domestic_sewage',
-            child: Text('Domestic sewage'),
-          ),
-          DropdownMenuItem(
-            value: 'high_agriculture_only_no_water_data',
-            child: Text('Agricultural runoff'),
-          ),
-          DropdownMenuItem(
-            value: 'industrial_or_mixed_industrial',
-            child: Text('Industrial / mixed industrial'),
-          ),
-        ],
-        onChanged: (value) => setState(() => _source = value!),
-      );
-      final positionField = DropdownButtonFormField<String>(
-        isExpanded: true,
-        initialValue: _position,
-        decoration: const InputDecoration(labelText: 'Intervention position'),
-        items: const [
-          DropdownMenuItem(
-            value: 'off_channel_or_stp_polishing',
-            child: Text('Off-channel / STP polishing'),
-          ),
-          DropdownMenuItem(value: 'in_channel', child: Text('In-channel')),
-          DropdownMenuItem(
-            value: 'standalone_primary_treatment',
-            child: Text('Standalone primary treatment'),
-          ),
-        ],
-        onChanged: (value) => setState(() => _position = value!),
-      );
-      if (constraints.maxWidth < 680) {
-        return Column(
-          children: [sourceField, const SizedBox(height: 12), positionField],
-        );
-      }
-      return Row(
-        children: [
-          Expanded(child: sourceField),
-          const SizedBox(width: 12),
-          Expanded(child: positionField),
-        ],
-      );
-    },
-  );
-
-  Widget _planningInputsPanel() => AppCard(
-    padding: EdgeInsets.zero,
-    child: ExpansionTile(
-      tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-      childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-      leading: const Icon(
-        Icons.square_foot_outlined,
-        color: NbsColors.researchBlue,
-      ),
-      title: const Text(
-        'Optional sizing information',
-        style: TextStyle(fontWeight: FontWeight.w800),
-      ),
-      subtitle: const Text(
-        'Add flow, people served, or available land when known.',
-      ),
-      children: [
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final fields = [
-              _NumberField(
-                controller: _designFlow,
-                label: 'Design flow',
-                suffix: 'm3/day',
-                helper: 'Average flow to be treated',
-                requiredField: false,
+        builder: (context, constraints) {
+          final sourceField = DropdownButtonFormField<String>(
+            isExpanded: true,
+            initialValue: _source,
+            decoration: const InputDecoration(
+              labelText: 'Pollution source context',
+            ),
+            items: const [
+              DropdownMenuItem(
+                value: 'domestic_sewage',
+                child: Text('Domestic sewage'),
               ),
-              _NumberField(
-                controller: _populationEquivalent,
-                label: 'People served',
-                suffix: '',
-                helper: 'Population equivalent',
-                requiredField: false,
+              DropdownMenuItem(
+                value: 'high_agriculture_only_no_water_data',
+                child: Text('Agricultural runoff'),
               ),
-              _NumberField(
-                controller: _availableLand,
-                label: 'Available land',
-                suffix: 'm2',
-                helper: 'Usable treatment area',
-                requiredField: false,
+              DropdownMenuItem(
+                value: 'industrial_or_mixed_industrial',
+                child: Text('Industrial / mixed industrial'),
               ),
-            ];
-            if (constraints.maxWidth < 760) {
-              return Column(
-                children: [
-                  for (var index = 0; index < fields.length; index++) ...[
-                    fields[index],
-                    if (index < fields.length - 1) const SizedBox(height: 10),
-                  ],
-                ],
-              );
-            }
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            ],
+            onChanged: (value) => setState(() => _source = value!),
+          );
+          final positionField = DropdownButtonFormField<String>(
+            isExpanded: true,
+            initialValue: _position,
+            decoration:
+                const InputDecoration(labelText: 'Intervention position'),
+            items: const [
+              DropdownMenuItem(
+                value: 'off_channel_or_stp_polishing',
+                child: Text('Off-channel / STP polishing'),
+              ),
+              DropdownMenuItem(value: 'in_channel', child: Text('In-channel')),
+              DropdownMenuItem(
+                value: 'standalone_primary_treatment',
+                child: Text('Standalone primary treatment'),
+              ),
+            ],
+            onChanged: (value) => setState(() => _position = value!),
+          );
+          if (constraints.maxWidth < 680) {
+            return Column(
               children: [
-                for (var index = 0; index < fields.length; index++) ...[
-                  Expanded(child: fields[index]),
-                  if (index < fields.length - 1) const SizedBox(width: 10),
-                ],
+                sourceField,
+                const SizedBox(height: 12),
+                positionField
               ],
             );
-          },
+          }
+          return Row(
+            children: [
+              Expanded(child: sourceField),
+              const SizedBox(width: 12),
+              Expanded(child: positionField),
+            ],
+          );
+        },
+      );
+
+  Widget _planningInputsPanel() => AppCard(
+        padding: EdgeInsets.zero,
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+          childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+          leading: const Icon(
+            Icons.square_foot_outlined,
+            color: NbsColors.researchBlue,
+          ),
+          title: const Text(
+            'Optional sizing information',
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
+          subtitle: const Text(
+            'Add flow, people served, or available land when known.',
+          ),
+          children: [
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final fields = [
+                  _NumberField(
+                    controller: _designFlow,
+                    label: 'Design flow',
+                    suffix: 'm³/day',
+                    helper: 'Average flow to be treated',
+                    requiredField: false,
+                  ),
+                  _NumberField(
+                    controller: _populationEquivalent,
+                    label: 'People served',
+                    suffix: '',
+                    helper: 'Population equivalent',
+                    requiredField: false,
+                  ),
+                  _NumberField(
+                    controller: _availableLand,
+                    label: 'Available land',
+                    suffix: 'm²',
+                    helper: 'Usable treatment area',
+                    requiredField: false,
+                  ),
+                ];
+                if (constraints.maxWidth < 760) {
+                  return Column(
+                    children: [
+                      for (var index = 0; index < fields.length; index++) ...[
+                        fields[index],
+                        if (index < fields.length - 1)
+                          const SizedBox(height: 10),
+                      ],
+                    ],
+                  );
+                }
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (var index = 0; index < fields.length; index++) ...[
+                      Expanded(child: fields[index]),
+                      if (index < fields.length - 1) const SizedBox(width: 10),
+                    ],
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'These values support screening-level land guidance only. Final sizing still needs pollutant loads, levels, soil, and a site survey.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: NbsColors.mutedGrey),
+            ),
+          ],
         ),
-        const SizedBox(height: 8),
-        Text(
-          'These values support screening-level land guidance only. Final sizing still needs pollutant loads, levels, soil, and a site survey.',
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: NbsColors.mutedGrey),
-        ),
-      ],
-    ),
-  );
+      );
 
   Widget _uploadPanel() => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      OutlinedButton.icon(
-        onPressed: _uploading ? null : _chooseCsv,
-        icon: const Icon(Icons.upload_file),
-        label: Text(
-          _uploading ? 'Analyzing CSV...' : _uploadName ?? 'Upload Water CSV',
-        ),
-      ),
-      const SizedBox(height: 8),
-      Text(
-        'Example upload format',
-        style: Theme.of(
-          context,
-        ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
-      ),
-      const SizedBox(height: 6),
-      Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: NbsColors.deepNavy.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: NbsColors.cardBorder),
-        ),
-        child: const SelectableText(
-          _csvTemplate,
-          style: TextStyle(fontFamily: 'monospace'),
-        ),
-      ),
-      const SizedBox(height: 8),
-      OutlinedButton.icon(
-        onPressed: () async {
-          await Clipboard.setData(const ClipboardData(text: _csvTemplate));
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Example upload format copied.')),
-            );
-          }
-        },
-        icon: const Icon(Icons.copy_outlined),
-        label: const Text('Copy template'),
-      ),
-      const SizedBox(height: 6),
-      Text(
-        'The unit column is optional for now. Values must be numeric. Blank values remain unknown and are never converted to zero.',
-        style: Theme.of(
-          context,
-        ).textTheme.bodySmall?.copyWith(color: NbsColors.mutedGrey),
-      ),
-      const SizedBox(height: 6),
-      Text(
-        'Unsupported parameters and nonnumeric rows are skipped and reported below; skipped rows reduce result confidence.',
-        style: Theme.of(
-          context,
-        ).textTheme.bodySmall?.copyWith(color: NbsColors.mutedGrey),
-      ),
-      const SizedBox(height: 6),
-      Text(
-        'Accepted aliases include BOD/BOD5, COD, TSS, NH4-N, NO3-N, PO4-P/TP, pH, DO, TDS, EC, turbidity, and faecal coliform/FC.',
-        style: Theme.of(
-          context,
-        ).textTheme.bodySmall?.copyWith(color: NbsColors.mutedGrey),
-      ),
-      if (_csvValidation != null) ...[
-        const SizedBox(height: 12),
-        _CsvValidationPanel(
-          summary: _csvValidation!,
-          observations: _uploaded ?? const [],
-        ),
-      ],
-    ],
-  );
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          OutlinedButton.icon(
+            onPressed: _uploading ? null : _chooseCsv,
+            icon: const Icon(Icons.upload_file),
+            label: Text(
+              _uploading
+                  ? 'Analyzing CSV...'
+                  : _uploadName ?? 'Upload Water CSV',
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Example upload format',
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 6),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: NbsColors.deepNavy.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: NbsColors.cardBorder),
+            ),
+            child: const SelectableText(
+              _csvTemplate,
+              style: TextStyle(fontFamily: 'monospace'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () async {
+              await Clipboard.setData(const ClipboardData(text: _csvTemplate));
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text('Example upload format copied.')),
+                );
+              }
+            },
+            icon: const Icon(Icons.copy_outlined),
+            label: const Text('Copy template'),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'The unit column is optional for now. Values must be numeric. Blank values remain unknown and are never converted to zero.',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: NbsColors.mutedGrey),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Unsupported parameters and nonnumeric rows are skipped and reported below; skipped rows reduce result confidence.',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: NbsColors.mutedGrey),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Accepted aliases include BOD/BOD5, COD, TSS, NH4-N, NO3-N, PO4-P/TP, pH, DO, TDS, EC, turbidity, and faecal coliform/FC.',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: NbsColors.mutedGrey),
+          ),
+          if (_csvValidation != null) ...[
+            const SizedBox(height: 12),
+            _CsvValidationPanel(
+              summary: _csvValidation!,
+              observations: _uploaded ?? const [],
+            ),
+          ],
+        ],
+      );
 
   Widget _manualPanel() {
     final fields = [
@@ -1034,11 +1039,10 @@ class _CsvValidationPanel extends StatelessWidget {
                 .withValues(alpha: 0.07),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color:
-              (summary.isValid
-                      ? NbsColors.wetlandGreen
-                      : NbsColors.warningAmber)
-                  .withValues(alpha: 0.28),
+          color: (summary.isValid
+                  ? NbsColors.wetlandGreen
+                  : NbsColors.warningAmber)
+              .withValues(alpha: 0.28),
         ),
       ),
       child: Column(
@@ -1108,9 +1112,9 @@ class _ContextChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Chip(
-    avatar: const Icon(Icons.info_outline, size: 16),
-    label: Text('$label: $value'),
-  );
+        avatar: const Icon(Icons.info_outline, size: 16),
+        label: Text('$label: $value'),
+      );
 }
 
 class _InfoNote extends StatelessWidget {
@@ -1247,11 +1251,11 @@ class _WaterQualityEntryScreenState extends State<WaterQualityEntryScreen> {
                       Expanded(
                         child: Text(
                           'Water-quality lab panel',
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(
-                                color: NbsColors.deepNavy,
-                                fontWeight: FontWeight.w900,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    color: NbsColors.deepNavy,
+                                    fontWeight: FontWeight.w900,
+                                  ),
                         ),
                       ),
                     ],
@@ -1380,8 +1384,8 @@ class LoadingScreen extends StatelessWidget {
                       child: Text(
                         'Running staged scientific workflow',
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
+                              fontWeight: FontWeight.w800,
+                            ),
                       ),
                     ),
                   ],
@@ -1494,11 +1498,11 @@ class ResultsScreen extends StatelessWidget {
                         topTrain == null
                             ? practicalRecommendation
                             : 'We recommend ${topTrain.name} for this screening case. $practicalRecommendation',
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              height: 1.4,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  height: 1.4,
+                                ),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -1705,11 +1709,9 @@ class _SolutionWorkspaceState extends State<_SolutionWorkspace> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  for (
-                    var index = 0;
-                    index < widget.panels.length;
-                    index++
-                  ) ...[
+                  for (var index = 0;
+                      index < widget.panels.length;
+                      index++) ...[
                     ChoiceChip(
                       selected: index == selectedIndex,
                       avatar: Icon(widget.panels[index].icon, size: 17),
@@ -1782,7 +1784,9 @@ class _SummaryDecisionMetrics extends StatelessWidget {
                           children: [
                             Text(
                               metric.$2,
-                              style: Theme.of(context).textTheme.bodySmall
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
                                   ?.copyWith(color: NbsColors.mutedGrey),
                             ),
                             const SizedBox(height: 4),
@@ -1825,41 +1829,41 @@ class _SummaryNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Wrap(
-    spacing: 8,
-    runSpacing: 8,
-    children: [
-      OutlinedButton.icon(
-        onPressed: onWhy,
-        icon: const Icon(Icons.lightbulb_outline),
-        label: const Text('Why this result?'),
-      ),
-      OutlinedButton.icon(
-        onPressed: onChecks,
-        icon: const Icon(Icons.fact_check_outlined),
-        label: const Text('Check site and design'),
-      ),
-      OutlinedButton.icon(
-        onPressed: onCompare,
-        icon: const Icon(Icons.compare_arrows_outlined),
-        label: const Text('Compare options'),
-      ),
-      OutlinedButton.icon(
-        onPressed: onSizing,
-        icon: const Icon(Icons.square_foot_outlined),
-        label: const Text('Estimate land'),
-      ),
-      OutlinedButton.icon(
-        onPressed: onLearn,
-        icon: const Icon(Icons.schema_outlined),
-        label: const Text('View diagrams'),
-      ),
-      OutlinedButton.icon(
-        onPressed: onExport,
-        icon: const Icon(Icons.file_download_outlined),
-        label: const Text('Export report'),
-      ),
-    ],
-  );
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          OutlinedButton.icon(
+            onPressed: onWhy,
+            icon: const Icon(Icons.lightbulb_outline),
+            label: const Text('Why this result?'),
+          ),
+          OutlinedButton.icon(
+            onPressed: onChecks,
+            icon: const Icon(Icons.fact_check_outlined),
+            label: const Text('Check site and design'),
+          ),
+          OutlinedButton.icon(
+            onPressed: onCompare,
+            icon: const Icon(Icons.compare_arrows_outlined),
+            label: const Text('Compare options'),
+          ),
+          OutlinedButton.icon(
+            onPressed: onSizing,
+            icon: const Icon(Icons.square_foot_outlined),
+            label: const Text('Estimate land'),
+          ),
+          OutlinedButton.icon(
+            onPressed: onLearn,
+            icon: const Icon(Icons.schema_outlined),
+            label: const Text('View diagrams'),
+          ),
+          OutlinedButton.icon(
+            onPressed: onExport,
+            icon: const Icon(Icons.file_download_outlined),
+            label: const Text('Export report'),
+          ),
+        ],
+      );
 }
 
 class _WhyResultWorkspace extends StatelessWidget {
@@ -1883,67 +1887,67 @@ class _WhyResultWorkspace extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      _DetailSection(
-        title: 'Why this is the current recommendation',
-        child: _ReadableBulletList(
-          values: reasons.take(4).toList(),
-          emptyText:
-              'The toolkit could not produce a ranked explanation for this run.',
-        ),
-      ),
-      const SizedBox(height: 14),
-      _PollutantGapPanel(train: topTrain),
-      if (trains.isNotEmpty) ...[
-        const SizedBox(height: 14),
-        _DetailSection(
-          title: 'How it compares with alternatives',
-          child: _TopTrainComparison(trains: trains.take(3).toList()),
-        ),
-      ],
-      const SizedBox(height: 14),
-      for (final train in trains)
-        Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: TrainRecommendationCard(
-            train: train,
-            contextOnly: contextOnly,
-            hasMeasuredData: hasMeasuredData,
-            citationsById: response.citationsById,
-          ),
-        ),
-      AppCard(
-        padding: EdgeInsets.zero,
-        child: ExpansionTile(
-          tilePadding: const EdgeInsets.symmetric(horizontal: 14),
-          childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-          title: const Text(
-            'Show technical details',
-            style: TextStyle(fontWeight: FontWeight.w800),
-          ),
-          subtitle: const Text(
-            'View method, confidence basis, and evidence records.',
-          ),
-          children: [
-            _DataUsedPanel(inputSummary: response.inputSummary),
-            const SizedBox(height: 12),
-            _DataConfidenceGuide(
-              train: topTrain,
-              methodLabel: _confidenceMethodLabel(response, bundle),
-              dataLimited: contextOnly || !hasMeasuredData,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _DetailSection(
+            title: 'Why this is the current recommendation',
+            child: _ReadableBulletList(
+              values: reasons.take(4).toList(),
+              emptyText:
+                  'The toolkit could not produce a ranked explanation for this run.',
             ),
-            const SizedBox(height: 12),
-            _EvidenceWorkspace(
-              response: response,
-              bundle: bundle,
-              train: topTrain,
+          ),
+          const SizedBox(height: 14),
+          _PollutantGapPanel(train: topTrain),
+          if (trains.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            _DetailSection(
+              title: 'How it compares with alternatives',
+              child: _TopTrainComparison(trains: trains.take(3).toList()),
             ),
           ],
-        ),
-      ),
-    ],
-  );
+          const SizedBox(height: 14),
+          for (final train in trains)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: TrainRecommendationCard(
+                train: train,
+                contextOnly: contextOnly,
+                hasMeasuredData: hasMeasuredData,
+                citationsById: response.citationsById,
+              ),
+            ),
+          AppCard(
+            padding: EdgeInsets.zero,
+            child: ExpansionTile(
+              tilePadding: const EdgeInsets.symmetric(horizontal: 14),
+              childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+              title: const Text(
+                'Show technical details',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+              subtitle: const Text(
+                'View method, confidence basis, and evidence records.',
+              ),
+              children: [
+                _DataUsedPanel(response: response),
+                const SizedBox(height: 12),
+                _DataConfidenceGuide(
+                  train: topTrain,
+                  methodLabel: _confidenceMethodLabel(response, bundle),
+                  dataLimited: contextOnly || !hasMeasuredData,
+                ),
+                const SizedBox(height: 12),
+                _EvidenceWorkspace(
+                  response: response,
+                  bundle: bundle,
+                  train: topTrain,
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
 }
 
 class _SiteDesignChecksWorkspace extends StatelessWidget {
@@ -2000,7 +2004,7 @@ class _SizingWorkspace extends StatelessWidget {
         const _DetailSection(
           title: 'Sizing and land estimate',
           child: Text(
-            'Enter design flow and available land to check a stored footprint range. Use this to compare options, not to build directly.',
+            'Provide design flow for hydraulic-loading evidence, or population/PE for per-person evidence. The toolkit never converts one into the other.',
           ),
         ),
         const SizedBox(height: 14),
@@ -2047,76 +2051,76 @@ class _SizingEstimateCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AppCard(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          isTop
-              ? 'Estimated land need for ${estimate.trainName}'
-              : estimate.trainName,
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          estimate.estimateLabel,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            color: NbsColors.researchBlue,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          _landFitSentence(estimate.landFit),
-          style: const TextStyle(fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 10),
-        _TextBlockList(
-          title: 'What to collect next',
-          values: estimate.missingInputs,
-          emptyText:
-              'The screening inputs are present; detailed design inputs are still required.',
-        ),
-        const SizedBox(height: 10),
-        Text(
-          'This is an early sizing estimate. A qualified engineer must confirm the final size.',
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: NbsColors.mutedGrey),
-        ),
-        const SizedBox(height: 8),
-        ExpansionTile(
-          tilePadding: EdgeInsets.zero,
-          childrenPadding: const EdgeInsets.only(bottom: 8),
-          title: const Text(
-            'Show calculations and assumptions',
-            style: TextStyle(fontWeight: FontWeight.w800),
-          ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _TextBlockList(
-              title: 'Inputs used',
-              values: estimate.inputsUsed,
-              emptyText: 'No flow, population, or land value was supplied.',
+            Text(
+              isTop
+                  ? 'Estimated land need for ${estimate.trainName}'
+                  : estimate.trainName,
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              estimate.estimateLabel,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: NbsColors.researchBlue,
+                    fontWeight: FontWeight.w900,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _landFitSentence(estimate.landFit),
+              style: const TextStyle(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 10),
             _TextBlockList(
-              title: 'Key assumptions',
-              values: estimate.keyAssumptions,
+              title: 'What to collect next',
+              values: estimate.missingInputs,
               emptyText:
-                  'No calculation assumptions apply because an area was not estimated.',
+                  'The screening inputs are present; detailed design inputs are still required.',
             ),
             const SizedBox(height: 10),
             Text(
-              'Footprint basis: ${_titleFromSnake(estimate.basis)}. Sizing confidence: ${_titleFromSnake(estimate.sizingConfidence)}.',
+              'This is a screening estimate, not final design.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: NbsColors.mutedGrey),
             ),
             const SizedBox(height: 8),
-            Text(estimate.designCaution),
+            ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: const EdgeInsets.only(bottom: 8),
+              title: const Text(
+                'Show calculations and assumptions',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+              children: [
+                _TextBlockList(
+                  title: 'Inputs used',
+                  values: estimate.inputsUsed,
+                  emptyText: 'No flow, population, or land value was supplied.',
+                ),
+                const SizedBox(height: 10),
+                _TextBlockList(
+                  title: 'Key assumptions',
+                  values: estimate.keyAssumptions,
+                  emptyText:
+                      'No calculation assumptions apply because an area was not estimated.',
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Footprint basis: ${_titleFromSnake(estimate.basis)}. Sizing confidence: ${_titleFromSnake(estimate.sizingConfidence)}.',
+                ),
+                const SizedBox(height: 8),
+                Text(estimate.designCaution),
+              ],
+            ),
           ],
         ),
-      ],
-    ),
-  );
+      );
 }
 
 class _ComparisonWorkspace extends StatelessWidget {
@@ -2253,80 +2257,83 @@ class _ComparisonOptionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AppCard(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _RankBlock(rank: option.rank),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                option.name,
+            Row(
+              children: [
+                _RankBlock(rank: option.rank),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    option.name,
+                    style: Theme.of(
+                      context,
+                    )
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _MetricChip(
+                  label: 'Technical match',
+                  value: _optionalPercent(option.technicalMatch),
+                  color: NbsColors.researchBlue,
+                ),
+                _MetricChip(
+                  label: 'Confidence',
+                  value: _optionalPercent(option.resultConfidence),
+                  color: NbsColors.wetlandGreen,
+                ),
+                _MetricChip(
+                  label: 'Land',
+                  value: _landFitShort(option.landFit),
+                  color: NbsColors.warningAmber,
+                ),
+                _MetricChip(
+                  label: 'O&M',
+                  value: option.omIntensity,
+                  color: NbsColors.riverTeal,
+                ),
+              ],
+            ),
+            const SizedBox(height: 9),
+            Text(
+              option.landDemand ??
+                  'The land estimate is not available for this option.',
+            ),
+            if (option.keyStrength != null) ...[
+              const SizedBox(height: 8),
+              Text('Key strength: ${option.keyStrength}'),
+            ],
+            if (option.keyLimitation != null) ...[
+              const SizedBox(height: 6),
+              Text('Key limitation: ${option.keyLimitation}'),
+            ],
+            const SizedBox(height: 6),
+            Text(
+              option.whenToChoose,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            if (option.warnings.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                option.warnings.first,
                 style: Theme.of(
                   context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+                ).textTheme.bodySmall?.copyWith(color: NbsColors.mutedGrey),
               ),
-            ),
+            ],
           ],
         ),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _MetricChip(
-              label: 'Technical match',
-              value: _optionalPercent(option.technicalMatch),
-              color: NbsColors.researchBlue,
-            ),
-            _MetricChip(
-              label: 'Confidence',
-              value: _optionalPercent(option.resultConfidence),
-              color: NbsColors.wetlandGreen,
-            ),
-            _MetricChip(
-              label: 'Land',
-              value: _landFitShort(option.landFit),
-              color: NbsColors.warningAmber,
-            ),
-            _MetricChip(
-              label: 'O&M',
-              value: option.omIntensity,
-              color: NbsColors.riverTeal,
-            ),
-          ],
-        ),
-        const SizedBox(height: 9),
-        Text(
-          option.landDemand ??
-              'The land estimate is not available for this option.',
-        ),
-        if (option.keyStrength != null) ...[
-          const SizedBox(height: 8),
-          Text('Key strength: ${option.keyStrength}'),
-        ],
-        if (option.keyLimitation != null) ...[
-          const SizedBox(height: 6),
-          Text('Key limitation: ${option.keyLimitation}'),
-        ],
-        const SizedBox(height: 6),
-        Text(
-          option.whenToChoose,
-          style: const TextStyle(fontWeight: FontWeight.w700),
-        ),
-        if (option.warnings.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Text(
-            option.warnings.first,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: NbsColors.mutedGrey),
-          ),
-        ],
-      ],
-    ),
-  );
+      );
 }
 
 class _PreviousScenarioRow extends StatelessWidget {
@@ -2337,9 +2344,8 @@ class _PreviousScenarioRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final train = response.rankedTrains.isEmpty
-        ? null
-        : response.rankedTrains.first;
+    final train =
+        response.rankedTrains.isEmpty ? null : response.rankedTrains.first;
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: const Icon(Icons.history),
@@ -2395,90 +2401,95 @@ class _LearnWorkspace extends StatelessWidget {
 }
 
 String _landFitSentence(String value) => switch (value) {
-  'fits' => 'The available land appears enough for this early sizing estimate.',
-  'borderline' =>
-    'The available land may be enough, but layout and site checks could change the result.',
-  'likely_too_little_land' =>
-    'The available land appears smaller than the complete screening range.',
-  _ =>
-    'The toolkit cannot confirm land fit with the current inputs and evidence coverage.',
-};
+      'fits' =>
+        'The available land appears enough for this early sizing estimate.',
+      'borderline' =>
+        'The available land may be enough, but layout and site checks could change the result.',
+      'likely_too_little_land' =>
+        'The available land appears smaller than the complete screening range.',
+      _ =>
+        'The toolkit cannot confirm land fit with the current inputs and evidence coverage.',
+    };
 
 String _landFitShort(String value) => switch (value) {
-  'fits' => 'Likely fits',
-  'borderline' => 'Borderline',
-  'likely_too_little_land' => 'Likely too little',
-  _ => 'Needs data',
-};
+      'fits' => 'Likely fits',
+      'borderline' => 'Borderline',
+      'likely_too_little_land' => 'Likely too little',
+      _ => 'Needs data',
+    };
 
 String _optionalPercent(double? value) =>
     value == null ? 'Not available' : '${(value * 100).toStringAsFixed(1)}%';
 
 String _workflowLabelForUser(String? mode) => switch (mode) {
-  'uploaded_water_quality' => 'Uploaded water-quality data',
-  'manual_measured_water_quality' => 'Measured water-quality values',
-  'site_context_only' => 'Site context only',
-  'pollution_source_screening' => 'Pollution-source screening',
-  _ => 'Available inputs',
-};
+      'uploaded_water_quality' => 'Uploaded water-quality data',
+      'manual_measured_water_quality' => 'Measured water-quality values',
+      'site_context_only' => 'Site context only',
+      'pollution_source_screening' => 'Pollution-source screening',
+      _ => 'Available inputs',
+    };
 
 // Retained for compatibility with older detail layouts.
 // ignore: unused_element
 class _DataBasisCard extends StatelessWidget {
   const _DataBasisCard({required this.dataBasis, required this.readiness});
 
-  final ({String basis, String currentSample, String confidenceBasis})
-  dataBasis;
+  final ({
+    String basis,
+    String currentSample,
+    String confidenceBasis
+  }) dataBasis;
   final ({String label, String reason}) readiness;
 
   @override
   Widget build(BuildContext context) => Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(
-      color: NbsColors.researchBlue.withValues(alpha: 0.05),
-      borderRadius: BorderRadius.circular(8),
-      border: Border.all(color: NbsColors.researchBlue.withValues(alpha: 0.18)),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Data basis',
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: NbsColors.researchBlue.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(8),
+          border:
+              Border.all(color: NbsColors.researchBlue.withValues(alpha: 0.18)),
         ),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 9,
-          runSpacing: 9,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            StatusPill(
-              label: 'Data basis',
-              value: dataBasis.basis,
-              color: NbsColors.researchBlue,
+            Text(
+              'Data basis',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
             ),
-            StatusPill(
-              label: 'Water-quality input',
-              value: dataBasis.currentSample,
-              color: NbsColors.riverTeal,
-            ),
-            StatusPill(
-              label: 'Design readiness',
-              value: readiness.label,
-              color: NbsColors.warningAmber,
-            ),
-            StatusPill(
-              label: 'Why this confidence level',
-              value: dataBasis.confidenceBasis,
-              color: NbsColors.wetlandGreen,
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 9,
+              runSpacing: 9,
+              children: [
+                StatusPill(
+                  label: 'Data basis',
+                  value: dataBasis.basis,
+                  color: NbsColors.researchBlue,
+                ),
+                StatusPill(
+                  label: 'Water-quality input',
+                  value: dataBasis.currentSample,
+                  color: NbsColors.riverTeal,
+                ),
+                StatusPill(
+                  label: 'Design readiness',
+                  value: readiness.label,
+                  color: NbsColors.warningAmber,
+                ),
+                StatusPill(
+                  label: 'Why this confidence level',
+                  value: dataBasis.confidenceBasis,
+                  color: NbsColors.wetlandGreen,
+                ),
+              ],
             ),
           ],
         ),
-      ],
-    ),
-  );
+      );
 }
 
 // Retained for compatibility with older detail layouts.
@@ -2506,8 +2517,8 @@ class _SiteContextSummaryCard extends StatelessWidget {
                 child: Text(
                   'Site context',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                  ),
+                        fontWeight: FontWeight.w900,
+                      ),
                 ),
               ),
             ],
@@ -2569,8 +2580,8 @@ class _DesignReadinessSummaryCard extends StatelessWidget {
                     Text(
                       'Design readiness',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                      ),
+                            fontWeight: FontWeight.w900,
+                          ),
                     ),
                     const SizedBox(height: 5),
                     Text(
@@ -2632,9 +2643,9 @@ class _LocationWorkspace extends StatelessWidget {
       if (location.pollutionSourceRecordCount != null)
         'Linked pollution-source records: ${location.pollutionSourceRecordCount}',
       if (location.riverDischargeCms != null)
-        'Stored river discharge context: ${location.riverDischargeCms} m3/s',
+        'River discharge context: ${location.riverDischargeCms} m³/s',
       if (location.drainageAreaKm2 != null)
-        'Drainage area: ${location.drainageAreaKm2} km2',
+        'Drainage area: ${location.drainageAreaKm2} km²',
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2701,7 +2712,7 @@ class _DesignReadinessWorkspace extends StatelessWidget {
           title: 'Why this level',
           child: _ReadableBulletList(
             values: readiness.reasons,
-            emptyText: 'Readiness reasons were not returned.',
+            emptyText: 'No additional readiness reason is recorded.',
           ),
         ),
         const SizedBox(height: 14),
@@ -2767,23 +2778,23 @@ class _ReadinessGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
-      const SizedBox(height: 3),
-      Text(
-        guidance,
-        style: Theme.of(
-          context,
-        ).textTheme.bodySmall?.copyWith(color: NbsColors.mutedGrey),
-      ),
-      const SizedBox(height: 9),
-      if (items.isEmpty)
-        const Text('No item is currently listed in this group.')
-      else
-        for (final item in items) _ReadinessChecklistRow(item: item),
-    ],
-  );
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+          const SizedBox(height: 3),
+          Text(
+            guidance,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: NbsColors.mutedGrey),
+          ),
+          const SizedBox(height: 9),
+          if (items.isEmpty)
+            const Text('No item is currently listed in this group.')
+          else
+            for (final item in items) _ReadinessChecklistRow(item: item),
+        ],
+      );
 }
 
 class _ReadinessChecklistRow extends StatelessWidget {
@@ -2795,20 +2806,35 @@ class _ReadinessChecklistRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final (icon, color, label) = switch (item.status) {
       'available' => (
-        Icons.check_circle_outline,
-        NbsColors.wetlandGreen,
-        'Available',
-      ),
-      'needs_field_verification' => (
-        Icons.travel_explore_outlined,
-        NbsColors.warningAmber,
-        'Needs field check',
-      ),
+          Icons.check_circle_outline,
+          NbsColors.wetlandGreen,
+          'Available',
+        ),
+      'mapped_context_verify' => (
+          Icons.travel_explore_outlined,
+          NbsColors.warningAmber,
+          'Available from mapped context; verify in field',
+        ),
+      'needs_field_check' => (
+          Icons.travel_explore_outlined,
+          NbsColors.warningAmber,
+          'Needs field check',
+        ),
+      'not_supplied' => (
+          Icons.radio_button_unchecked,
+          NbsColors.mutedGrey,
+          'Not supplied',
+        ),
+      'missing_before_engineering_design' => (
+          Icons.error_outline,
+          NbsColors.warningAmber,
+          'Missing before engineering design',
+        ),
       'not_required_for_current_screening' => (
-        Icons.remove_circle_outline,
-        NbsColors.mutedGrey,
-        'Not required for current screening',
-      ),
+          Icons.remove_circle_outline,
+          NbsColors.mutedGrey,
+          'Not required for current screening',
+        ),
       _ => (Icons.radio_button_unchecked, NbsColors.mutedGrey, 'Missing'),
     };
     return Padding(
@@ -2839,13 +2865,14 @@ class _ReadinessChecklistRow extends StatelessWidget {
 }
 
 class _DataUsedPanel extends StatelessWidget {
-  const _DataUsedPanel({required this.inputSummary});
+  const _DataUsedPanel({required this.response});
 
-  final RecommendationInputSummary inputSummary;
+  final RecommendationResponse response;
 
   @override
   Widget build(BuildContext context) {
-    final rows = inputSummary.dataUsed;
+    final inputSummary = response.inputSummary;
+    final rows = response.parameterCoverage;
     final sourceLabel = switch (inputSummary.workflowMode) {
       'uploaded_water_quality' => 'Uploaded file',
       'manual_measured_water_quality' => 'Manual user input',
@@ -2854,9 +2881,8 @@ class _DataUsedPanel extends StatelessWidget {
       _ => 'Available recommendation input',
     };
     return _DetailSection(
-      title: rows.isEmpty
-          ? 'Data used in screening'
-          : 'Water-quality values used',
+      title:
+          rows.isEmpty ? 'Data used in screening' : 'Water-quality values used',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2878,10 +2904,17 @@ class _DataUsedPanel extends StatelessWidget {
                 style: const TextStyle(fontWeight: FontWeight.w800),
               ),
               subtitle: const Text('View values'),
-              children: [_WaterValueChips(rows: rows)],
+              children: [_ParameterCoverageRows(rows: rows)],
             )
           else
-            _WaterValueChips(rows: rows),
+            _ParameterCoverageRows(rows: rows),
+          const SizedBox(height: 10),
+          Text(
+            'The toolkit reads all recognized values. Some values influence the score directly, while others are shown as supporting context until enough target and treatment evidence is available.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: NbsColors.mutedGrey,
+                ),
+          ),
           if (inputSummary.workflowMode == 'uploaded_water_quality' &&
               rows.isNotEmpty) ...[
             const SizedBox(height: 10),
@@ -2958,10 +2991,20 @@ class _PollutantGapPanel extends StatelessWidget {
                               ),
                             ),
                             StatusPill(
+                              label: 'Parameter coverage',
+                              value: _coverageLabel(
+                                row['coverage_category']?.toString(),
+                              ),
+                              color:
+                                  row['coverage_category'] == 'used_in_scoring'
+                                      ? NbsColors.wetlandGreen
+                                      : NbsColors.warningAmber,
+                            ),
+                            StatusPill(
                               label: 'Performance evidence',
                               value: row['train_addresses_parameter'] == true
                                   ? 'Evidence supports treatment'
-                                  : 'Evidence is not yet sufficient',
+                                  : 'Treatment evidence is not yet sufficient',
                               color: row['train_addresses_parameter'] == true
                                   ? NbsColors.wetlandGreen
                                   : NbsColors.warningAmber,
@@ -2971,12 +3014,13 @@ class _PollutantGapPanel extends StatelessWidget {
                         const SizedBox(height: 6),
                         if (row['train_addresses_parameter'] != true) ...[
                           const Text(
-                            'The toolkit does not currently have enough evidence to confirm performance for this parameter.',
+                            'Treatment evidence is not yet sufficient for this parameter.',
                           ),
                           const SizedBox(height: 6),
                         ],
                         Text(
-                          row['severity']?.toString() ?? 'Not assessed.',
+                          row['severity']?.toString() ??
+                              'Read, but not scored yet.',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ],
@@ -2986,27 +3030,6 @@ class _PollutantGapPanel extends StatelessWidget {
             ),
     );
   }
-}
-
-class _WaterValueChips extends StatelessWidget {
-  const _WaterValueChips({required this.rows});
-
-  final List<Map<String, dynamic>> rows;
-
-  @override
-  Widget build(BuildContext context) => Wrap(
-    spacing: 8,
-    runSpacing: 8,
-    children: [
-      for (final row in rows)
-        Chip(
-          avatar: const Icon(Icons.science_outlined, size: 16),
-          label: Text(
-            '${_displayParameter(row['parameter']?.toString(), fallback: row['display_name']?.toString())} = ${row['value']}${_displayUnitSuffix(row['unit'])}',
-          ),
-        ),
-    ],
-  );
 }
 
 class _ImplementationWorkspace extends StatelessWidget {
@@ -3028,8 +3051,7 @@ class _ImplementationWorkspace extends StatelessWidget {
         'No treatment train is available for implementation planning.',
       );
     }
-    final highOrder =
-        response.inputSummary.context['intervention_position'] ==
+    final highOrder = response.inputSummary.context['intervention_position'] ==
             'in_channel' ||
         ((response.inputSummary.context['stream_order'] as num?)?.toDouble() ??
                 0) >=
@@ -3176,7 +3198,9 @@ class _NbsComponentsWorkspace extends StatelessWidget {
             child: _ReadableBulletList(
               values: [
                 for (final row in filteredComponents.take(10))
-                  '${row['name'] ?? 'Component'}: ${((row['reasons'] as List?) ?? const ['Not suitable for this context.']).join(' ')}',
+                  '${row['name'] ?? 'Component'}: ${((row['reasons'] as List?) ?? const [
+                        'Not suitable for this context.'
+                      ]).join(' ')}',
               ],
             ),
           ),
@@ -3210,6 +3234,7 @@ class _IndividualNbsCard extends StatelessWidget {
       child: ExpansionTile(
         tilePadding: const EdgeInsets.all(14),
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        expandedCrossAxisAlignment: CrossAxisAlignment.start,
         title: Text(
           component.name,
           style: const TextStyle(fontWeight: FontWeight.w900),
@@ -3270,13 +3295,14 @@ class _IndividualNbsCard extends StatelessWidget {
           _TextBlockList(
             title: 'Where not suitable',
             values: component.whereNotSuitable,
-            emptyText: 'No additional context exclusion was returned.',
+            emptyText: 'No extra exclusion is recorded for this case.',
           ),
           const SizedBox(height: 12),
           _TextBlockList(
             title: 'Key constraints',
             values: component.keyConstraints,
-            emptyText: 'No component-specific constraint was returned.',
+            emptyText:
+                'No extra component-specific constraint is recorded. Confirm site suitability before use.',
           ),
           const SizedBox(height: 12),
           _TextBlockList(
@@ -3308,56 +3334,57 @@ class _DataGapsWorkspace extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      if (response.inputSummary.isContextOnly) ...[
-        const _AlertBanner.compact(
-          icon: Icons.info_outline,
-          color: NbsColors.warningAmber,
-          title: 'Water-quality input',
-          message:
-              'You have not uploaded recent water-quality data for this site. The result uses available site and source context and remains an early screening result.',
-        ),
-        const SizedBox(height: 14),
-      ],
-      _DetailSection(
-        title: 'Required before design',
-        child: _ReadableBulletList(
-          values: groupedData['required'] ?? const [],
-          emptyText:
-              'No mandatory design input was identified from this payload.',
-        ),
-      ),
-      const SizedBox(height: 14),
-      _DetailSection(
-        title: 'Useful for better ranking',
-        child: _ReadableBulletList(
-          values: groupedData['ranking'] ?? const [],
-          emptyText: 'No additional ranking input was identified.',
-        ),
-      ),
-      const SizedBox(height: 14),
-      _DetailSection(
-        title: 'Site / design checks',
-        child: _ReadableBulletList(
-          values: groupedData['site'] ?? const [],
-          emptyText:
-              'Complete normal site survey and preliminary design checks.',
-        ),
-      ),
-      if (response.exceedances.isNotEmpty) ...[
-        const SizedBox(height: 14),
-        _DetailSection(
-          title: 'Detected standard exceedances',
-          child: _ReadableBulletList(
-            values: [
-              for (final exceedance in response.exceedances) exceedance.summary,
-            ],
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (response.inputSummary.isContextOnly) ...[
+            const _AlertBanner.compact(
+              icon: Icons.info_outline,
+              color: NbsColors.warningAmber,
+              title: 'Water-quality input',
+              message:
+                  'You have not uploaded recent water-quality data for this site. The result uses available site and source context and remains an early screening result.',
+            ),
+            const SizedBox(height: 14),
+          ],
+          _DetailSection(
+            title: 'Required before design',
+            child: _ReadableBulletList(
+              values: groupedData['required'] ?? const [],
+              emptyText:
+                  'No mandatory design input was identified from this payload.',
+            ),
           ),
-        ),
-      ],
-    ],
-  );
+          const SizedBox(height: 14),
+          _DetailSection(
+            title: 'Useful for better ranking',
+            child: _ReadableBulletList(
+              values: groupedData['ranking'] ?? const [],
+              emptyText: 'No additional ranking input was identified.',
+            ),
+          ),
+          const SizedBox(height: 14),
+          _DetailSection(
+            title: 'Site / design checks',
+            child: _ReadableBulletList(
+              values: groupedData['site'] ?? const [],
+              emptyText:
+                  'Complete normal site survey and preliminary design checks.',
+            ),
+          ),
+          if (response.exceedances.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            _DetailSection(
+              title: 'Detected standard exceedances',
+              child: _ReadableBulletList(
+                values: [
+                  for (final exceedance in response.exceedances)
+                    exceedance.summary,
+                ],
+              ),
+            ),
+          ],
+        ],
+      );
 }
 
 class _EvidenceWorkspace extends StatelessWidget {
@@ -3373,54 +3400,54 @@ class _EvidenceWorkspace extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      _DetailSection(
-        title: 'Method',
-        child: _ReadableBulletList(
-          values: [
-            'A0 applicability screening checks placement and safety constraints before ranking.',
-            'Criteria-weighted TOPSIS compares eligible treatment trains.',
-            'Confidence uses ${_confidenceMethodLabel(response, bundle).toLowerCase()} and is reported separately from rank.',
-            'Research-stage comparison weights require expert calibration.',
-          ],
-        ),
-      ),
-      const SizedBox(height: 14),
-      _DetailSection(
-        title: 'Scientific criteria values',
-        child: _TextBlockList(
-          title: 'Top-train criteria',
-          values: [
-            for (final item
-                in train?.criteriaBreakdown ?? const <Map<String, dynamic>>[])
-              '${item['criterion_code']} ${_titleFromSnake(item['criterion_name']?.toString() ?? '')}: ${item['data_status'] == 'known' ? ((item['normalized_value'] as num?)?.toDouble() ?? 0).toStringAsFixed(3) : 'Evidence gap'}',
-          ],
-          emptyText: 'No criteria values are available.',
-        ),
-      ),
-      const SizedBox(height: 14),
-      _DetailSection(
-        title: 'Evidence sources',
-        child: _EvidenceDisclosure(
-          sourceIds: train?.sourceIds ?? const [],
-          citationsById: response.citationsById,
-          initiallyExpanded: true,
-        ),
-      ),
-      const SizedBox(height: 14),
-      const _DetailSection(
-        title: 'Decision-support boundary',
-        child: _ReadableBulletList(
-          values: [
-            'This tool supports decision-making and option screening.',
-            'It does not replace expert engineering design, site survey, regulatory approval, or monitoring plans.',
-            'Health-risk classification requires separate expert data and validation.',
-          ],
-        ),
-      ),
-    ],
-  );
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _DetailSection(
+            title: 'Method',
+            child: _ReadableBulletList(
+              values: [
+                'The site-safety check screens placement and safety constraints before ranking.',
+                'Criteria-weighted TOPSIS compares eligible treatment trains.',
+                'Confidence uses ${_confidenceMethodLabel(response, bundle).toLowerCase()} and is reported separately from rank.',
+                'Research-stage comparison weights require expert calibration.',
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          _DetailSection(
+            title: 'Scientific criteria values',
+            child: _TextBlockList(
+              title: 'Top-train criteria',
+              values: [
+                for (final item in train?.criteriaBreakdown ??
+                    const <Map<String, dynamic>>[])
+                  '${item['criterion_code']} ${_titleFromSnake(item['criterion_name']?.toString() ?? '')}: ${item['data_status'] == 'known' ? ((item['normalized_value'] as num?)?.toDouble() ?? 0).toStringAsFixed(3) : 'Evidence gap'}',
+              ],
+              emptyText: 'No criteria values are available.',
+            ),
+          ),
+          const SizedBox(height: 14),
+          _DetailSection(
+            title: 'Evidence sources',
+            child: _EvidenceDisclosure(
+              sourceIds: train?.sourceIds ?? const [],
+              citationsById: response.citationsById,
+              initiallyExpanded: true,
+            ),
+          ),
+          const SizedBox(height: 14),
+          const _DetailSection(
+            title: 'Decision-support boundary',
+            child: _ReadableBulletList(
+              values: [
+                'This tool supports decision-making and option screening.',
+                'It does not replace expert engineering design, site survey, regulatory approval, or monitoring plans.',
+                'Health-risk classification requires separate expert data and validation.',
+              ],
+            ),
+          ),
+        ],
+      );
 }
 
 class _ReportExportPanel extends StatelessWidget {
@@ -3535,7 +3562,9 @@ Future<void> _showReportPreview(
                   Expanded(
                     child: Text(
                       'Planning-level report preview',
-                      style: Theme.of(dialogContext).textTheme.titleLarge
+                      style: Theme.of(dialogContext)
+                          .textTheme
+                          .titleLarge
                           ?.copyWith(fontWeight: FontWeight.w900),
                     ),
                   ),
@@ -3600,9 +3629,8 @@ class _ReportPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final train = response.rankedTrains.isEmpty
-        ? null
-        : response.rankedTrains.first;
+    final train =
+        response.rankedTrains.isEmpty ? null : response.rankedTrains.first;
     final values = response.inputSummary.dataUsed;
     final readinessGroups = _groupReadinessInputs(
       response.designReadiness.inputChecklist,
@@ -3645,10 +3673,10 @@ class _ReportPreview extends StatelessWidget {
             response.locationContext.coordinatesAvailable
                 ? 'Map status: verified stored location.'
                 : response.locationContext.station != null ||
-                      response.locationContext.district != null ||
-                      response.locationContext.river != null
-                ? 'Map status: schematic context only, not a surveyed map.'
-                : 'No verified map location is available for this case.',
+                        response.locationContext.district != null ||
+                        response.locationContext.river != null
+                    ? 'Map status: schematic context only, not a surveyed map.'
+                    : 'No verified map location is available for this case.',
             ...response.locationContext.contextNotes,
           ],
           emptyText: 'No verified site profile is available for this run.',
@@ -3745,9 +3773,8 @@ class _ReportPreview extends StatelessWidget {
         _TextBlockList(
           title: 'Pollutant gaps',
           values: [
-            for (final row
-                in train?.pollutantGapBreakdown ??
-                    const <Map<String, dynamic>>[])
+            for (final row in train?.pollutantGapBreakdown ??
+                const <Map<String, dynamic>>[])
               '${_displayParameter(row['parameter']?.toString())}: ${_gapStatusLabel(row['gap_status']?.toString())}',
           ],
           emptyText: 'No pollutant-gap comparison is available.',
@@ -3765,9 +3792,8 @@ class _ReportPreview extends StatelessWidget {
         _TextBlockList(
           title: 'Use-case suitability',
           values: [
-            for (final entry
-                in train?.useCaseVerdicts.entries ??
-                    const <MapEntry<String, String>>[])
+            for (final entry in train?.useCaseVerdicts.entries ??
+                const <MapEntry<String, String>>[])
               '${_titleFromSnake(entry.key)}: ${_titleFromSnake(entry.value)}',
           ],
           emptyText: 'Use-case suitability could not be concluded.',
@@ -3835,6 +3861,7 @@ class TrainRecommendationCard extends StatelessWidget {
       child: ExpansionTile(
         tilePadding: const EdgeInsets.all(14),
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        expandedCrossAxisAlignment: CrossAxisAlignment.start,
         leading: _RankBlock(rank: train.rank),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -3848,9 +3875,9 @@ class TrainRecommendationCard extends StatelessWidget {
               Text(
                 train.implementationRole!,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: NbsColors.riverTeal,
-                  fontWeight: FontWeight.w700,
-                ),
+                      color: NbsColors.riverTeal,
+                      fontWeight: FontWeight.w700,
+                    ),
               ),
             ],
           ],
@@ -3884,7 +3911,7 @@ class TrainRecommendationCard extends StatelessWidget {
                     Tooltip(
                       message: entry.value == 'unknown'
                           ? 'This use case cannot be concluded without current water-quality input or sufficient evidence.'
-                          : '${_titleFromSnake(entry.key)} suitability from available canonical evidence.',
+                          : '${_titleFromSnake(entry.key)} suitability from available linked evidence.',
                       child: _MetricChip(
                         label: '${_titleFromSnake(entry.key)} suitability',
                         value: _suitabilityLabel(
@@ -3920,7 +3947,7 @@ class TrainRecommendationCard extends StatelessWidget {
           _TextBlockList(
             title: 'Why recommended',
             values: [_trainStrength(train)],
-            emptyText: 'No explanation returned.',
+            emptyText: 'No additional explanation is recorded.',
           ),
           const SizedBox(height: 12),
           _TextBlockList(
@@ -3938,7 +3965,7 @@ class TrainRecommendationCard extends StatelessWidget {
               for (final step in train.treatmentSequence)
                 '${step['step_order']}. ${step['step_label']} (${step['role'] ?? 'step'})',
             ],
-            emptyText: 'No treatment sequence returned.',
+            emptyText: 'No treatment sequence is recorded.',
           ),
           const SizedBox(height: 12),
           _PollutantGapPanel(train: train),
@@ -3946,7 +3973,7 @@ class TrainRecommendationCard extends StatelessWidget {
           _TextBlockList(
             title: 'Why this confidence level',
             values: train.confidenceExplanation,
-            emptyText: 'No confidence explanation was returned.',
+            emptyText: 'No additional confidence explanation is recorded.',
           ),
           const SizedBox(height: 12),
           _EvidenceDisclosure(
@@ -4012,9 +4039,9 @@ class _DataConfidenceGuide extends StatelessWidget {
                   Text(
                     train!.confidenceExplanation.skip(1).join(' '),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      height: 1.4,
-                      color: NbsColors.mutedGrey,
-                    ),
+                          height: 1.4,
+                          color: NbsColors.mutedGrey,
+                        ),
                   ),
                 ],
                 const SizedBox(height: 8),
@@ -4043,8 +4070,8 @@ class _TopTrainComparison extends StatelessWidget {
         final width = constraints.maxWidth >= 1050
             ? (constraints.maxWidth - 20) / 3
             : constraints.maxWidth >= 680
-            ? (constraints.maxWidth - 10) / 2
-            : constraints.maxWidth;
+                ? (constraints.maxWidth - 10) / 2
+                : constraints.maxWidth;
         return Wrap(
           spacing: 10,
           runSpacing: 10,
@@ -4092,24 +4119,24 @@ class _TopTrainComparison extends StatelessWidget {
                     Text(
                       'Role',
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
+                            fontWeight: FontWeight.w800,
+                          ),
                     ),
                     Text(train.implementationRole ?? 'Role requires review'),
                     const SizedBox(height: 8),
                     Text(
                       'Main strength',
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
+                            fontWeight: FontWeight.w800,
+                          ),
                     ),
                     Text(_trainStrength(train)),
                     const SizedBox(height: 8),
                     Text(
                       'Main limitation',
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
+                            fontWeight: FontWeight.w800,
+                          ),
                     ),
                     Text(_trainLimitation(train)),
                     if (train.allUseCasesUnknown) ...[
@@ -4219,7 +4246,7 @@ class _TopTrainPlantingGuidance extends StatelessWidget {
     if (train.suitablePlants.isEmpty) {
       return Text(
         train.plantingGuidance ??
-            'Planting guidance requires local validation.',
+            'Confirm planting suitability locally before use.',
       );
     }
     final grouped = _groupPlantMappings(train.suitablePlants);
@@ -4230,9 +4257,9 @@ class _TopTrainPlantingGuidance extends StatelessWidget {
           Text(
             group.key,
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w900,
-              color: NbsColors.riverTeal,
-            ),
+                  fontWeight: FontWeight.w900,
+                  color: NbsColors.riverTeal,
+                ),
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -4282,7 +4309,9 @@ class _TopTrainPlantingGuidance extends StatelessWidget {
                           Text(
                             plant['basis']?.toString() ??
                                 'Evidence and final placement require local validation.',
-                            style: Theme.of(context).textTheme.bodySmall
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
                                 ?.copyWith(color: NbsColors.mutedGrey),
                           ),
                         ],
@@ -4297,9 +4326,9 @@ class _TopTrainPlantingGuidance extends StatelessWidget {
         Text(
           'Planting suggestions support treatment performance, habitat, stabilization, and maintenance. Final species selection should be locally validated before implementation.',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: NbsColors.deepNavy,
-            fontWeight: FontWeight.w700,
-          ),
+                color: NbsColors.deepNavy,
+                fontWeight: FontWeight.w700,
+              ),
         ),
       ],
     );
@@ -4431,10 +4460,9 @@ class _LearningDetail extends StatelessWidget {
     final diagram = diagramForTrainName(train.name);
     return switch (topic) {
       'sequence' => _TrainSequenceLearning(train: train),
-      'schematic' =>
-        diagram == null
-            ? const _CrossSectionSchematic()
-            : NbsDiagramCard(kind: diagram),
+      'schematic' => diagram == null
+          ? const _CrossSectionSchematic()
+          : NbsDiagramCard(kind: diagram),
       'components' => _ComponentExplanationList(train: train),
       'plants' => _TopTrainPlantingGuidance(train: train),
       _ => const _CuratedReferencesPlaceholder(),
@@ -4675,16 +4703,16 @@ class RecommendationCard extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: NbsColors.deepNavy,
-                        fontWeight: FontWeight.w800,
-                      ),
+                            color: NbsColors.deepNavy,
+                            fontWeight: FontWeight.w800,
+                          ),
                     ),
                     const SizedBox(height: 5),
                     Text(
                       'Technical match uses TOPSIS; result confidence is calculated separately.',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: NbsColors.mutedGrey,
-                      ),
+                            color: NbsColors.mutedGrey,
+                          ),
                     ),
                     const SizedBox(height: 10),
                     if (isWide)
@@ -4862,7 +4890,7 @@ class DetailScreen extends StatelessWidget {
             title: 'C. Why recommended',
             child: _ReadableBulletList(
               values: _uniqueStrings(item.whyRecommended),
-              emptyText: 'No reasons were returned for this item.',
+              emptyText: 'No additional reason is recorded for this item.',
             ),
           ),
           const SizedBox(height: 14),
@@ -4896,7 +4924,7 @@ class DetailScreen extends StatelessWidget {
                 _TextBlockList(
                   title: 'Explanation',
                   values: _uniqueStrings(item.explanation),
-                  emptyText: 'No explanation text returned.',
+                  emptyText: 'No additional explanation is recorded.',
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -4927,7 +4955,7 @@ class DetailScreen extends StatelessWidget {
             title: 'F. Scientific cautions',
             child: _ReadableBulletList(
               values: warnings,
-              emptyText: 'No scientific cautions returned for this item.',
+              emptyText: 'No additional scientific caution is recorded.',
             ),
           ),
           const SizedBox(height: 14),
@@ -5040,7 +5068,7 @@ class _CatalogueScreenState extends State<CatalogueScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Canonical learning workspace',
+            'Evidence learning workspace',
             style: Theme.of(
               context,
             ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900),
@@ -5227,6 +5255,7 @@ class _TrainCatalogueCard extends StatelessWidget {
       child: ExpansionTile(
         tilePadding: const EdgeInsets.all(14),
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        expandedCrossAxisAlignment: CrossAxisAlignment.start,
         title: Text(
           row['name']?.toString() ?? 'Treatment train',
           style: const TextStyle(fontWeight: FontWeight.w900),
@@ -5279,8 +5308,7 @@ class _TrainCatalogueCard extends StatelessWidget {
           _TextBlockList(
             title: 'Key design checks',
             values: _catalogueStrings(row['pretreatment_needs']),
-            emptyText:
-                'No additional canonical pretreatment field is recorded.',
+            emptyText: 'No additional pretreatment requirement is recorded.',
           ),
           const SizedBox(height: 12),
           _TextBlockList(
@@ -5334,6 +5362,7 @@ class _NbsCatalogueCard extends StatelessWidget {
       child: ExpansionTile(
         tilePadding: const EdgeInsets.all(14),
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        expandedCrossAxisAlignment: CrossAxisAlignment.start,
         title: Text(
           row['solution']?.toString() ?? 'NbS component',
           style: const TextStyle(fontWeight: FontWeight.w900),
@@ -5388,13 +5417,14 @@ class _NbsCatalogueCard extends StatelessWidget {
           _TextBlockList(
             title: 'Cross-section / design notes',
             values: _catalogueStrings(row['design_notes']),
-            emptyText: 'No canonical design cross-section note is available.',
+            emptyText: 'No design note is recorded for this component yet.',
           ),
           const SizedBox(height: 12),
           _TextBlockList(
             title: 'O&M notes',
             values: _catalogueStrings(row['maintenance_notes']),
-            emptyText: 'No canonical maintenance note is available.',
+            emptyText:
+                'No maintenance note is recorded for this component yet.',
           ),
           const SizedBox(height: 12),
           _TextBlockList(
@@ -5403,7 +5433,7 @@ class _NbsCatalogueCard extends StatelessWidget {
               for (final plant in plants)
                 plant['plant_species']?.toString() ?? 'Mapped plant',
             ],
-            emptyText: 'Planting guidance requires local validation.',
+            emptyText: 'Confirm planting suitability locally before use.',
           ),
           const SizedBox(height: 12),
           _EvidenceDisclosure(
@@ -5430,12 +5460,12 @@ class _PlantCatalogueCard extends StatelessWidget {
     final mappings = _catalogueMaps(row['mapped_components']);
     return AppCard(
       padding: EdgeInsets.zero,
-      borderColor: invasive
-          ? Colors.red.withValues(alpha: 0.45)
-          : NbsColors.cardBorder,
+      borderColor:
+          invasive ? Colors.red.withValues(alpha: 0.45) : NbsColors.cardBorder,
       child: ExpansionTile(
         tilePadding: const EdgeInsets.all(14),
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        expandedCrossAxisAlignment: CrossAxisAlignment.start,
         leading: Icon(
           invasive ? Icons.block_outlined : Icons.grass_outlined,
           color: invasive ? Colors.red : NbsColors.wetlandGreen,
@@ -5500,16 +5530,17 @@ class _CatalogueFlow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Wrap(
-    spacing: 6,
-    runSpacing: 8,
-    crossAxisAlignment: WrapCrossAlignment.center,
-    children: [
-      for (var index = 0; index < steps.length; index++) ...[
-        Chip(label: Text(steps[index])),
-        if (index < steps.length - 1) const Icon(Icons.arrow_forward, size: 17),
-      ],
-    ],
-  );
+        spacing: 6,
+        runSpacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          for (var index = 0; index < steps.length; index++) ...[
+            Chip(label: Text(steps[index])),
+            if (index < steps.length - 1)
+              const Icon(Icons.arrow_forward, size: 17),
+          ],
+        ],
+      );
 }
 
 List<Map<String, dynamic>> _catalogueMaps(dynamic value) =>
@@ -5517,9 +5548,9 @@ List<Map<String, dynamic>> _catalogueMaps(dynamic value) =>
 
 List<String> _catalogueStrings(dynamic value) => value is List
     ? value
-          .map((item) => item.toString())
-          .where((item) => item.trim().isNotEmpty)
-          .toList()
+        .map((item) => item.toString())
+        .where((item) => item.trim().isNotEmpty)
+        .toList()
     : const [];
 
 List<int> _catalogueSourceIds(dynamic value) => value is List
@@ -5894,35 +5925,30 @@ class _RiverIntelligenceHero extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Narmada River Intelligence',
+                'Narmada NbS Planner',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: NbsColors.deepNavy,
-                  fontWeight: FontWeight.w900,
-                ),
+                      color: NbsColors.deepNavy,
+                      fontWeight: FontWeight.w900,
+                    ),
               ),
               const SizedBox(height: 8),
               Text(
-                'Evidence-linked NbS recommendations from measured water quality.',
+                'Compare nature-based treatment options using water-quality data, site context, and evidence-linked rules.',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: NbsColors.mutedGrey,
-                  height: 1.35,
-                ),
+                      color: NbsColors.mutedGrey,
+                      height: 1.35,
+                    ),
               ),
               const SizedBox(height: 16),
               const Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  _HeroChip(label: 'Narmada demo', color: NbsColors.riverTeal),
-                  _HeroChip(label: 'TOPSIS', color: NbsColors.researchBlue),
                   _HeroChip(
-                    label: 'Criteria-weighted',
-                    color: NbsColors.warningAmber,
-                  ),
-                  _HeroChip(
-                    label: 'Narmada intelligence',
+                    label: 'Evidence-linked planning',
                     color: NbsColors.wetlandGreen,
                   ),
+                  _HeroChip(label: 'Narmada basin', color: NbsColors.riverTeal),
                 ],
               ),
             ],
@@ -6064,9 +6090,9 @@ class _WorkflowTimeline extends StatelessWidget {
                   child: Text(
                     steps[index],
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: NbsColors.deepNavy,
-                      fontWeight: FontWeight.w700,
-                    ),
+                          color: NbsColors.deepNavy,
+                          fontWeight: FontWeight.w700,
+                        ),
                   ),
                 ),
               ),
@@ -6108,21 +6134,21 @@ class _ResultsHero extends StatelessWidget {
                   children: [
                     Text(
                       'Executive recommendation',
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(
-                            color: NbsColors.deepNavy,
-                            fontWeight: FontWeight.w900,
-                          ),
+                      style:
+                          Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                color: NbsColors.deepNavy,
+                                fontWeight: FontWeight.w900,
+                              ),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       topRecommendation == null
-                          ? 'No ranked recommendations were returned for this run.'
+                          ? 'No ranked recommendation is available for this run.'
                           : 'Top treatment train: ${topRecommendation!.name}',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: NbsColors.mutedGrey,
-                        height: 1.35,
-                      ),
+                            color: NbsColors.mutedGrey,
+                            height: 1.35,
+                          ),
                     ),
                     const SizedBox(height: 6),
                     Text(
@@ -6130,9 +6156,9 @@ class _ResultsHero extends StatelessWidget {
                           ? 'Review the data basis and design-readiness status before proceeding.'
                           : 'Recommended role: ${topRecommendation!.implementationRole}.',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: NbsColors.mutedGrey,
-                        height: 1.35,
-                      ),
+                            color: NbsColors.mutedGrey,
+                            height: 1.35,
+                          ),
                     ),
                   ],
                 ),
@@ -6204,7 +6230,7 @@ class _ResultsMetricStrip extends StatelessWidget {
       children: [
         StatusPill(
           label: 'Workflow',
-          value: 'A0 → TOPSIS',
+          value: 'Safety screening to TOPSIS',
           color: NbsColors.riverTeal,
         ),
         StatusPill(
@@ -6256,16 +6282,16 @@ class _DashboardMetricCard extends StatelessWidget {
                 Text(
                   label,
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: NbsColors.mutedGrey,
-                    fontWeight: FontWeight.w700,
-                  ),
+                        color: NbsColors.mutedGrey,
+                        fontWeight: FontWeight.w700,
+                      ),
                 ),
                 Text(
                   value,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: NbsColors.deepNavy,
-                    fontWeight: FontWeight.w900,
-                  ),
+                        color: NbsColors.deepNavy,
+                        fontWeight: FontWeight.w900,
+                      ),
                 ),
               ],
             ),
@@ -6299,9 +6325,9 @@ class _ScoreBar extends StatelessWidget {
               child: Text(
                 label,
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: NbsColors.mutedGrey,
-                  fontWeight: FontWeight.w700,
-                ),
+                      color: NbsColors.mutedGrey,
+                      fontWeight: FontWeight.w700,
+                    ),
               ),
             ),
             Text(
@@ -6348,9 +6374,9 @@ class _ReportHeader extends StatelessWidget {
                 Text(
                   item.nbsName,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: NbsColors.deepNavy,
-                    fontWeight: FontWeight.w900,
-                  ),
+                        color: NbsColors.deepNavy,
+                        fontWeight: FontWeight.w900,
+                      ),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -6391,6 +6417,110 @@ class _ReportHeader extends StatelessWidget {
   }
 }
 
+class _HowItWorksStrip extends StatelessWidget {
+  const _HowItWorksStrip();
+
+  @override
+  Widget build(BuildContext context) {
+    const steps = [
+      'Add water or site context.',
+      'Review the recommended treatment train.',
+      'Check site and design readiness.',
+      'Compare options and export a report.',
+    ];
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'How it works',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final itemWidth = constraints.maxWidth >= 900
+                  ? (constraints.maxWidth - 36) / 4
+                  : constraints.maxWidth;
+              return Wrap(
+                spacing: 12,
+                runSpacing: 10,
+                children: [
+                  for (var index = 0; index < steps.length; index++)
+                    SizedBox(
+                      width: itemWidth,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          CircleAvatar(
+                            radius: 12,
+                            backgroundColor: NbsColors.researchBlue,
+                            child: Text(
+                              '${index + 1}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text(steps[index])),
+                        ],
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ParameterCoverageRows extends StatelessWidget {
+  const _ParameterCoverageRows({required this.rows});
+
+  final List<Map<String, dynamic>> rows;
+
+  @override
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final row in rows)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.science_outlined, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      row['coverage_category'] == 'skipped'
+                          ? row['display_name']?.toString() ??
+                              'Skipped input row'
+                          : '${_displayParameter(row['parameter']?.toString(), fallback: row['display_name']?.toString())} = ${row['value'] ?? 'unknown'}${_displayUnitSuffix(row['unit'])}',
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      _coverageLabel(row['coverage_category']?.toString()),
+                      textAlign: TextAlign.end,
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      );
+}
+
 class _StatusPanel extends StatelessWidget {
   const _StatusPanel();
 
@@ -6413,15 +6543,18 @@ class _StatusPanel extends StatelessWidget {
             runSpacing: 10,
             children: [
               StatusPill(
-                label: 'Backend',
-                value: 'Connected',
+                label: 'Service',
+                value: 'App service connected',
                 color: NbsColors.wetlandGreen,
               ),
-              StatusPill(label: 'Dataset', value: 'Narmada canonical'),
-              StatusPill(label: 'Method', value: 'Criteria-weighted TOPSIS'),
+              StatusPill(
+                label: 'Database',
+                value: 'Narmada evidence database loaded',
+              ),
+              StatusPill(label: 'Method', value: 'Transparent ranking method'),
               StatusPill(
                 label: 'Evidence',
-                value: 'Source linked',
+                value: 'Evidence records linked',
                 color: NbsColors.riverTeal,
               ),
             ],
@@ -6479,9 +6612,9 @@ class _ReadinessRow extends StatelessWidget {
             child: Text(
               '4 parameters ready · Inland discharge · Manual measured values',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: NbsColors.textOnDark,
-                fontWeight: FontWeight.w800,
-              ),
+                    color: NbsColors.textOnDark,
+                    fontWeight: FontWeight.w800,
+                  ),
             ),
           ),
         ],
@@ -6539,8 +6672,8 @@ class _ActionCard extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
+                          fontWeight: FontWeight.w800,
+                        ),
                   ),
                   const SizedBox(height: 5),
                   Text(
@@ -6548,8 +6681,8 @@ class _ActionCard extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: NbsColors.mutedGrey,
-                    ),
+                          color: NbsColors.mutedGrey,
+                        ),
                   ),
                 ],
               ),
@@ -6678,16 +6811,16 @@ class _HeaderBadge extends StatelessWidget {
           Text(
             label,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: NbsColors.mutedGrey,
-              fontWeight: FontWeight.w700,
-            ),
+                  color: NbsColors.mutedGrey,
+                  fontWeight: FontWeight.w700,
+                ),
           ),
           Text(
             value,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: NbsColors.deepNavy,
-              fontWeight: FontWeight.w800,
-            ),
+                  color: NbsColors.deepNavy,
+                  fontWeight: FontWeight.w800,
+                ),
           ),
         ],
       ),
@@ -6820,9 +6953,9 @@ class _DetailSection extends StatelessWidget {
                 Text(
                   title,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: NbsColors.deepNavy,
-                  ),
+                        fontWeight: FontWeight.w900,
+                        color: NbsColors.deepNavy,
+                      ),
                 ),
                 const SizedBox(height: 10),
                 child,
@@ -6867,7 +7000,7 @@ class _TextBlockList extends StatelessWidget {
 class _ReadableBulletList extends StatelessWidget {
   const _ReadableBulletList({
     required this.values,
-    this.emptyText = 'No items returned.',
+    this.emptyText = 'No additional item is recorded.',
   });
 
   final List<String> values;
@@ -7026,8 +7159,8 @@ class _EvidenceDisclosure extends StatelessWidget {
                     Text(
                       entry.key,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
+                            fontWeight: FontWeight.w800,
+                          ),
                     ),
                     const SizedBox(height: 7),
                     _SourceIdWrap(
@@ -7056,7 +7189,7 @@ class _CitationList extends StatelessWidget {
         if (citationsById[sourceId] != null) citationsById[sourceId]!,
     ];
     if (resolved.isEmpty) {
-      return const Text('No resolved citations returned for this item.');
+      return const Text('No linked citation is available for this item.');
     }
     final textTheme = Theme.of(context).textTheme;
     return Column(
@@ -7176,8 +7309,8 @@ class _MethodCard extends StatelessWidget {
                 Text(
                   title,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+                        fontWeight: FontWeight.w800,
+                      ),
                 ),
                 const SizedBox(height: 6),
                 Text(body),
@@ -7203,7 +7336,8 @@ class _MethodCard extends StatelessWidget {
     'uploaded_water_quality' => 'Uploaded data + evidence database',
     'manual_measured_water_quality' => 'Measured values + evidence database',
     'site_context_only' ||
-    'pollution_source_screening' => 'Station and site context',
+    'pollution_source_screening' =>
+      'Station and site context',
     _ => hasCurrentSample ? 'Mixed data basis' : 'Available context data',
   };
   return (
@@ -7212,12 +7346,12 @@ class _MethodCard extends StatelessWidget {
     confidenceBasis: response.inputSummary.isContextOnly
         ? 'Low confidence: based on station and site context only.'
         : response.inputSummary.observationCount == 1
-        ? 'Reduced because only one usable value was supplied.'
-        : mode == 'uploaded_water_quality' && completePanel
-        ? 'Based on uploaded values and literature evidence.'
-        : hasCurrentSample
-        ? 'Reduced because some key values are missing.'
-        : 'Not enough recent water-quality data.',
+            ? 'Reduced because only one usable value was supplied.'
+            : mode == 'uploaded_water_quality' && completePanel
+                ? 'Based on uploaded values and literature evidence.'
+                : hasCurrentSample
+                    ? 'Reduced because some key values are missing.'
+                    : 'Not enough recent water-quality data.',
   );
 }
 
@@ -7233,8 +7367,7 @@ List<String> _cleanDataGaps(
     if (train != null) ...train.dataGaps,
   ]) {
     final lower = value.toLowerCase();
-    final genericSampleGap =
-        lower.contains('measured water-quality data') ||
+    final genericSampleGap = lower.contains('measured water-quality data') ||
         lower.contains('water input data was missing') ||
         lower.contains('water observations') ||
         lower.contains('observation_count') ||
@@ -7253,7 +7386,7 @@ List<String> _cleanDataGaps(
   }
   if (train?.allUseCasesUnknown == true) {
     values.add(
-      'Use-case assessment needs recent water-quality values or additional canonical performance evidence.',
+      'Use-case assessment needs recent water-quality values or additional linked performance evidence.',
     );
   }
   return _uniqueStrings(values);
@@ -7304,16 +7437,16 @@ Map<String, List<Map<String, dynamic>>> _groupPlantMappings(
     final group = text.contains('buffer') || text.contains('riparian')
         ? 'Buffer strip / riparian edge'
         : text.contains('sediment') ||
-              text.contains('stabili') ||
-              text.contains('erosion')
-        ? 'Sediment stabilization'
-        : text.contains('habitat') || text.contains('biodiversity')
-        ? 'Habitat / biodiversity support'
-        : text.contains('wetland') ||
-              text.contains('pond') ||
-              text.contains('polish')
-        ? 'Wetland bed / polishing cell'
-        : 'Needs local validation';
+                text.contains('stabili') ||
+                text.contains('erosion')
+            ? 'Sediment stabilization'
+            : text.contains('habitat') || text.contains('biodiversity')
+                ? 'Habitat / biodiversity support'
+                : text.contains('wetland') ||
+                        text.contains('pond') ||
+                        text.contains('polish')
+                    ? 'Wetland bed / polishing cell'
+                    : 'Needs local validation';
     final speciesKey = (plant['plant_species']?.toString() ?? 'unidentified')
         .trim()
         .toLowerCase();
@@ -7392,8 +7525,7 @@ String _practicalRecommendation(
   }
   final context = response.inputSummary.context;
   final source = context['pollution_source_type']?.toString() ?? '';
-  final highOrder =
-      context['intervention_position'] == 'in_channel' ||
+  final highOrder = context['intervention_position'] == 'in_channel' ||
       ((context['stream_order'] as num?)?.toDouble() ?? 0) >= 5;
   if (source.contains('industrial')) {
     return 'Use ${train.name} only after ETP/CETP treatment and required pH neutralization. Use NbS as controlled polishing or buffering, not standalone industrial treatment.';
@@ -7427,7 +7559,7 @@ String _keyCaution(
     return 'The ranked train is not a complete farm-level design and applies only after runoff is collected or intercepted.';
   }
   if (response.inputSummary.isContextOnly) {
-    return 'This is a canonical context screening recommendation. Confirm recent water quality, flow, land, and site constraints before design.';
+    return 'This is a context-screening recommendation. Confirm recent water quality, flow, land, and site constraints before design.';
   }
   return train.caveats.isNotEmpty
       ? train.caveats.first
@@ -7463,8 +7595,7 @@ String? _majorSummaryWarning(
   List<ReadinessInput> improveResult,
   List<ReadinessInput> beforeDesign,
   List<ReadinessInput> fieldChecks,
-})
-_groupReadinessInputs(List<ReadinessInput> items) {
+}) _groupReadinessInputs(List<ReadinessInput> items) {
   const improveKeys = {
     'design_flow',
     'available_land',
@@ -7574,12 +7705,12 @@ String _componentExplanation(
   TrainRecommendation train,
 ) {
   final name = component['name']?.toString() ?? 'NbS component';
-  final text = '${component['name'] ?? ''} ${component['family'] ?? ''}'
-      .toLowerCase();
+  final text =
+      '${component['name'] ?? ''} ${component['family'] ?? ''}'.toLowerCase();
   final step = train.treatmentSequence.cast<Map<String, dynamic>?>().firstWhere(
-    (value) => value?['nbs_id'] == component['nbs_id'],
-    orElse: () => null,
-  );
+        (value) => value?['nbs_id'] == component['nbs_id'],
+        orElse: () => null,
+      );
   final placement = step?['role']?.toString() ?? 'linked treatment stage';
   if (text.contains('wetland') ||
       text.contains('hssf') ||
@@ -7669,7 +7800,7 @@ List<String> _topRecommendationReasons(
     if (components.isNotEmpty)
       'Treatment function: ${components.join(' followed by ')} provide the linked treatment and polishing stages.',
     if (supportedUses.isNotEmpty)
-      'Suitability strength: available canonical evidence supports ${supportedUses.join(', ')} assessment.',
+      'Suitability strength: available linked evidence supports ${supportedUses.join(', ')} assessment.',
     if (train.pretreatmentRequirements.isNotEmpty)
       'Pretreatment: ${train.pretreatmentRequirements.first}',
     if (train.caveats.isNotEmpty) 'Key limitation: ${train.caveats.first}',
@@ -7786,8 +7917,7 @@ List<String> _implementationSteps(
 ) {
   final context = response.inputSummary.context;
   final source = context['pollution_source_type']?.toString() ?? '';
-  final highOrder =
-      context['intervention_position'] == 'in_channel' ||
+  final highOrder = context['intervention_position'] == 'in_channel' ||
       ((context['stream_order'] as num?)?.toDouble() ?? 0) >= 5;
   late final String step2;
   if (source.contains('industrial')) {
@@ -7897,7 +8027,7 @@ String _suitabilityLabel(
   if (verdict == 'marginal') return 'Conditional';
   if (verdict == 'fail') return 'Not suitable alone';
   if (contextOnly) {
-    return 'Not assessed';
+    return 'Needs measured values';
   }
   if (!hasMeasuredData) {
     return 'Needs water-quality data';
@@ -7910,7 +8040,7 @@ String _gapStatusLabel(String? status) {
     'below_target' => 'Below / within target',
     'near_target' => 'Near target',
     'exceeds_target' => 'Exceeds target',
-    _ => 'Not assessed',
+    _ => 'Read, but not scored yet',
   };
 }
 
@@ -7952,11 +8082,25 @@ String _titleFromSnake(String value) {
 }
 
 String _readinessStatusLabel(String status) => switch (status) {
-  'available' => 'Available',
-  'needs_field_verification' => 'Needs field check',
-  'not_required_for_current_screening' => 'Not required for current screening',
-  _ => 'Missing',
-};
+      'available' => 'Available',
+      'not_supplied' => 'Not supplied',
+      'mapped_context_verify' =>
+        'Available from mapped context; verify in field',
+      'needs_field_check' => 'Needs field check',
+      'missing_before_engineering_design' =>
+        'Missing before engineering design',
+      'not_required_for_current_screening' =>
+        'Not required for current screening',
+      _ => 'Status unavailable',
+    };
+
+String _coverageLabel(String? category) => switch (category) {
+      'used_in_scoring' => 'Used in scoring',
+      'supporting_context' => 'Used as supporting context',
+      'read_not_assessed' => 'Read, but not scored yet',
+      'skipped' => 'Not recognized / skipped',
+      _ => 'Coverage not available',
+    };
 
 String _displayParameter(String? value, {String? fallback}) {
   return switch (value?.toLowerCase()) {
@@ -8026,7 +8170,10 @@ String _readableText(String value) {
         'rank, confidence, and plant assembly',
       )
       .replaceAll('rule_based_v1', 'rule-based confidence')
-      .replaceAll('_', ' ');
+      .replaceAll('_', ' ')
+      .replaceAll(';', ', ')
+      .replaceAll('Only As Part Of Train', 'Only as part of a train')
+      .replaceAll('Secondary Or Polishing', 'Secondary or polishing');
 }
 
 List<String> _uniqueStrings(Iterable<String> values) {

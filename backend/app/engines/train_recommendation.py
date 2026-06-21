@@ -826,8 +826,12 @@ def _pollutant_gap_breakdown(
             severity = "Target is not met; treatment or adjustment is required."
         else:
             gap_status = "not_assessed"
-            severity = "Not assessed because a comparable target or unit is unavailable."
+            severity = "Read, but not scored yet because a comparable target or unit is unavailable."
         parameter = normalize_match_key(gap.get("parameter"))
+        coverage_category = _coverage_category(
+            parameter=parameter,
+            gap_status=gap_status,
+        )
         result.append(
             {
                 "parameter": parameter or gap.get("parameter"),
@@ -840,11 +844,33 @@ def _pollutant_gap_breakdown(
                     "unit": gap.get("standard_unit"),
                 },
                 "gap_status": gap_status,
+                "coverage_category": coverage_category,
+                "coverage_label": _coverage_label(coverage_category),
                 "severity": severity,
                 "train_addresses_parameter": parameter in addressed,
             }
         )
     return result
+
+
+def _coverage_category(*, parameter: str | None, gap_status: str) -> str:
+    """Classify how one recognized observation participates in this run."""
+
+    if gap_status != "not_assessed":
+        return "used_in_scoring"
+    if parameter in {"do", "ec", "tds", "turbidity", "ph"}:
+        return "supporting_context"
+    return "read_not_assessed"
+
+
+def _coverage_label(category: str) -> str:
+    """Return stable practitioner-facing wording for a coverage category."""
+
+    return {
+        "used_in_scoring": "Used in scoring.",
+        "supporting_context": "Used as supporting context.",
+        "read_not_assessed": "Read, but not scored yet.",
+    }[category]
 
 
 def _input_source_label(gap: dict[str, Any], context: dict[str, Any]) -> str:

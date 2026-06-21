@@ -1,0 +1,7 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 300">
+  <rect width="640" height="300" fill="#F7FAFC"/><path d="M100 100h440v135H100z" fill="#D8C2A4" stroke="#17324D" stroke-width="3"/><path d="M130 165h365" stroke="#168AAD" stroke-width="12"/>
+  <g stroke="#2E7D4F" stroke-width="5"><path d="M180 100V55m0 20-15-15m15 10 15-15M300 100V50m0 22-15-15m15 10 15-15M420 100V55m0 20-15-15m15 10 15-15"/></g>
+  
+  <g font-family="Inter,Arial" font-size="17" fill="#17324D"><text x="30" y="160">Inlet</text><text x="245" y="30">Planted gravel</text><text x="250" y="155">Subsurface flow</text><text x="542" y="160">Outlet</text></g>
+<polygon points="490,154 512,165 490,176" fill="#168AAD"/></svg>
+

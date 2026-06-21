@@ -33,8 +33,8 @@ def _train(train_id=1, components=(10, 11)):
     }
 
 
-def test_population_without_flow_does_not_invent_absolute_area() -> None:
-    """Population-only evidence must not become a precise area or land-fit claim."""
+def test_explicit_population_uses_only_per_person_evidence() -> None:
+    """User-supplied population may use a complete stored per-person band."""
 
     repository = FakeFootprintRepository(
         [
@@ -61,11 +61,13 @@ def test_population_without_flow_does_not_invent_absolute_area() -> None:
         context={"population_equivalent": 100, "available_land_m2": 350},
     )[0]
 
-    assert result["estimated_area_low_m2"] is None
-    assert result["estimated_area_high_m2"] is None
-    assert result["land_fit"] == "insufficient_data"
-    assert result["flow_status"] == "missing"
-    assert "provide design flow" in result["estimate_label"]
+    assert result["basis"] == "population_equivalent"
+    assert result["estimated_area_low_m2"] == 150
+    assert result["estimated_area_high_m2"] == 300
+    assert result["land_fit"] == "fits"
+    assert result["flow_status"] == "not_supplied"
+    assert result["population_status"] == "supplied"
+    assert "supplied population or PE" in result["estimate_label"]
     assert result["full_component_coverage"] is True
     assert result["source_ids"] == [1, 2]
 
@@ -111,6 +113,56 @@ def test_flow_estimate_uses_only_stored_hydraulic_loading_rates() -> None:
     assert result["estimated_area_low_m2"] == 300
     assert result["estimated_area_high_m2"] == 300
     assert result["land_fit"] == "likely_too_little_land"
+    assert result["population_status"] == "not_supplied"
+
+
+def test_design_flow_does_not_trigger_per_person_estimate() -> None:
+    """Flow alone cannot be converted into population equivalent."""
+
+    repository = FakeFootprintRepository(
+        [
+            {
+                "train_id": 1,
+                "nbs_id": 10,
+                "area_per_pe_low": 1,
+                "area_per_pe_high": 2,
+            },
+            {
+                "train_id": 1,
+                "nbs_id": 11,
+                "area_per_pe_low": 0.5,
+                "area_per_pe_high": 1,
+            },
+        ]
+    )
+    result = SizingEstimator(repository).estimate(
+        ranked_trains=[_train()],
+        context={"design_flow_m3_d": 10, "available_land_m2": 500},
+    )[0]
+
+    assert result["basis"] == "area_per_person_band"
+    assert result["estimated_area_low_m2"] is None
+    assert result["estimated_area_high_m2"] is None
+    assert result["land_fit"] == "insufficient_data"
+    assert "Design flow alone is not enough" in result["estimate_label"]
+
+
+def test_flow_basis_requires_explicit_design_flow() -> None:
+    """Stored hydraulic evidence alone must not create an absolute area."""
+
+    repository = FakeFootprintRepository(
+        [
+            {"train_id": 1, "nbs_id": 10, "hlr_m3_m2_d": 0.1},
+            {"train_id": 1, "nbs_id": 11, "hlr_m3_m2_d": 0.05},
+        ]
+    )
+    result = SizingEstimator(repository).estimate(
+        ranked_trains=[_train()], context={"available_land_m2": 500}
+    )[0]
+
+    assert result["estimated_area_low_m2"] is None
+    assert result["land_fit"] == "insufficient_data"
+    assert "Design flow" in result["missing_inputs"]
 
 
 def test_missing_footprint_evidence_keeps_sizing_unavailable() -> None:

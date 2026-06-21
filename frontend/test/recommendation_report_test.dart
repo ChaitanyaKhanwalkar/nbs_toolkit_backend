@@ -28,8 +28,8 @@ void main() {
       'input_checklist': [
         {
           'key': 'design_flow',
-          'label': 'Flow rate / design flow',
-          'status': 'missing',
+          'label': 'Treatment design flow',
+          'status': 'not_supplied',
         },
       ],
     },
@@ -62,8 +62,9 @@ void main() {
         'train_name': 'DEWATS modular train',
         'basis': 'design_flow',
         'flow_status': 'supplied',
+        'population_status': 'not_supplied',
         'sizing_confidence': 'screening_band',
-        'estimate_label': 'Approximately 240-400 m2',
+        'estimate_label': 'Estimated screening area: 240-400 m²',
         'estimated_area_low_m2': 240,
         'estimated_area_high_m2': 400,
         'land_fit': 'borderline',
@@ -138,6 +139,15 @@ void main() {
       ],
       'context': {'workflow_mode': 'uploaded_water_quality'},
     },
+    'parameter_coverage': [
+      {
+        'parameter': 'bod',
+        'value': 80,
+        'unit': 'mg_l',
+        'coverage_category': 'used_in_scoring',
+        'coverage_label': 'Used in scoring.',
+      },
+    ],
   });
 
   test('builds complete JSON report structure', () {
@@ -145,6 +155,7 @@ void main() {
     final decoded = jsonDecode(report.json) as Map<String, dynamic>;
 
     expect(decoded['project_input_summary'], isA<Map<String, dynamic>>());
+    expect(decoded['project_input_summary']['parameter_coverage'], isNotEmpty);
     expect(decoded['location_context']['station'], 'Test station');
     expect(
       decoded['location_context']['map_status'],
@@ -186,8 +197,9 @@ void main() {
     expect(report.summary, contains('Design readiness: Ready for planning'));
     expect(
       report.summary,
-      contains('Sizing and land: Approximately 240-400 m2'),
+      contains('Sizing and land: Estimated screening area: 240-400 m²'),
     );
+    expect(report.summary, contains('Parameter coverage: 1 used in scoring'));
     expect(report.summary, contains('Best overall fit'));
     expect(report.summary, contains(planningLevelDisclaimer));
   });

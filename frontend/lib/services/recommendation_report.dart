@@ -24,9 +24,8 @@ class RecommendationReport {
   String get baseFileName => 'nbs_recommendation_report';
 
   factory RecommendationReport.fromResponse(RecommendationResponse response) {
-    final train = response.rankedTrains.isEmpty
-        ? null
-        : response.rankedTrains.first;
+    final train =
+        response.rankedTrains.isEmpty ? null : response.rankedTrains.first;
     final input = response.inputSummary;
     final readinessGroups = _groupReadinessForReport(
       response.designReadiness.inputChecklist,
@@ -71,6 +70,7 @@ class RecommendationReport {
         'observation_count': input.observationCount,
         'selected_parameters': input.selectedParameters,
         'water_quality_values_used': input.dataUsed,
+        'parameter_coverage': response.parameterCoverage,
         'site_and_source_context': input.context,
       },
       'location_context': {
@@ -86,6 +86,8 @@ class RecommendationReport {
         'pollution_source_type': response.locationContext.pollutionSourceType,
         'pollution_source_record_count':
             response.locationContext.pollutionSourceRecordCount,
+        'river_discharge_context_m3_s':
+            response.locationContext.riverDischargeCms,
         'coordinates_available': response.locationContext.coordinatesAvailable,
         'latitude': response.locationContext.latitude,
         'longitude': response.locationContext.longitude,
@@ -115,6 +117,7 @@ class RecommendationReport {
             'train_name': estimate.trainName,
             'basis': estimate.basis,
             'flow_status': estimate.flowStatus,
+            'population_status': estimate.populationStatus,
             'sizing_confidence': estimate.sizingConfidence,
             'estimated_land_need': estimate.estimateLabel,
             'estimated_area_low_m2': estimate.estimatedAreaLowM2,
@@ -213,8 +216,12 @@ String _buildSummary(
     response.inputSummary.dataUsed.isEmpty
         ? 'No recent water-quality values were supplied.'
         : '${response.inputSummary.dataUsed.length} recent water-quality values informed this result.',
+    if (response.parameterCoverage.isNotEmpty)
+      'Parameter coverage: ${_coverageSummary(response.parameterCoverage)}',
     'Site context: ${response.locationContext.station ?? response.locationContext.district ?? 'Not selected'}',
     'Location display: ${_mapStatus(response.locationContext)}',
+    if (response.locationContext.riverDischargeCms != null)
+      'River discharge context: ${response.locationContext.riverDischargeCms} m³/s (not treatment design flow)',
     'Design readiness: ${response.designReadiness.shortLabel}',
     response.designReadiness.explanation,
   ];
@@ -254,6 +261,24 @@ String _buildSummary(
   }
   lines.addAll(['', planningLevelDisclaimer]);
   return lines.join('\n');
+}
+
+String _coverageSummary(List<Map<String, dynamic>> rows) {
+  final counts = <String, int>{};
+  for (final row in rows) {
+    final category =
+        row['coverage_category']?.toString() ?? 'read_not_assessed';
+    counts[category] = (counts[category] ?? 0) + 1;
+  }
+  const labels = {
+    'used_in_scoring': 'used in scoring',
+    'supporting_context': 'used as supporting context',
+    'read_not_assessed': 'read but not assessed yet',
+    'skipped': 'not recognized or skipped',
+  };
+  return counts.entries
+      .map((entry) => '${entry.value} ${labels[entry.key] ?? entry.key}')
+      .join(', ');
 }
 
 String _buildCsv(Map<String, dynamic> payload) {
@@ -355,12 +380,12 @@ String _csvCell(Object? value) {
 }
 
 String _workflowLabel(String? value) => switch (value) {
-  'uploaded_water_quality' => 'Uploaded water-quality data',
-  'manual_measured_water_quality' => 'Measured water-quality values',
-  'site_context_only' => 'Station and site context',
-  'pollution_source_screening' => 'Pollution-source and site context',
-  _ => 'Available project inputs',
-};
+      'uploaded_water_quality' => 'Uploaded water-quality data',
+      'manual_measured_water_quality' => 'Measured water-quality values',
+      'site_context_only' => 'Station and site context',
+      'pollution_source_screening' => 'Pollution-source and site context',
+      _ => 'Available project inputs',
+    };
 
 String _confidenceLabel(TrainRecommendation train) {
   if ((train.confidenceScore ?? 0) <= 0) return 'Data-limited';
@@ -407,8 +432,8 @@ Map<String, List<Map<String, String>>> _groupReadinessForReport(
     final key = improveKeys.contains(item.key)
         ? 'needed_to_improve_result'
         : fieldKeys.contains(item.key)
-        ? 'field_checks'
-        : 'needed_before_engineering_design';
+            ? 'field_checks'
+            : 'needed_before_engineering_design';
     result[key]!.add({
       'key': item.key,
       'label': item.label,

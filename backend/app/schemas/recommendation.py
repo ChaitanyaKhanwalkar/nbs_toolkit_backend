@@ -71,6 +71,7 @@ class RecommendationResponse(RawResponseModel):
     sizing_estimates: list[dict[str, Any]] = Field(default_factory=list)
     scenario_comparison: dict[str, Any] = Field(default_factory=dict)
     input_summary: dict[str, Any] = Field(default_factory=dict)
+    parameter_coverage: list[dict[str, Any]] = Field(default_factory=list)
     contaminant_gaps: list[dict[str, Any]] = Field(default_factory=list)
     ranked_trains: list[dict[str, Any]] = Field(default_factory=list)
     component_recommendations: list[dict[str, Any]] = Field(default_factory=list)

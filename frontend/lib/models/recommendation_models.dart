@@ -25,6 +25,7 @@ class RecommendationResponse {
     required this.designReadiness,
     required this.sizingEstimates,
     required this.scenarioComparison,
+    required this.parameterCoverage,
   });
 
   final String workflowStatus;
@@ -52,6 +53,7 @@ class RecommendationResponse {
   final DesignReadiness designReadiness;
   final List<SizingEstimate> sizingEstimates;
   final ScenarioComparison scenarioComparison;
+  final List<Map<String, dynamic>> parameterCoverage;
 
   /// Resolved citations indexed by source ID for quick lookup in the UI.
   Map<int, Citation> get citationsById {
@@ -71,9 +73,9 @@ class RecommendationResponse {
       dataQualityLevel: _nullableString(json['data_quality_level']),
       exceedances: exceedanceRows is List
           ? exceedanceRows
-                .whereType<Map<String, dynamic>>()
-                .map(Exceedance.fromJson)
-                .toList()
+              .whereType<Map<String, dynamic>>()
+              .map(Exceedance.fromJson)
+              .toList()
           : <Exceedance>[],
       globalGaps: _stringList(json['global_gaps']),
       recommendationAssemblyBundle: bundleJson is Map<String, dynamic>
@@ -81,9 +83,9 @@ class RecommendationResponse {
           : null,
       citations: citationRows is List
           ? citationRows
-                .whereType<Map<String, dynamic>>()
-                .map(Citation.fromJson)
-                .toList()
+              .whereType<Map<String, dynamic>>()
+              .map(Citation.fromJson)
+              .toList()
           : <Citation>[],
       warnings: _stringList(json['warnings']),
       errors: _stringList(json['errors']),
@@ -91,30 +93,27 @@ class RecommendationResponse {
       weightsStatus: _nullableString(json['weights_status']),
       expertValidated: json['expert_validated'] == true,
       provisionalNote: _nullableString(json['provisional_note']),
-      recommendationCount:
-          _nullableInt(json['recommendation_count']) ??
+      recommendationCount: _nullableInt(json['recommendation_count']) ??
           (bundleJson is Map<String, dynamic>
               ? _intValue(bundleJson['recommendation_count'])
               : 0),
       rankedTrains: trainRows is List
           ? trainRows
-                .whereType<Map<String, dynamic>>()
-                .map(TrainRecommendation.fromJson)
-                .toList()
+              .whereType<Map<String, dynamic>>()
+              .map(TrainRecommendation.fromJson)
+              .toList()
           : <TrainRecommendation>[],
-      rejectedOptions:
-          (json['rejected_options'] as List?)
+      rejectedOptions: (json['rejected_options'] as List?)
               ?.whereType<Map<String, dynamic>>()
               .toList() ??
           <Map<String, dynamic>>[],
       componentRecommendations: componentRows is List
           ? componentRows
-                .whereType<Map<String, dynamic>>()
-                .map(IndividualNbsRecommendation.fromJson)
-                .toList()
+              .whereType<Map<String, dynamic>>()
+              .map(IndividualNbsRecommendation.fromJson)
+              .toList()
           : <IndividualNbsRecommendation>[],
-      filteredComponents:
-          (json['filtered_components'] as List?)
+      filteredComponents: (json['filtered_components'] as List?)
               ?.whereType<Map<String, dynamic>>()
               .toList() ??
           <Map<String, dynamic>>[],
@@ -136,8 +135,7 @@ class RecommendationResponse {
             ? json['design_readiness'] as Map<String, dynamic>
             : const <String, dynamic>{},
       ),
-      sizingEstimates:
-          (json['sizing_estimates'] as List?)
+      sizingEstimates: (json['sizing_estimates'] as List?)
               ?.whereType<Map<String, dynamic>>()
               .map(SizingEstimate.fromJson)
               .toList() ??
@@ -147,6 +145,10 @@ class RecommendationResponse {
             ? json['scenario_comparison'] as Map<String, dynamic>
             : const <String, dynamic>{},
       ),
+      parameterCoverage: (json['parameter_coverage'] as List?)
+              ?.whereType<Map<String, dynamic>>()
+              .toList() ??
+          <Map<String, dynamic>>[],
     );
   }
 }
@@ -275,9 +277,9 @@ class DesignReadiness {
       expertReviewRequired: json['expert_review_required'] == true,
       inputChecklist: checklist is List
           ? checklist
-                .whereType<Map<String, dynamic>>()
-                .map(ReadinessInput.fromJson)
-                .toList()
+              .whereType<Map<String, dynamic>>()
+              .map(ReadinessInput.fromJson)
+              .toList()
           : <ReadinessInput>[],
     );
   }
@@ -295,10 +297,10 @@ class ReadinessInput {
   final String status;
 
   factory ReadinessInput.fromJson(Map<String, dynamic> json) => ReadinessInput(
-    key: _stringValue(json['key']),
-    label: _stringValue(json['label'], fallback: 'Design input'),
-    status: _stringValue(json['status'], fallback: 'missing'),
-  );
+        key: _stringValue(json['key']),
+        label: _stringValue(json['label'], fallback: 'Design input'),
+        status: _stringValue(json['status'], fallback: 'missing'),
+      );
 }
 
 class SizingEstimate {
@@ -307,6 +309,7 @@ class SizingEstimate {
     required this.trainName,
     required this.basis,
     required this.flowStatus,
+    required this.populationStatus,
     required this.sizingConfidence,
     required this.estimateLabel,
     required this.estimatedAreaLowM2,
@@ -325,6 +328,7 @@ class SizingEstimate {
   final String trainName;
   final String basis;
   final String flowStatus;
+  final String populationStatus;
   final String sizingConfidence;
   final String estimateLabel;
   final double? estimatedAreaLowM2;
@@ -339,29 +343,34 @@ class SizingEstimate {
   final List<int> sourceIds;
 
   factory SizingEstimate.fromJson(Map<String, dynamic> json) => SizingEstimate(
-    trainId: _intValue(json['train_id']),
-    trainName: _stringValue(json['train_name'], fallback: 'Treatment train'),
-    basis: _stringValue(json['basis'], fallback: 'insufficient_data'),
-    flowStatus: _stringValue(json['flow_status'], fallback: 'missing'),
-    sizingConfidence: _stringValue(
-      json['sizing_confidence'],
-      fallback: 'insufficient_data',
-    ),
-    estimateLabel: _stringValue(
-      json['estimate_label'],
-      fallback: 'Not enough information for a bounded estimate',
-    ),
-    estimatedAreaLowM2: _nullableDouble(json['estimated_area_low_m2']),
-    estimatedAreaHighM2: _nullableDouble(json['estimated_area_high_m2']),
-    areaPerPersonBand: _nullableString(json['area_per_person_band']),
-    landFit: _stringValue(json['land_fit'], fallback: 'insufficient_data'),
-    fullComponentCoverage: json['full_component_coverage'] == true,
-    inputsUsed: _stringList(json['inputs_used']),
-    missingInputs: _stringList(json['missing_inputs']),
-    keyAssumptions: _stringList(json['key_assumptions']),
-    designCaution: _stringValue(json['design_caution']),
-    sourceIds: _intList(json['source_ids']),
-  );
+        trainId: _intValue(json['train_id']),
+        trainName:
+            _stringValue(json['train_name'], fallback: 'Treatment train'),
+        basis: _stringValue(json['basis'], fallback: 'insufficient_data'),
+        flowStatus: _stringValue(json['flow_status'], fallback: 'missing'),
+        populationStatus: _stringValue(
+          json['population_status'],
+          fallback: 'not_supplied',
+        ),
+        sizingConfidence: _stringValue(
+          json['sizing_confidence'],
+          fallback: 'insufficient_data',
+        ),
+        estimateLabel: _stringValue(
+          json['estimate_label'],
+          fallback: 'Not enough information for a bounded estimate',
+        ),
+        estimatedAreaLowM2: _nullableDouble(json['estimated_area_low_m2']),
+        estimatedAreaHighM2: _nullableDouble(json['estimated_area_high_m2']),
+        areaPerPersonBand: _nullableString(json['area_per_person_band']),
+        landFit: _stringValue(json['land_fit'], fallback: 'insufficient_data'),
+        fullComponentCoverage: json['full_component_coverage'] == true,
+        inputsUsed: _stringList(json['inputs_used']),
+        missingInputs: _stringList(json['missing_inputs']),
+        keyAssumptions: _stringList(json['key_assumptions']),
+        designCaution: _stringValue(json['design_caution']),
+        sourceIds: _intList(json['source_ids']),
+      );
 }
 
 class ScenarioComparison {
@@ -390,20 +399,17 @@ class ScenarioComparison {
         currentScenario: json['current_scenario'] is Map<String, dynamic>
             ? json['current_scenario'] as Map<String, dynamic>
             : <String, dynamic>{},
-        options:
-            (json['options'] as List?)
+        options: (json['options'] as List?)
                 ?.whereType<Map<String, dynamic>>()
                 .map(ComparisonOption.fromJson)
                 .toList() ??
             <ComparisonOption>[],
-        componentOptions:
-            (json['component_options'] as List?)
+        componentOptions: (json['component_options'] as List?)
                 ?.whereType<Map<String, dynamic>>()
                 .map(ComparisonComponent.fromJson)
                 .toList() ??
             <ComparisonComponent>[],
-        takeaways:
-            (json['takeaways'] as List?)
+        takeaways: (json['takeaways'] as List?)
                 ?.whereType<Map<String, dynamic>>()
                 .map(ComparisonTakeaway.fromJson)
                 .toList() ??
@@ -480,27 +486,29 @@ class ComparisonOption {
 
   factory ComparisonOption.fromJson(
     Map<String, dynamic> json,
-  ) => ComparisonOption(
-    trainId: _intValue(json['train_id']),
-    name: _stringValue(json['name'], fallback: 'Treatment train'),
-    rank: _intValue(json['rank']),
-    technicalMatch: _nullableDouble(json['technical_match']),
-    resultConfidence: _nullableDouble(json['result_confidence']),
-    confidenceLabel: _nullableString(json['confidence_label']),
-    designReadiness: _nullableString(json['design_readiness']),
-    landDemand: _nullableString(json['land_demand']),
-    landFit: _stringValue(json['land_fit'], fallback: 'insufficient_data'),
-    omIntensity: _stringValue(json['om_intensity'], fallback: 'Not recorded'),
-    applicabilityStatus: _nullableString(json['applicability_status']),
-    warnings: _stringList(json['warnings']),
-    keyStrength: _nullableString(json['key_strength']),
-    keyLimitation: _nullableString(json['key_limitation']),
-    whenToChoose: _stringValue(
-      json['when_to_choose'],
-      fallback:
-          'Choose after confirming flow, land, site conditions, and pretreatment requirements.',
-    ),
-  );
+  ) =>
+      ComparisonOption(
+        trainId: _intValue(json['train_id']),
+        name: _stringValue(json['name'], fallback: 'Treatment train'),
+        rank: _intValue(json['rank']),
+        technicalMatch: _nullableDouble(json['technical_match']),
+        resultConfidence: _nullableDouble(json['result_confidence']),
+        confidenceLabel: _nullableString(json['confidence_label']),
+        designReadiness: _nullableString(json['design_readiness']),
+        landDemand: _nullableString(json['land_demand']),
+        landFit: _stringValue(json['land_fit'], fallback: 'insufficient_data'),
+        omIntensity:
+            _stringValue(json['om_intensity'], fallback: 'Not recorded'),
+        applicabilityStatus: _nullableString(json['applicability_status']),
+        warnings: _stringList(json['warnings']),
+        keyStrength: _nullableString(json['key_strength']),
+        keyLimitation: _nullableString(json['key_limitation']),
+        whenToChoose: _stringValue(
+          json['when_to_choose'],
+          fallback:
+              'Choose after confirming flow, land, site conditions, and pretreatment requirements.',
+        ),
+      );
 }
 
 class ComparisonTakeaway {
@@ -584,8 +592,7 @@ class IndividualNbsRecommendation {
       standaloneGuidance: _stringValue(json['standalone_guidance']),
       keyConstraints: _stringList(json['key_constraints']),
       implementationGuidance: _stringList(json['implementation_guidance']),
-      plants:
-          (json['plants'] as List?)
+      plants: (json['plants'] as List?)
               ?.whereType<Map<String, dynamic>>()
               .toList() ??
           <Map<String, dynamic>>[],
@@ -622,8 +629,7 @@ class RecommendationInputSummary {
     return RecommendationInputSummary(
       observationCount: _intValue(json['observation_count']),
       selectedParameters: _stringList(json['selected_parameters']),
-      dataUsed:
-          (json['data_used'] as List?)
+      dataUsed: (json['data_used'] as List?)
               ?.whereType<Map<String, dynamic>>()
               .toList() ??
           <Map<String, dynamic>>[],
@@ -707,8 +713,7 @@ class TrainRecommendation {
           ? json['confidence_factors'] as Map<String, dynamic>
           : <String, dynamic>{},
       confidenceExplanation: _stringList(json['confidence_explanation']),
-      pollutantGapBreakdown:
-          (json['pollutant_gap_breakdown'] as List?)
+      pollutantGapBreakdown: (json['pollutant_gap_breakdown'] as List?)
               ?.whereType<Map<String, dynamic>>()
               .toList() ??
           <Map<String, dynamic>>[],
@@ -722,8 +727,7 @@ class TrainRecommendation {
               ),
             )
           : <String, String>{},
-      criteriaBreakdown:
-          (json['criteria_breakdown'] as List?)
+      criteriaBreakdown: (json['criteria_breakdown'] as List?)
               ?.whereType<Map<String, dynamic>>()
               .toList() ??
           <Map<String, dynamic>>[],
@@ -733,18 +737,15 @@ class TrainRecommendation {
       ),
       whyRecommended: _stringList(json['why_recommended']),
       caveats: _stringList(json['caveats']),
-      treatmentSequence:
-          (json['treatment_sequence'] as List?)
+      treatmentSequence: (json['treatment_sequence'] as List?)
               ?.whereType<Map<String, dynamic>>()
               .toList() ??
           <Map<String, dynamic>>[],
-      nbsComponents:
-          (json['nbs_components'] as List?)
+      nbsComponents: (json['nbs_components'] as List?)
               ?.whereType<Map<String, dynamic>>()
               .toList() ??
           <Map<String, dynamic>>[],
-      suitablePlants:
-          (json['suitable_plants'] as List?)
+      suitablePlants: (json['suitable_plants'] as List?)
               ?.whereType<Map<String, dynamic>>()
               .toList() ??
           <Map<String, dynamic>>[],
@@ -795,9 +796,8 @@ class Exceedance {
   }
 
   String get summary {
-    final observed = observedValue == null
-        ? '?'
-        : observedValue!.toStringAsFixed(2);
+    final observed =
+        observedValue == null ? '?' : observedValue!.toStringAsFixed(2);
     final limit = limitHigh == null ? '?' : limitHigh!.toStringAsFixed(2);
     final unit = observedUnit == null ? '' : ' $observedUnit';
     return '$parameter: $observed$unit (limit $limit$unit)';
@@ -839,9 +839,9 @@ class RecommendationAssemblyBundle {
       recommendationCount: _intValue(json['recommendation_count']),
       recommendations: rows is List
           ? rows
-                .whereType<Map<String, dynamic>>()
-                .map(RecommendationItem.fromJson)
-                .toList()
+              .whereType<Map<String, dynamic>>()
+              .map(RecommendationItem.fromJson)
+              .toList()
           : <RecommendationItem>[],
       weightsStatus: _nullableString(json['weights_status']),
       expertValidated: json['expert_validated'] == true,
@@ -925,9 +925,9 @@ class RecommendationItem {
           : EvidenceSummary.empty(),
       criteriaBreakdown: breakdownRows is List
           ? breakdownRows
-                .whereType<Map<String, dynamic>>()
-                .map(CriterionBreakdown.fromJson)
-                .toList()
+              .whereType<Map<String, dynamic>>()
+              .map(CriterionBreakdown.fromJson)
+              .toList()
           : <CriterionBreakdown>[],
       whyRecommended: _stringList(json['why_recommended']),
       cautions: _stringList(json['cautions']),

@@ -103,6 +103,30 @@ def test_pollutant_breakdown_covers_every_supplied_parameter() -> None:
     assert all(row["source"] == "user_csv" for row in rows)
     assert all("target_threshold" in row for row in rows)
     assert all("train_addresses_parameter" in row for row in rows)
+    assert rows[0]["coverage_category"] == "used_in_scoring"
+    assert rows[0]["coverage_label"] == "Used in scoring."
+
+
+def test_recognized_parameter_without_target_is_read_not_silently_ignored() -> None:
+    """A recognized unscored value must retain an explicit coverage category."""
+
+    result = _rank(
+        contaminant_gaps=[
+            {
+                "parameter": "phosphate_p",
+                "observed_value": 2.5,
+                "observed_unit": "mg_l",
+                "status": "unknown_no_standard",
+                "direction": "unknown",
+            }
+        ],
+        context={"workflow_mode": "uploaded_water_quality"},
+    )
+
+    row = result["ranked_trains"][0]["pollutant_gap_breakdown"][0]
+    assert row["coverage_category"] == "read_not_assessed"
+    assert row["coverage_label"] == "Read, but not scored yet."
+    assert row["observed_value"] == 2.5
 
 
 def test_thin_input_confidence_is_capped_below_complete_panel() -> None:

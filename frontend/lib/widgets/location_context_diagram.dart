@@ -1,25 +1,34 @@
-/// Draws an offline, data-labelled river and intervention context schematic.
+/// Shows verified coordinates on a map canvas or an honest context schematic.
 library;
 
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart' as latlong;
 
 import '../models/recommendation_models.dart';
 import '../theme/nbs_theme.dart';
 
 class LocationContextDiagram extends StatelessWidget {
-  const LocationContextDiagram({super.key, required this.location});
+  const LocationContextDiagram({
+    super.key,
+    required this.location,
+    this.enableOnlineTiles = false,
+  });
 
   final LocationContext location;
+  final bool enableOnlineTiles;
 
   @override
   Widget build(BuildContext context) {
     final highOrder = location.contextFlags['mainstem_or_high_order'] == true;
-    final hasContext =
-        location.coordinatesAvailable ||
+    final hasContext = location.coordinatesAvailable ||
         location.station != null ||
         location.river != null ||
         location.district != null ||
         location.basin != null;
+
     if (!hasContext) {
       return Container(
         width: double.infinity,
@@ -44,6 +53,7 @@ class LocationContextDiagram extends StatelessWidget {
         ),
       );
     }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
@@ -66,7 +76,9 @@ class LocationContextDiagram extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             location.coordinatesAvailable
-                ? 'The station marker uses verified stored coordinates. The surrounding river and intervention lines remain schematic.'
+                ? enableOnlineTiles
+                    ? 'The marker uses verified stored coordinates on an OpenStreetMap base.'
+                    : 'The marker uses verified stored coordinates on an offline-safe map canvas.'
                 : 'Schematic only, not a surveyed map. Verify the site position and levels before design.',
             style: Theme.of(
               context,
@@ -75,17 +87,22 @@ class LocationContextDiagram extends StatelessWidget {
           const SizedBox(height: 12),
           AspectRatio(
             aspectRatio: 2.15,
-            child: CustomPaint(
-              painter: _LocationContextPainter(
-                showSite:
-                    location.station != null || location.coordinatesAvailable,
-                highOrder: highOrder,
-                offChannelRequired:
-                    location.contextFlags['off_channel_required'] == true,
-                interventionPosition: location.interventionPosition,
-              ),
-              child: const SizedBox.expand(),
-            ),
+            child: location.coordinatesAvailable
+                ? _VerifiedLocationMap(
+                    latitude: location.latitude!,
+                    longitude: location.longitude!,
+                    enableOnlineTiles: enableOnlineTiles,
+                  )
+                : CustomPaint(
+                    painter: _LocationContextPainter(
+                      showSite: location.station != null,
+                      highOrder: highOrder,
+                      offChannelRequired:
+                          location.contextFlags['off_channel_required'] == true,
+                      interventionPosition: location.interventionPosition,
+                    ),
+                    child: const SizedBox.expand(),
+                  ),
           ),
           if (location.coordinatesAvailable) ...[
             const SizedBox(height: 8),
@@ -125,6 +142,103 @@ class LocationContextDiagram extends StatelessWidget {
   }
 }
 
+class _VerifiedLocationMap extends StatelessWidget {
+  const _VerifiedLocationMap({
+    required this.latitude,
+    required this.longitude,
+    required this.enableOnlineTiles,
+  });
+
+  final double latitude;
+  final double longitude;
+  final bool enableOnlineTiles;
+
+  @override
+  Widget build(BuildContext context) {
+    final point = latlong.LatLng(latitude, longitude);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: ColoredBox(
+              color: const Color(0xFFE8F1F3),
+              child: FlutterMap(
+                key: const ValueKey('verified-location-map'),
+                options: MapOptions(
+                  initialCenter: point,
+                  initialZoom: 12,
+                  interactionOptions: const InteractionOptions(
+                    flags: InteractiveFlag.pinchZoom | InteractiveFlag.drag,
+                  ),
+                ),
+                children: [
+                  if (enableOnlineTiles)
+                    TileLayer(
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'org.nbsgct.narmada_nbs_planner',
+                    ),
+                  MarkerLayer(
+                    markers: [
+                      Marker(
+                        point: point,
+                        width: 42,
+                        height: 42,
+                        child: const Icon(
+                          Icons.location_pin,
+                          size: 40,
+                          color: NbsColors.warningAmber,
+                          shadows: [Shadow(color: Colors.white, blurRadius: 4)],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (!enableOnlineTiles)
+            const Positioned(
+              left: 10,
+              bottom: 10,
+              child: _MapBadge(label: 'Offline map canvas'),
+            ),
+          if (enableOnlineTiles)
+            const Positioned(
+              right: 8,
+              bottom: 8,
+              child: _MapBadge(label: '© OpenStreetMap contributors'),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MapBadge extends StatelessWidget {
+  const _MapBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.92),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(
+          label,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: NbsColors.deepNavy,
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+      );
+}
+
 class _ContextLabel extends StatelessWidget {
   const _ContextLabel({required this.label, required this.value});
 
@@ -133,19 +247,19 @@ class _ContextLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      border: Border.all(color: NbsColors.cardBorder),
-      borderRadius: BorderRadius.circular(6),
-    ),
-    child: Text(
-      '$label: $value',
-      style: Theme.of(
-        context,
-      ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
-    ),
-  );
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: NbsColors.cardBorder),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          '$label: $value',
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
+        ),
+      );
 }
 
 class _LocationContextPainter extends CustomPainter {
@@ -174,7 +288,8 @@ class _LocationContextPainter extends CustomPainter {
       ..strokeWidth = highOrder ? 18 : 11
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
-    final riverPath = Path()
+
+    final riverPath = ui.Path()
       ..moveTo(size.width * 0.04, size.height * 0.34)
       ..cubicTo(
         size.width * 0.30,
@@ -184,12 +299,14 @@ class _LocationContextPainter extends CustomPainter {
         size.width * 0.96,
         size.height * 0.42,
       );
+
     canvas.drawPath(riverPath, river);
 
     final drain = Paint()
       ..color = NbsColors.researchBlue
       ..strokeWidth = 5
       ..style = PaintingStyle.stroke;
+
     canvas.drawLine(
       Offset(size.width * 0.27, size.height * 0.82),
       Offset(size.width * 0.37, size.height * 0.39),
@@ -207,10 +324,12 @@ class _LocationContextPainter extends CustomPainter {
         size.width * 0.25,
         size.height * 0.20,
       );
+
       canvas.drawRRect(
         RRect.fromRectAndRadius(cellRect, const Radius.circular(8)),
         Paint()..color = NbsColors.wetlandGreen.withValues(alpha: 0.28),
       );
+
       canvas.drawRRect(
         RRect.fromRectAndRadius(cellRect, const Radius.circular(8)),
         Paint()
@@ -218,16 +337,20 @@ class _LocationContextPainter extends CustomPainter {
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2,
       );
+
       _label(canvas, size, 'Off-channel treatment', 0.49, 0.71);
+
       final returnFlow = Paint()
         ..color = NbsColors.riverTeal
         ..strokeWidth = 3
         ..style = PaintingStyle.stroke;
+
       canvas.drawLine(
         Offset(size.width * 0.71, size.height * 0.76),
         Offset(size.width * 0.79, size.height * 0.50),
         returnFlow,
       );
+
       _label(canvas, size, 'Safe return flow', 0.75, 0.70);
     }
 
@@ -244,6 +367,7 @@ class _LocationContextPainter extends CustomPainter {
       );
       _label(canvas, size, 'Selected site or station', 0.24, 0.14, width: 0.36);
     }
+
     _label(
       canvas,
       size,
@@ -251,7 +375,9 @@ class _LocationContextPainter extends CustomPainter {
       0.72,
       0.25,
     );
+
     _label(canvas, size, 'Drain or wastewater inflow', 0.04, 0.76, width: 0.36);
+
     if (interventionPosition != null && interventionPosition!.isNotEmpty) {
       _label(canvas, size, interventionPosition!, 0.02, 0.04, width: 0.40);
     }
@@ -276,6 +402,7 @@ class _LocationContextPainter extends CustomPainter {
       ),
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: size.width * width);
+
     painter.paint(canvas, Offset(size.width * x, size.height * y));
   }
 

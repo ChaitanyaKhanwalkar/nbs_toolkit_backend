@@ -31,19 +31,22 @@ void main() {
   testWidgets('Home cards do not overflow at 390x844', (tester) async {
     await pumpHome(tester, const Size(390, 844));
     expect(tester.takeException(), isNull);
-    expect(find.text('Upload Water Data'), findsOneWidget);
+    expect(find.text('Upload a water-quality file'), findsOneWidget);
+    expect(find.text('Narmada NbS Planner'), findsOneWidget);
   });
 
   testWidgets('Home cards do not overflow at 768x1024', (tester) async {
     await pumpHome(tester, const Size(768, 1024));
     expect(tester.takeException(), isNull);
-    expect(find.text('Pollution Source Screening'), findsOneWidget);
+    expect(find.text('Start from pollution source'), findsOneWidget);
+    expect(find.text('How it works'), findsOneWidget);
   });
 
   testWidgets('Home cards do not overflow at 1280x900', (tester) async {
     await pumpHome(tester, const Size(1280, 900));
     expect(tester.takeException(), isNull);
-    expect(find.text('Measured Water Quality'), findsOneWidget);
+    expect(find.text('Start with measured values'), findsOneWidget);
+    expect(find.text('Start from a Narmada station'), findsOneWidget);
     expect(find.text('Catalogue'), findsOneWidget);
   });
 }

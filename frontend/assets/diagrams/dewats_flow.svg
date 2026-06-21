@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 300">
+  <rect width="640" height="300" fill="#F7FAFC"/><g stroke="#17324D" stroke-width="3"><rect x="55" y="100" width="105" height="95" rx="7" fill="#D9E7EA"/><rect x="190" y="100" width="105" height="95" rx="7" fill="#B7C8CE"/><rect x="325" y="100" width="105" height="95" rx="7" fill="#A9C3B0"/><rect x="460" y="100" width="125" height="95" rx="7" fill="#79B88C"/></g>
+  <g stroke="#168AAD" stroke-width="6"><path d="M15 148h40m105 0h30m105 0h30m105 0h30m125 0h45"/></g>
+  <g font-family="Inter,Arial" font-size="15" fill="#17324D" text-anchor="middle"><text x="107" y="140">Settler</text><text x="242" y="132">Baffled</text><text x="242" y="153">reactor</text><text x="377" y="132">Planted</text><text x="377" y="153">filter</text><text x="522" y="143">Polishing</text><text x="35" y="128">Inlet</text><text x="610" y="128">Outlet</text></g>
+</svg>

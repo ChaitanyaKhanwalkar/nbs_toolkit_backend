@@ -46,7 +46,13 @@ class DesignReadinessEngine:
         missing_inputs = [
             item["label"]
             for item in checklist
-            if item["status"] in {"missing", "needs_field_verification"}
+            if item["status"]
+            in {
+                "not_supplied",
+                "mapped_context_verify",
+                "needs_field_check",
+                "missing_before_engineering_design",
+            }
         ]
         parameters = set(observations)
         core_panel = {"bod", "cod", "tss", "ph"}.issubset(parameters)
@@ -172,8 +178,21 @@ def _input_checklist(
 
     nutrient_keys = {"ammonia_n", "nitrate_n", "phosphate_p", "total_p"}
     items = [
-        _context_item("Flow rate / design flow", context, "design_flow"),
-        _context_item("Peak flow", context, "peak_flow"),
+        _context_item(
+            "Treatment design flow", context, "design_flow", "not_supplied"
+        ),
+        _context_item(
+            "Peak wastewater flow", context, "peak_flow", "not_supplied"
+        ),
+        {
+            "key": "river_discharge_context",
+            "label": "River discharge context",
+            "status": (
+                "available"
+                if location.get("river_discharge_cms") is not None
+                else "not_required_for_current_screening"
+            ),
+        },
         _observation_item("BOD", observations, {"bod"}),
         _observation_item("COD", observations, {"cod"}),
         _observation_item("TSS", observations, {"tss"}),
@@ -183,7 +202,9 @@ def _input_checklist(
         _observation_item(
             "Faecal coliform / pathogens", observations, {"faecal_coliform"}
         ),
-        _context_item("Available land", context, "available_land"),
+        _context_item(
+            "Available land", context, "available_land", "not_supplied"
+        ),
         _verified_site_item("Slope", context, "site_slope", location.get("slope_mean")),
         _verified_site_item(
             "Soil / infiltration",
@@ -191,10 +212,27 @@ def _input_checklist(
             "soil_infiltration",
             location.get("soil_type") or location.get("infiltration_class"),
         ),
-        _context_item("Groundwater depth", context, "groundwater_depth"),
-        _context_item("Flood risk", context, "flood_risk"),
-        _context_item("Inlet / outlet levels", context, "inlet_outlet_levels"),
-        _context_item("O&M owner / capacity", context, "om_owner_capacity"),
+        _context_item(
+            "Groundwater depth",
+            context,
+            "groundwater_depth",
+            "missing_before_engineering_design",
+        ),
+        _context_item(
+            "Flood risk", context, "flood_risk", "needs_field_check"
+        ),
+        _context_item(
+            "Inlet / outlet levels",
+            context,
+            "inlet_outlet_levels",
+            "missing_before_engineering_design",
+        ),
+        _context_item(
+            "O&M owner / capacity",
+            context,
+            "om_owner_capacity",
+            "needs_field_check",
+        ),
     ]
     return items
 
@@ -207,17 +245,22 @@ def _observation_item(
     return {
         "key": label.lower().replace(" ", "_").replace("/", "_"),
         "label": label,
-        "status": "available" if keys & set(observations) else "missing",
+        "status": "available" if keys & set(observations) else "not_supplied",
     }
 
 
-def _context_item(label: str, context: dict[str, Any], key: str) -> dict[str, str]:
+def _context_item(
+    label: str,
+    context: dict[str, Any],
+    key: str,
+    missing_status: str = "missing_before_engineering_design",
+) -> dict[str, str]:
     """Return availability for one explicitly supplied design context field."""
 
     return {
         "key": key,
         "label": label,
-        "status": "available" if _present(context, key) else "missing",
+        "status": "available" if _present(context, key) else missing_status,
     }
 
 
@@ -232,9 +275,9 @@ def _verified_site_item(
     if _present(context, context_key):
         status = "available"
     elif profile_value is not None:
-        status = "needs_field_verification"
+        status = "mapped_context_verify"
     else:
-        status = "missing"
+        status = "needs_field_check"
     return {"key": context_key, "label": label, "status": status}
 
 
@@ -250,9 +293,16 @@ def _next_steps(
     """Return concise next actions tied to observed gaps and safety flags."""
 
     steps = []
-    if any(item["status"] == "missing" for item in checklist):
+    if any(
+        item["status"]
+        in {"not_supplied", "missing_before_engineering_design"}
+        for item in checklist
+    ):
         steps.append("Collect the missing water-quality, flow, land, and site inputs.")
-    if any(item["status"] == "needs_field_verification" for item in checklist):
+    if any(
+        item["status"] in {"mapped_context_verify", "needs_field_check"}
+        for item in checklist
+    ):
         steps.append("Verify mapped site factors through a field survey.")
     if industrial:
         steps.append("Confirm the ETP/CETP pretreatment pathway with an industrial specialist.")

@@ -8,8 +8,9 @@ import 'package:nbs_toolkit_frontend/theme/nbs_theme.dart';
 class _FakeRecommendationApi extends RecommendationApi {
   @override
   Future<List<SiteOption>> listSites() async => [
-    SiteOption(regionId: 20, station: 'Test Narmada Station', streamOrder: 5),
-  ];
+        SiteOption(
+            regionId: 20, station: 'Test Narmada Station', streamOrder: 5),
+      ];
 
   @override
   Future<int> pollutionSourceCount(int regionId) async => 2;
@@ -101,20 +102,20 @@ void main() {
         'reasons': [
           'Mainstem/high-order placement requires off-channel treatment.',
         ],
-        'missing_inputs': ['Flow rate / design flow', 'Available land'],
+        'missing_inputs': ['Treatment design flow', 'Available land'],
         'required_next_steps': ['Develop an off-channel layout.'],
         'expert_review_required': true,
         'input_checklist': [
           {
             'key': 'design_flow',
-            'label': 'Flow rate / design flow',
-            'status': 'missing',
+            'label': 'Treatment design flow',
+            'status': 'not_supplied',
           },
           {'key': 'bod', 'label': 'BOD', 'status': 'available'},
           {
             'key': 'site_slope',
             'label': 'Slope',
-            'status': 'needs_field_verification',
+            'status': 'mapped_context_verify',
           },
         ],
       },
@@ -146,8 +147,9 @@ void main() {
           'train_name': 'DEWATS modular train',
           'basis': 'design_flow',
           'flow_status': 'supplied',
+          'population_status': 'not_supplied',
           'sizing_confidence': 'screening_band',
-          'estimate_label': 'Approximately 240-400 m2',
+          'estimate_label': 'Estimated screening area: 240-400 m²',
           'estimated_area_low_m2': 240,
           'estimated_area_high_m2': 400,
           'land_fit': 'borderline',
@@ -227,6 +229,14 @@ void main() {
           'pollution_source_type': 'domestic_sewage',
         },
       },
+      'parameter_coverage': [
+        {
+          'parameter': 'bod',
+          'value': 80,
+          'unit': 'mg_l',
+          'coverage_category': 'used_in_scoring',
+        },
+      ],
     });
     await tester.pumpWidget(
       MaterialApp(
@@ -262,7 +272,7 @@ void main() {
     expect(find.text('Design readiness'), findsWidgets);
     expect(find.text('Sizing and land'), findsOneWidget);
     expect(find.text('Scenario comparison'), findsOneWidget);
-    expect(find.textContaining('Flow rate / design flow'), findsWidgets);
+    expect(find.textContaining('Treatment design flow'), findsWidgets);
     expect(find.text('Print / save as PDF'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.tap(find.byTooltip('Close report preview'));
@@ -277,14 +287,19 @@ void main() {
     expect(find.text('Needed to improve this result'), findsOneWidget);
     expect(find.text('Needed before engineering design'), findsOneWidget);
     expect(find.text('Field checks'), findsOneWidget);
-    expect(find.text('Flow rate / design flow'), findsWidgets);
-    expect(find.text('Needs field check'), findsWidgets);
+    expect(find.text('Treatment design flow'), findsWidgets);
+    expect(find.text('Not supplied'), findsWidgets);
+    expect(
+      find.text('Available from mapped context; verify in field'),
+      findsWidgets,
+    );
     expect(tester.takeException(), isNull);
     await tester.ensureVisible(find.text('Sizing'));
     await tester.tap(find.text('Sizing'));
     await tester.pumpAndSettle();
     expect(find.text('Sizing and land estimate'), findsOneWidget);
-    expect(find.textContaining('Approximately 240-400 m2'), findsWidgets);
+    expect(find.textContaining('Estimated screening area: 240-400 m²'),
+        findsWidgets);
     await tester.ensureVisible(find.text('Compare options'));
     await tester.tap(find.text('Compare options'));
     await tester.pumpAndSettle();
@@ -299,7 +314,12 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Show technical details'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('A0 applicability screening'), findsOneWidget);
+    expect(find.textContaining('site-safety check'), findsOneWidget);
+    expect(find.text('Used in scoring'), findsOneWidget);
+    expect(
+      find.textContaining('The toolkit reads all recognized values'),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 }

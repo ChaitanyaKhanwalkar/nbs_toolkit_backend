@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 300">
+  <rect width="640" height="300" fill="#F7FAFC"/><g stroke="#17324D" stroke-width="3"><rect x="80" y="95" width="130" height="105" rx="8" fill="#83C5D1"/><rect x="255" y="95" width="130" height="105" rx="8" fill="#70B9C8"/><rect x="430" y="95" width="130" height="105" rx="8" fill="#9AD4DC"/></g>
+  <g stroke="#168AAD" stroke-width="6"><path d="M25 148h55m130 0h45m130 0h45m130 0h60"/></g>
+  <g font-family="Inter,Arial" font-size="17" fill="#17324D" text-anchor="middle"><text x="145" y="135">Anaerobic</text><text x="145" y="158">pond</text><text x="320" y="145">Facultative</text><text x="495" y="135">Maturation</text><text x="495" y="158">pond</text><text x="44" y="130">Inlet</text><text x="590" y="130">Outlet</text></g>
+</svg>

@@ -38,7 +38,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  test('all six required diagram kinds are available', () {
+  test('all eight required diagram kinds are available', () {
     expect(
       NbsDiagramKind.values,
       containsAll(<NbsDiagramKind>[
@@ -48,6 +48,8 @@ void main() {
         NbsDiagramKind.dewats,
         NbsDiagramKind.bufferStrip,
         NbsDiagramKind.mainstemOffChannel,
+        NbsDiagramKind.vermifilter,
+        NbsDiagramKind.bioswale,
       ]),
     );
   });

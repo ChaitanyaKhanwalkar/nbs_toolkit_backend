@@ -1,33 +1,20 @@
 # Next Codex Prompt
 
-Work in `C:\Users\Ecosoul Enviro\OneDrive\Desktop\NBSGCT`.
+Continue the final demo hardening patch in `C:\Users\Ecosoul Enviro\OneDrive\Desktop\NBSGCT`.
 
-Read `AGENTS.md`, `CODEX_PHASE_GH_GUIDED_UX_HANDOFF.md`, the canonical-data
-documentation, and recent git history before editing.
+Read `AGENTS.md`, `codex prompt.txt`, and `CODEX_FINAL_DEMO_HARDENING_HANDOFF.md` first. The source implementation is complete but uncommitted because the new Flutter packages could not be downloaded after the tool account reached its usage limit.
 
-The guided UX, grouped design readiness, professional offline diagrams,
-three-state location display, strict screening-level sizing, scenario
-comparison, and concise report/export update are complete.
+Do not add features or clean unrelated untracked files. Do not replace canonical data. Do not commit until every gate passes.
 
-First verify:
+Exact work:
 
-1. Backend pytest.
-2. Flutter analyze.
-3. Flutter tests, including visual goldens.
-4. `git diff --check`.
+1. From `frontend`, run `flutter pub get` with network access. Confirm `pubspec.lock` updates for `flutter_svg`, `flutter_map`, and `latlong2`.
+2. Run `flutter analyze`. Fix all compile/analyzer issues with small scoped changes, especially any Flutter Map 8 API differences.
+3. Run `flutter test`. Fix all failures and responsive overflows. Tests must not require internet.
+4. From `backend`, run `..\.venv_canonical\Scripts\python.exe -m pytest -q`; expected baseline is 65 passing tests.
+5. Run `git diff --check` and inspect `git status --short`.
+6. Update `CODEX_FINAL_DEMO_HARDENING_HANDOFF.md` with final Flutter results and remove the active-blocker wording only after verification.
+7. Stage only scoped source/tests/assets, `frontend/pubspec.lock`, `CODEX_FINAL_DEMO_HARDENING_HANDOFF.md`, and `NEXT_CODEX_PROMPT.md`. Do not stage prompt, checkpoint, golden, zip, `.claude`, or `.dart-tool-home` artifacts.
+8. Commit exactly: `Final demo hardening for maps diagrams and trust`.
 
-Recommended next phase: field pilot preparation and reviewed local geospatial
-data integration.
-
-- Gather practitioner feedback on the guided Summary and grouped checklist.
-- Define a reviewed field-input schema for peak flow, surveyed levels,
-  groundwater, flood risk, soil/infiltration, access, and O&M ownership.
-- Add local river geometry only when an authoritative reviewed asset and its
-  provenance are available.
-- Keep missing values unknown and preserve train-first, A0-before-ranking,
-  industrial pretreatment, pH neutralization, mainstem off-channel,
-  agricultural source-control, and invasive-plant safeguards.
-- Do not add external map tiles, fabricated geometry, expert weights,
-  health-risk values, or unsourced design constants.
-- Keep every new user-facing detail behind progressive disclosure unless it is
-  required for the immediate decision.
+After commit, report the commit hash and the backend, Flutter analyze, Flutter test, and diff-check results.

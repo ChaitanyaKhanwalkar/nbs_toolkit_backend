@@ -61,11 +61,11 @@ void main() {
 
     expect(find.text('Verified stored location'), findsOneWidget);
     expect(
-      find.textContaining(
-        'surrounding river and intervention lines remain schematic',
-      ),
+      find.textContaining('offline-safe map canvas'),
       findsOneWidget,
     );
+    expect(find.byKey(const ValueKey('verified-location-map')), findsOneWidget);
+    expect(find.text('Offline map canvas'), findsOneWidget);
     expect(
       find.textContaining('Verified location: 21.7000, 72.9000'),
       findsOneWidget,
