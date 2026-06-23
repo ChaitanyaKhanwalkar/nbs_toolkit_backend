@@ -1,7 +1,7 @@
 """Smoke tests for canonical recommendation-engine support data.
 
 These checks protect the engine-ready canonical DB contract: A0 applicability
-rules, provisional criteria weights, all-use-case train summaries, and unknown
+rules, final v1 criteria weights, all-use-case train summaries, and unknown
 performance gaps must be visible to backend code before ranking work continues.
 """
 
@@ -42,7 +42,7 @@ def test_engine_ready_tables_and_views_have_expected_counts() -> None:
 
 
 def test_criteria_weights_cover_three_use_cases() -> None:
-    """Verify provisional DB weights cover all active use cases."""
+    """Verify final v1 DB weights cover all active use cases."""
 
     repository = _repository()
     try:
@@ -54,8 +54,32 @@ def test_criteria_weights_cover_three_use_cases() -> None:
     assert {
         row["status"]
         for row in weights
-    } == {"UNVERIFIED_PROVISIONAL"}
+    } == {"FINAL_V1_AHP_FUZZY_ENSEMBLE"}
     assert all(0 <= row["weight"] <= 1 for row in weights)
+
+
+def test_final_v1_weights_have_required_active_criteria() -> None:
+    """Verify each use case has seven active criteria and no active C5."""
+
+    repository = _repository()
+    try:
+        for use_case in USE_CASES:
+            weights = repository.list_criteria_weights(use_case)
+            codes = {row["criterion_code"] for row in weights}
+            total = sum(float(row["weight"]) for row in weights)
+
+            assert len(weights) == 7
+            assert codes == {"C1", "C2", "C3", "C4", "C6", "C7", "C8"}
+            assert "C5" not in codes
+            assert abs(total - 1.0) <= 0.000002
+            assert {
+                row["criterion_code"]: row["benefit_or_cost"] for row in weights
+            }["C7"] == "cost"
+            assert {
+                row["criterion_code"]: row["benefit_or_cost"] for row in weights
+            }["C8"] == "cost"
+    finally:
+        repository.session.close()
 
 
 def test_usecase_matrix_returns_three_verdicts_per_train() -> None:

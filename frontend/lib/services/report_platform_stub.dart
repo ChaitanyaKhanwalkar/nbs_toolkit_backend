@@ -4,4 +4,6 @@ library;
 bool downloadReportText(String fileName, String content, String mimeType) =>
     false;
 
-bool printReportPage() => false;
+bool printReportPage(String htmlContent) => false;
+
+bool openExternalUrl(String url) => false;

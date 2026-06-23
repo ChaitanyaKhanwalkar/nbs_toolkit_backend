@@ -78,7 +78,7 @@ class LocationContextDiagram extends StatelessWidget {
             location.coordinatesAvailable
                 ? enableOnlineTiles
                     ? 'The marker uses verified stored coordinates on an OpenStreetMap base.'
-                    : 'The marker uses verified stored coordinates on an offline-safe map canvas.'
+                    : 'Verified coordinates are available; map tiles are unavailable or offline.'
                 : 'Schematic only, not a surveyed map. Verify the site position and levels before design.',
             style: Theme.of(
               context,
@@ -88,11 +88,12 @@ class LocationContextDiagram extends StatelessWidget {
           AspectRatio(
             aspectRatio: 2.15,
             child: location.coordinatesAvailable
-                ? _VerifiedLocationMap(
-                    latitude: location.latitude!,
-                    longitude: location.longitude!,
-                    enableOnlineTiles: enableOnlineTiles,
-                  )
+                ? enableOnlineTiles
+                    ? _VerifiedLocationMap(
+                        latitude: location.latitude!,
+                        longitude: location.longitude!,
+                      )
+                    : _VerifiedLocationContextCard(location: location)
                 : CustomPaint(
                     painter: _LocationContextPainter(
                       showSite: location.station != null,
@@ -146,12 +147,10 @@ class _VerifiedLocationMap extends StatelessWidget {
   const _VerifiedLocationMap({
     required this.latitude,
     required this.longitude,
-    required this.enableOnlineTiles,
   });
 
   final double latitude;
   final double longitude;
-  final bool enableOnlineTiles;
 
   @override
   Widget build(BuildContext context) {
@@ -174,12 +173,11 @@ class _VerifiedLocationMap extends StatelessWidget {
                   ),
                 ),
                 children: [
-                  if (enableOnlineTiles)
-                    TileLayer(
-                      urlTemplate:
-                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'org.nbsgct.narmada_nbs_planner',
-                    ),
+                  TileLayer(
+                    urlTemplate:
+                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'org.nbsgct.narmada_nbs_planner',
+                  ),
                   MarkerLayer(
                     markers: [
                       Marker(
@@ -199,22 +197,61 @@ class _VerifiedLocationMap extends StatelessWidget {
               ),
             ),
           ),
-          if (!enableOnlineTiles)
-            const Positioned(
-              left: 10,
-              bottom: 10,
-              child: _MapBadge(label: 'Offline map canvas'),
-            ),
-          if (enableOnlineTiles)
-            const Positioned(
+          const Positioned(
               right: 8,
               bottom: 8,
-              child: _MapBadge(label: '© OpenStreetMap contributors'),
+              child: _MapBadge(label: 'OpenStreetMap contributors'),
             ),
         ],
       ),
     );
   }
+}
+
+class _VerifiedLocationContextCard extends StatelessWidget {
+  const _VerifiedLocationContextCard({required this.location});
+
+  final LocationContext location;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: NbsColors.cardBorder),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.location_on_outlined, color: NbsColors.riverTeal),
+            const SizedBox(height: 8),
+            const Text(
+              'Verified location context',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Coordinates: ${location.latitude!.toStringAsFixed(4)}, ${location.longitude!.toStringAsFixed(4)}',
+            ),
+            if (location.station != null)
+              Text('Site/station: ${location.station}'),
+            if (location.district != null) Text('District: ${location.district}'),
+            if (location.basin != null) Text('Basin: ${location.basin}'),
+            if (location.river != null) Text('River: ${location.river}'),
+            const SizedBox(height: 8),
+            Text(
+              'Map status: Verified coordinates available; map tiles unavailable/offline.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: NbsColors.mutedGrey,
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+          ],
+        ),
+      );
 }
 
 class _MapBadge extends StatelessWidget {

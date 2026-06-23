@@ -1,20 +1,26 @@
 # Next Codex Prompt
 
-Continue the final demo hardening patch in `C:\Users\Ecosoul Enviro\OneDrive\Desktop\NBSGCT`.
+Continue from the committed final demo hardening patch.
 
-Read `AGENTS.md`, `codex prompt.txt`, and `CODEX_FINAL_DEMO_HARDENING_HANDOFF.md` first. The source implementation is complete but uncommitted because the new Flutter packages could not be downloaded after the tool account reached its usage limit.
+First read:
 
-Do not add features or clean unrelated untracked files. Do not replace canonical data. Do not commit until every gate passes.
+- `AGENTS.md`
+- `CODEX_BIG_UPGRADE_HANDOFF.md`
+- `codex prompt.txt`
 
-Exact work:
+Current verified state:
 
-1. From `frontend`, run `flutter pub get` with network access. Confirm `pubspec.lock` updates for `flutter_svg`, `flutter_map`, and `latlong2`.
-2. Run `flutter analyze`. Fix all compile/analyzer issues with small scoped changes, especially any Flutter Map 8 API differences.
-3. Run `flutter test`. Fix all failures and responsive overflows. Tests must not require internet.
-4. From `backend`, run `..\.venv_canonical\Scripts\python.exe -m pytest -q`; expected baseline is 65 passing tests.
-5. Run `git diff --check` and inspect `git status --short`.
-6. Update `CODEX_FINAL_DEMO_HARDENING_HANDOFF.md` with final Flutter results and remove the active-blocker wording only after verification.
-7. Stage only scoped source/tests/assets, `frontend/pubspec.lock`, `CODEX_FINAL_DEMO_HARDENING_HANDOFF.md`, and `NEXT_CODEX_PROMPT.md`. Do not stage prompt, checkpoint, golden, zip, `.claude`, or `.dart-tool-home` artifacts.
-8. Commit exactly: `Final demo hardening for maps diagrams and trust`.
+- Backend tests pass: `67 passed`
+- Flutter analyze passes
+- Flutter tests pass: `25 passed`
+- `git diff --check` is clean except line-ending warnings
 
-After commit, report the commit hash and the backend, Flutter analyze, Flutter test, and diff-check results.
+Do not rework the final v1 AHP-Fuzzy AHP weights unless the user supplies a new expert-approved weight set.
+
+Recommended next work:
+
+1. Manual QA the four demo flows in Flutter web.
+2. Inspect print/PDF output in Microsoft Print to PDF.
+3. Verify CSV opens in Excel with aligned columns.
+4. Decide whether to commit or clean old untracked artifacts such as previous checkpoint files and stale visual failure outputs.
+5. Prepare post-demo docs only after the user approves cleanup.

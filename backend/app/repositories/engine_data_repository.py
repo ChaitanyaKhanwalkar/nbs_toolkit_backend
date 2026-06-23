@@ -1,14 +1,19 @@
 """Read-only repository for canonical recommendation-engine support data.
 
-The engine-ready canonical database exposes applicability rules, provisional
-criteria weights, and train/use-case summary views. This repository keeps that
-database access separate from scoring logic so engines can stay testable.
+The engine-ready canonical database exposes applicability rules, final v1
+AHP-Fuzzy AHP criteria weights, and train/use-case summary views. This
+repository keeps database access separate from scoring logic so engines can
+stay testable.
 """
 
 from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.core.final_v1_ahp_fuzzy_weights import (
+    FINAL_V1_AHP_FUZZY_STATUS,
+    final_v1_ahp_fuzzy_weights,
+)
 from app.repositories.base_repository import BaseRepository
 
 
@@ -110,13 +115,13 @@ class EngineDataRepository(BaseRepository):
         self,
         use_case: str | None = None,
     ) -> list[dict[str, Any]]:
-        """Return provisional criteria weights from the canonical DB."""
+        """Return criteria weights from the canonical DB, with a named fallback."""
 
         if not self.relation_exists("criteria_weights"):
-            return []
+            return final_v1_ahp_fuzzy_weights(use_case)
 
         if use_case:
-            return self.fetch_mappings(
+            rows = self.fetch_mappings(
                 """
                 SELECT
                     id,
@@ -137,8 +142,9 @@ class EngineDataRepository(BaseRepository):
                 """,
                 {"use_case": use_case},
             )
+            return _final_rows_or_fallback(rows, use_case)
 
-        return self.fetch_mappings(
+        rows = self.fetch_mappings(
             """
             SELECT
                 id,
@@ -164,6 +170,7 @@ class EngineDataRepository(BaseRepository):
                 criterion_code
             """
         )
+        return _final_rows_or_fallback(rows, use_case)
 
     def list_engine_usecase_matrix(
         self,
@@ -414,3 +421,14 @@ class EngineDataRepository(BaseRepository):
             {"region_id": region_id},
         )
         return rows[0] if rows else None
+
+
+def _final_rows_or_fallback(
+    rows: list[dict[str, Any]],
+    use_case: str | None,
+) -> list[dict[str, Any]]:
+    """Return DB final-v1 rows, or the named final-v1 fallback for stale DBs."""
+
+    if rows and all(row.get("status") == FINAL_V1_AHP_FUZZY_STATUS for row in rows):
+        return rows
+    return final_v1_ahp_fuzzy_weights(use_case)

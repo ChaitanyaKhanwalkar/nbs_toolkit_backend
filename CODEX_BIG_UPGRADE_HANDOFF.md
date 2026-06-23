@@ -1,91 +1,54 @@
-# Codex Big Upgrade Final Handoff
+# Codex Big Upgrade Handoff
 
-## Modules completed
+## Completed
 
-1. Trustworthy scoring and confidence - `62da2da`
-2. Treatment trains plus individual NbS - `a6bd780`
-3. Responsive UI and user-facing language - `dae779f`
-4. Catalogue and learning workspace - included in the current checkpoint
+- Integrated final v1 AHP-Fuzzy AHP ensemble weights for `drinking`, `irrigation`, and `discharge_inland`.
+- Added a named final-weight fallback in code for stale or missing local `criteria_weights` tables.
+- Updated the local canonical DB rows during this run and added a reviewable SQL seed patch.
+- Updated method wording to: `A0 safety/applicability screening -> AHP-Fuzzy AHP ensemble weighting -> TOPSIS treatment-train ranking -> confidence and design-readiness checks`.
+- Kept C5 health-risk reserved/future and kept design/field-validation limitations.
+- Replaced references placeholder with citation-backed grouped references.
+- Replaced offline grey map canvas with a verified-location context card when tiles are unavailable.
+- Improved sizing, compare-card, component comparison, report, CSV, and print/PDF wording.
+- Added a clean print-only HTML export path and Excel-friendly CSV BOM.
+- Added Mandleshwar industrial acidic high-order safety regression.
+- Updated affected visual goldens.
 
-## Module 4 files changed
+## Files Changed
 
-- `backend/app/api/router.py`
-- `backend/app/api/routes/catalogue.py`
-- `backend/app/repositories/nbs_repository.py`
-- `backend/app/repositories/plant_repository.py`
-- `backend/app/services/catalogue_service.py`
-- `backend/app/services/__init__.py`
-- `backend/docs/00_PROJECT_MAP.md`
-- `backend/tests/catalogue_service_test.py`
-- `frontend/lib/main.dart`
+- `backend/app/core/final_v1_ahp_fuzzy_weights.py`
+- `backend/app/repositories/engine_data_repository.py`
+- `backend/app/services/scientific_workflow_service.py`
+- `backend/app/engines/train_recommendation.py`
+- `backend/app/api/routes/recommendation.py`
+- `backend/tests/engine_data_repository_test.py`
+- `backend/tests/train_recommendation_test.py`
+- `backend/criteria_weights_ahp_fuzzy_ensemble.sql`
 - `frontend/lib/screens/nbs_screens.dart`
-- `frontend/lib/services/recommendation_api.dart`
-- `frontend/test/catalogue_screen_test.dart`
-- `frontend/test/home_responsive_test.dart`
-- `CODEX_BIG_UPGRADE_HANDOFF.md`
-- `NEXT_CODEX_PROMPT.md`
+- `frontend/lib/services/recommendation_report.dart`
+- `frontend/lib/services/report_platform_stub.dart`
+- `frontend/lib/services/report_platform_web.dart`
+- `frontend/lib/widgets/location_context_diagram.dart`
+- `frontend/test/location_context_diagram_test.dart`
+- `frontend/test/recommendation_report_test.dart`
+- `frontend/test/visual_qa_goldens/desktop1440__workspace_report_preview.png`
+- `frontend/test/visual_qa_goldens/mobile390__edge_weak_summary.png`
 
-## Final verification
+## Verification
 
-- Backend: 43 passed.
-- Flutter analyze: no issues found.
-- Flutter tests: 10 passed.
-- `git diff --check`: clean.
+- Backend: `backend/.venv_canonical/Scripts/python.exe -m pytest -q` -> `67 passed`
+- Flutter dependencies: `flutter pub get` -> completed
+- Flutter analyze: `flutter analyze` -> no issues
+- Flutter tests: `flutter test` -> `25 passed`
+- Diff hygiene: `git diff --check` -> clean, line-ending warnings only
 
-## Current backend status
+## Important Caveats
 
-- FastAPI remains repository/service/engine separated.
-- Canonical database counts are guarded by tests.
-- Confidence is separate from technical match and capped for thin data.
-- Every train exposes supplied pollutant gaps and train evidence coverage.
-- Treatment trains remain the primary recommendation.
-- Individual components are A0-screened and context constrained.
-- `GET /api/v1/catalogue` returns all 8 train records, 28 NbS profiles,
-  canonical plant mappings, O&M/design notes, and source IDs.
-- Invasive plant catalogue rows are explicitly marked do-not-recommend.
+- The canonical DB file is not tracked by Git in this workspace. The local DB was updated, and the repository now falls back to final v1 weights if a stale DB still contains old provisional rows.
+- C5 health-risk remains inactive.
+- Sizing is still screening-level only.
+- Field validation, hydraulic design, O&M ownership, regulatory review, and local planting validation remain required before implementation.
 
-## Current frontend status
+## Exact Next Step
 
-- Four workflows remain distinct.
-- Phone/tablet/desktop setup layouts are tested.
-- Results use professional Technical match / Result confidence language.
-- Summary keeps the primary train above supporting components.
-- NbS Components shows role, standalone boundary, pollutant evidence, plants,
-  context limitations, filtered reasons, and source IDs.
-- Catalogue & Learning provides searchable Treatment Train, NbS Component, and
-  Plant views with sequence, design, monitoring, O&M, mappings, and provenance.
-
-## Scientific safeguards preserved
-
-- A0 applicability precedes ranking.
-- Missing data stays unknown, never zero.
-- No scientific value, threshold, weight, citation, or health-risk score was
-  invented.
-- Industrial ETP/CETP and pH-neutralization requirements remain explicit.
-- High-order/mainstem output is off-channel only.
-- Agricultural output prioritizes source control.
-- Invasive plants are never recommended.
-- The canonical database was read only.
-
-## Known limitations
-
-- Confidence caps and context-only component ordering are transparent rule-based
-  research safeguards, not expert-validated scientific certainty.
-- Component TOPSIS still needs expert calibration and may technically score
-  unusual options highly; context and standalone safeguards limit interpretation.
-- Catalogue source IDs are displayed, but a richer citation-detail browser and
-  PDF/CSV export are future work.
-- Widget tests catch layout exceptions but do not replace device/browser visual
-  QA.
-- Local prompt/safety/checkpoint artifacts remain untracked and outside commits.
-
-## Commit status
-
-Module 4 is included in the scoped checkpoint commit:
-`Module 4: Add catalogue and learning workspace upgrades`.
-
-## Recommended next step
-
-Do not start another automatic patch. Review the complete app interactively
-against the four representative workflows, then choose among the future work
-listed in `NEXT_CODEX_PROMPT.md`.
+Review the scoped commit diff, run the app manually for the demo flows, then continue with any post-demo cleanup or documentation pass.

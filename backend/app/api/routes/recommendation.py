@@ -19,10 +19,7 @@ from app.engines.design_readiness import DesignReadinessEngine
 from app.engines.scenario_comparison import ScenarioComparisonEngine
 from app.engines.sizing_estimator import SizingEstimator
 from app.engines.input_normalization import InputContext
-from app.engines.train_recommendation import (
-    PROVISIONAL_WARNING,
-    TrainRecommendationEngine,
-)
+from app.engines.train_recommendation import TrainRecommendationEngine
 from app.engines.treatment_need import TreatmentNeedBundle
 from app.repositories import EngineDataRepository
 from app.schemas import RecommendationRequest, RecommendationResponse
@@ -515,7 +512,7 @@ def _expert_validated(
 
 
 def _warnings(payload: dict[str, Any], weights_status: str | None) -> list[str]:
-    """Combine workflow warnings with the provisional-weight note when needed."""
+    """Combine workflow warnings with a temporary-weight note when needed."""
 
     warnings = list(payload.get("warnings") or [])
     if weights_status == "temporary_not_expert_validated":
@@ -546,10 +543,14 @@ def _missing_data_messages(payload: dict[str, Any]) -> list[str]:
 
 
 def _provisional_note(weights_status: str | None) -> str | None:
-    """Return a visible note when temporary weights drove the ranking."""
+    """Return a visible note when non-final weights drove the staged workflow."""
 
     if weights_status == "temporary_not_expert_validated":
-        return PROVISIONAL_WARNING
+        return (
+            "A temporary weight profile was used for the staged component "
+            "workflow. Treatment-train ranking uses the final v1 AHP-Fuzzy AHP "
+            "weighted TOPSIS method when canonical weights are available."
+        )
     if weights_status == "weights_missing":
         return (
             "No criteria weights were supplied, so TOPSIS ranking and assembled "

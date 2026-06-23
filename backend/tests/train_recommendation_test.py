@@ -320,6 +320,61 @@ def test_top_train_changes_with_source_chemistry_and_high_order_context() -> Non
     assert high_order_top != "VF nitrifying hybrid"
 
 
+def test_mandleshwar_industrial_acidic_mainstem_requires_expert_review() -> None:
+    """Industrial acidic wastewater on a high-order river must stay off-channel."""
+
+    response = TestClient(app).post(
+        "/api/v1/recommend",
+        json={
+            "use_case": "discharge_inland",
+            "region_id": 35,
+            "station": "Mandleshwar",
+            "selected_parameters": ["cod", "ph"],
+            "measured_observations": [
+                {"parameter": "cod", "value": 1000, "unit": "mg_l"},
+                {"parameter": "ph", "value": 3, "unit": "ph_units"},
+            ],
+            "context": {
+                "workflow_mode": "manual_measured_water_quality",
+                "pollution_source_type": "industrial_or_mixed_industrial",
+                "intervention_position": "in_channel",
+                "stream_order": 7,
+            },
+        },
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+
+    assert payload["design_readiness"]["level"] == "needs_expert_review"
+    guidance = " ".join(
+        [
+            *payload["design_readiness"]["required_next_steps"],
+            *[
+                text
+                for train in payload["ranked_trains"][:3]
+                for text in train["source_location_guidance"]
+            ],
+        ]
+    ).lower()
+    assert "etp/cetp" in guidance
+    assert "neutralization" in guidance
+    assert "off-channel" in guidance
+    assert "in-channel" in guidance
+
+    top_names = [row["name"].lower() for row in payload["ranked_trains"][:3]]
+    assert all("green roof" not in name for name in top_names)
+    assert all("green wall" not in name for name in top_names)
+    assert all("rain garden" not in name for name in top_names)
+    green_roof = next(
+        row
+        for row in payload["component_recommendations"]
+        if row["name"] == "Green Roof"
+    )
+    assert green_roof["role"] == "polishing_or_buffer"
+    assert green_roof["standalone_suitability"] == "only_as_part_of_train"
+    assert any("ETP/CETP" in item for item in green_roof["key_constraints"])
+
+
 def test_unknown_performance_is_not_scored_as_zero() -> None:
     result = _rank()
     assert any(

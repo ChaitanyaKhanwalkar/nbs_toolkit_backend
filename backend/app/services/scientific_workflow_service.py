@@ -67,16 +67,22 @@ VALID_WORKFLOW_STEPS = {
     "L",
 }
 DEFAULT_WORKFLOW_END_STEP = "E"
-CANONICAL_WEIGHTS_SOURCE = "canonical_criteria_weights"
+CANONICAL_WEIGHTS_SOURCE = "final_v1_ahp_fuzzy_ensemble"
 CANONICAL_WEIGHTS_NOTE = (
-    "Interim ranking -- AHP weights provisional, pending expert calibration."
+    "Loaded final v1 AHP-Fuzzy AHP ensemble weights for TOPSIS. "
+    "C5 health-risk integration remains reserved for future expert data."
 )
 CANONICAL_TO_ENGINE_CRITERIA = {
     "treatment_fit": "removal_evidence_score",
+    "standard_fit": "removal_evidence_coverage",
+    "site_fit": "site_suitability",
     "site_suitability": "site_suitability",
+    "source_fit": "pollution_source_fit",
     "pollution_source_fit": "pollution_source_fit",
+    "hydrologic_fit": "hydrological_suitability",
     "dilution": "hydrological_suitability",
     "footprint": "footprint_requirement",
+    "om": "om_simplicity",
     "om_realism": "om_simplicity",
 }
 
@@ -208,8 +214,7 @@ def _database_weights_for_normalized_bundle(
     if mapped_weights:
         _append_unique(
             warnings,
-            "Loaded provisional canonical criteria_weights for TOPSIS; final "
-            "AHP weights are pending expert calibration.",
+            "Loaded final v1 AHP-Fuzzy AHP ensemble criteria_weights for TOPSIS.",
         )
     return mapped_weights
 
@@ -559,6 +564,7 @@ class ScientificWorkflowService:
 
             effective_weights = supplied_weights
             effective_weights_source = weights_source
+            effective_expert_validated = expert_validated
             if (
                 not effective_weights
                 and not expert_validated
@@ -572,6 +578,7 @@ class ScientificWorkflowService:
                 )
                 if effective_weights:
                     effective_weights_source = CANONICAL_WEIGHTS_SOURCE
+                    effective_expert_validated = True
                     _append_unique(warnings, CANONICAL_WEIGHTS_NOTE)
 
             if not effective_weights and use_default_weights and not expert_validated:
@@ -587,6 +594,7 @@ class ScientificWorkflowService:
                 if default_weights:
                     effective_weights = default_weights
                     effective_weights_source = weights_source or DEFAULT_WEIGHTS_SOURCE
+                    effective_expert_validated = False
                     _append_unique(
                         warnings,
                         "No weights were supplied; applied provisional default "
@@ -597,7 +605,7 @@ class ScientificWorkflowService:
                 normalized_mcda_matrix_bundle,
                 supplied_weights=effective_weights,
                 weights_source=effective_weights_source,
-                expert_validated=expert_validated,
+                expert_validated=effective_expert_validated,
             )
             step_completed = "H"
             _extend_unique(warnings, mcda_weights_bundle.warnings)

@@ -21,7 +21,9 @@ class RecommendationReport {
 
   String get json => const JsonEncoder.withIndent('  ').convert(payload);
 
-  String get baseFileName => 'nbs_recommendation_report';
+  String get baseFileName => 'narmada_nbs_recommendation_report';
+
+  String get printHtml => _buildPrintHtml(payload, summary);
 
   factory RecommendationReport.fromResponse(RecommendationResponse response) {
     final train =
@@ -63,7 +65,8 @@ class RecommendationReport {
           };
     final payload = <String, dynamic>{
       'report_type': 'Narmada NbS planning-level recommendation',
-      'method': 'criteria-weighted TOPSIS after applicability screening',
+      'method':
+          'AHP-Fuzzy AHP weighted TOPSIS after safety/applicability screening',
       'project_input_summary': {
         'workflow_mode': input.workflowMode,
         'use_case': response.useCase,
@@ -210,7 +213,7 @@ String _buildSummary(
 ) {
   final lines = <String>[
     'NARMADA NBS PLANNING-LEVEL RECOMMENDATION',
-    'Method: criteria-weighted TOPSIS after applicability screening',
+    'Method: AHP-Fuzzy AHP weighted TOPSIS after safety/applicability screening',
     '',
     'Input basis: ${_workflowLabel(response.inputSummary.workflowMode)}',
     response.inputSummary.dataUsed.isEmpty
@@ -231,7 +234,7 @@ String _buildSummary(
     lines.addAll([
       '',
       'Recommended treatment train: ${train.name}',
-      'Technical match: ${train.matchPercent}',
+      'Screening match: ${train.matchPercent}',
       'Result confidence: ${_confidenceLabel(train)}',
       if (train.implementationRole != null) 'Role: ${train.implementationRole}',
       if (train.whyRecommended.isNotEmpty) 'Why: ${train.whyRecommended.first}',
@@ -365,7 +368,7 @@ String _buildCsv(Map<String, dynamic> payload) {
     }
   }
   addValue('disclaimer', 'planning_level', 'text', payload['disclaimer']);
-  return rows.map((row) => row.map(_csvCell).join(',')).join('\r\n');
+  return '\uFEFF${rows.map((row) => row.map(_csvCell).join(',')).join('\r\n')}';
 }
 
 String _flatValue(Object? value) {
@@ -377,6 +380,48 @@ String _flatValue(Object? value) {
 String _csvCell(Object? value) {
   final text = value?.toString() ?? '';
   return '"${text.replaceAll('"', '""')}"';
+}
+
+String _buildPrintHtml(Map<String, dynamic> payload, String summary) {
+  final escapedSummary = const HtmlEscape().convert(summary).replaceAll(
+        '\n',
+        '<br>',
+      );
+  final references = (payload['evidence_records'] as List<dynamic>? ?? const [])
+      .cast<Map<String, dynamic>>()
+      .map(
+        (record) =>
+            '<li>${const HtmlEscape().convert(record['label']?.toString() ?? 'Source ${record['id']}')}</li>',
+      )
+      .join();
+  return '''
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Narmada NbS recommendation report</title>
+  <style>
+    @page { size: A4; margin: 18mm; }
+    body { font-family: Arial, sans-serif; color: #102a43; line-height: 1.45; }
+    h1 { font-size: 22px; margin: 0 0 8px; }
+    h2 { font-size: 15px; margin-top: 18px; border-bottom: 1px solid #d8e2dc; padding-bottom: 4px; }
+    p, li { font-size: 11.5px; }
+    .method { font-weight: 700; margin-bottom: 16px; }
+    .summary { white-space: normal; }
+  </style>
+</head>
+<body>
+  <h1>Narmada NbS recommendation report</h1>
+  <p class="method">Method: AHP-Fuzzy AHP weighted TOPSIS after safety/applicability screening</p>
+  <h2>Recommendation summary</h2>
+  <p class="summary">$escapedSummary</p>
+  <h2>References</h2>
+  <ul>${references.isEmpty ? '<li>No resolved evidence record is available.</li>' : references}</ul>
+  <h2>Limitations</h2>
+  <p>${const HtmlEscape().convert(planningLevelDisclaimer)}</p>
+</body>
+</html>
+''';
 }
 
 String _workflowLabel(String? value) => switch (value) {

@@ -1743,7 +1743,9 @@ class _SummaryDecisionMetrics extends StatelessWidget {
     final metrics = [
       (
         Icons.analytics_outlined,
-        'Technical match',
+        response.inputSummary.observationCount == 0
+            ? 'Context match'
+            : 'Screening match',
         train?.matchPercent ?? 'Not available',
         NbsColors.researchBlue,
       ),
@@ -2064,7 +2066,7 @@ class _SizingEstimateCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              estimate.estimateLabel,
+              _sizingEstimateDisplay(estimate),
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     color: NbsColors.researchBlue,
                     fontWeight: FontWeight.w900,
@@ -2112,7 +2114,7 @@ class _SizingEstimateCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'Footprint basis: ${_titleFromSnake(estimate.basis)}. Sizing confidence: ${_titleFromSnake(estimate.sizingConfidence)}.',
+                  'Footprint basis: ${_sentenceFromSnake(estimate.basis)}. Sizing confidence: ${_sentenceFromSnake(estimate.sizingConfidence)}.',
                 ),
                 const SizedBox(height: 8),
                 Text(estimate.designCaution),
@@ -2182,7 +2184,7 @@ class _ComparisonWorkspace extends StatelessWidget {
         for (final option in comparison.options.take(3))
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
-            child: _ComparisonOptionCard(option: option),
+            child: _ComparisonOptionCard(response: response, option: option),
           ),
         if (comparison.options.length > 3)
           AppCard(
@@ -2198,7 +2200,10 @@ class _ComparisonWorkspace extends StatelessWidget {
                 for (final option in comparison.options.skip(3))
                   Padding(
                     padding: const EdgeInsets.only(bottom: 10),
-                    child: _ComparisonOptionCard(option: option),
+                    child: _ComparisonOptionCard(
+                      response: response,
+                      option: option,
+                    ),
                   ),
               ],
             ),
@@ -2208,7 +2213,12 @@ class _ComparisonWorkspace extends StatelessWidget {
           _DetailSection(
             title: 'Supporting component comparison',
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const Text(
+                  'These components support the ranked treatment train. They are not standalone final recommendations.',
+                ),
+                const SizedBox(height: 8),
                 for (final component in comparison.componentOptions)
                   ListTile(
                     contentPadding: EdgeInsets.zero,
@@ -2221,7 +2231,9 @@ class _ComparisonWorkspace extends StatelessWidget {
                       style: const TextStyle(fontWeight: FontWeight.w800),
                     ),
                     subtitle: Text(
-                      'Role: ${_titleFromSnake(component.role)}. ${component.standaloneSuitability == null ? 'Use within the recommended implementation context.' : _titleFromSnake(component.standaloneSuitability!)}${component.keyConstraints.isEmpty ? '' : ' Key check: ${component.keyConstraints.first}'}',
+                      'Role: ${_sentenceFromSnake(component.role)}. '
+                      'Standalone use: ${_standaloneUseLabel(component.standaloneSuitability)}. '
+                      'Key check: ${component.keyConstraints.isEmpty ? 'confirm soil/infiltration and hydraulic design' : _readableText(component.keyConstraints.first)}',
                     ),
                   ),
               ],
@@ -2251,8 +2263,9 @@ class _ComparisonWorkspace extends StatelessWidget {
 }
 
 class _ComparisonOptionCard extends StatelessWidget {
-  const _ComparisonOptionCard({required this.option});
+  const _ComparisonOptionCard({required this.response, required this.option});
 
+  final RecommendationResponse response;
   final ComparisonOption option;
 
   @override
@@ -2283,13 +2296,15 @@ class _ComparisonOptionCard extends StatelessWidget {
               runSpacing: 8,
               children: [
                 _MetricChip(
-                  label: 'Technical match',
+                  label: response.inputSummary.observationCount == 0
+                      ? 'Context match'
+                      : 'Screening match',
                   value: _optionalPercent(option.technicalMatch),
                   color: NbsColors.researchBlue,
                 ),
                 _MetricChip(
                   label: 'Confidence',
-                  value: _optionalPercent(option.resultConfidence),
+                  value: _comparisonConfidence(option),
                   color: NbsColors.wetlandGreen,
                 ),
                 _MetricChip(
@@ -2298,7 +2313,7 @@ class _ComparisonOptionCard extends StatelessWidget {
                   color: NbsColors.warningAmber,
                 ),
                 _MetricChip(
-                  label: 'O&M',
+                  label: 'O&M practicality',
                   value: option.omIntensity,
                   color: NbsColors.riverTeal,
                 ),
@@ -2319,8 +2334,12 @@ class _ComparisonOptionCard extends StatelessWidget {
             ],
             const SizedBox(height: 6),
             Text(
-              option.whenToChoose,
+              _suitableRoleSentence(option),
               style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Confirm water-quality, flow, land, and site inputs before design.',
             ),
             if (option.warnings.isNotEmpty) ...[
               const SizedBox(height: 8),
@@ -2390,7 +2409,10 @@ class _LearnWorkspace extends StatelessWidget {
           const SizedBox(height: 14),
           _DetailSection(
             title: 'How the recommended train works',
-            child: _LearningPlaceholder(train: train!),
+            child: _LearningPlaceholder(
+              train: train!,
+              citations: response.citations,
+            ),
           ),
         ],
         const SizedBox(height: 14),
@@ -2418,8 +2440,39 @@ String _landFitShort(String value) => switch (value) {
       _ => 'Needs data',
     };
 
+String _sizingEstimateDisplay(SizingEstimate estimate) {
+  if (estimate.estimatedAreaLowM2 != null || estimate.estimatedAreaHighM2 != null) {
+    return estimate.estimateLabel;
+  }
+  if (estimate.areaPerPersonBand != null &&
+      estimate.areaPerPersonBand!.trim().isNotEmpty) {
+    return 'Stored screening footprint: ${estimate.areaPerPersonBand}. Area estimate not calculated because population/PE was not supplied.';
+  }
+  if (estimate.missingInputs.isNotEmpty) {
+    return 'Area estimate not calculated. To calculate area, provide: ${estimate.missingInputs.join(', ')}.';
+  }
+  return estimate.estimateLabel;
+}
+
 String _optionalPercent(double? value) =>
     value == null ? 'Not available' : '${(value * 100).toStringAsFixed(1)}%';
+
+String _comparisonConfidence(ComparisonOption option) {
+  if (option.confidenceLabel == 'not_assessed' ||
+      option.resultConfidence == null ||
+      option.resultConfidence! <= 0) {
+    return 'Not assessed';
+  }
+  return _optionalPercent(option.resultConfidence);
+}
+
+String _suitableRoleSentence(ComparisonOption option) {
+  final text = option.whenToChoose.trim();
+  if (text.toLowerCase().startsWith('suitable role:')) {
+    return text;
+  }
+  return 'Suitable role: ${text.isEmpty ? 'Primary-to-polishing treatment train.' : text}';
+}
 
 String _workflowLabelForUser(String? mode) => switch (mode) {
       'uploaded_water_quality' => 'Uploaded water-quality data',
@@ -3209,7 +3262,10 @@ class _NbsComponentsWorkspace extends StatelessWidget {
           const SizedBox(height: 14),
           _DetailSection(
             title: 'Treatment-train learning',
-            child: _LearningPlaceholder(train: train!),
+            child: _LearningPlaceholder(
+              train: train!,
+              citations: citationsById.values.toList(),
+            ),
           ),
         ],
       ],
@@ -3593,7 +3649,7 @@ Future<void> _showReportPreview(
                 children: [
                   TextButton.icon(
                     onPressed: () {
-                      final opened = printReportPage();
+                      final opened = printReportPage(report.printHtml);
                       ScaffoldMessenger.of(dialogContext).showSnackBar(
                         SnackBar(
                           content: Text(
@@ -3646,7 +3702,7 @@ class _ReportPreview extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         const Text(
-          'Method: criteria-weighted TOPSIS after applicability screening',
+          'Method: AHP-Fuzzy AHP weighted TOPSIS after safety/applicability screening',
         ),
         const SizedBox(height: 16),
         _TextBlockList(
@@ -3726,7 +3782,7 @@ class _ReportPreview extends StatelessWidget {
               ? const ['No ranked treatment train is available.']
               : [
                   train.name,
-                  'Technical match: ${train.matchPercent}',
+                  'Screening match: ${train.matchPercent}',
                   'Result confidence: ${_trainConfidenceDisplay(train)}',
                   if (train.implementationRole != null)
                     'Role: ${train.implementationRole}',
@@ -3892,7 +3948,7 @@ class TrainRecommendationCard extends StatelessWidget {
                 runSpacing: 8,
                 children: [
                   _MetricChip(
-                    label: 'Technical match',
+                    label: 'Screening match',
                     value: train.matchPercent,
                     color: NbsColors.researchBlue,
                   ),
@@ -4046,7 +4102,7 @@ class _DataConfidenceGuide extends StatelessWidget {
                 ],
                 const SizedBox(height: 8),
                 const Text(
-                  'Technical match = how well the train fits the supplied problem and context.\nResult confidence = how reliable this result is based on data completeness, evidence coverage, and context quality.',
+                  'Screening match = how well the train fits the supplied problem and context.\nResult confidence = how reliable this result is based on data completeness, evidence coverage, and context quality.',
                   style: TextStyle(fontWeight: FontWeight.w700, height: 1.4),
                 ),
               ],
@@ -4104,7 +4160,7 @@ class _TopTrainComparison extends StatelessWidget {
                       runSpacing: 7,
                       children: [
                         _MetricChip(
-                          label: 'Technical match',
+                          label: 'Screening match',
                           value: train.matchPercent,
                           color: NbsColors.researchBlue,
                         ),
@@ -4336,9 +4392,10 @@ class _TopTrainPlantingGuidance extends StatelessWidget {
 }
 
 class _LearningPlaceholder extends StatelessWidget {
-  const _LearningPlaceholder({required this.train});
+  const _LearningPlaceholder({required this.train, required this.citations});
 
   final TrainRecommendation train;
+  final List<Citation> citations;
 
   @override
   Widget build(BuildContext context) {
@@ -4435,7 +4492,11 @@ class _LearningPlaceholder extends StatelessWidget {
         content: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 880),
           child: SingleChildScrollView(
-            child: _LearningDetail(topic: topic, train: train),
+            child: _LearningDetail(
+              topic: topic,
+              train: train,
+              citations: citations,
+            ),
           ),
         ),
         actions: [
@@ -4450,10 +4511,15 @@ class _LearningPlaceholder extends StatelessWidget {
 }
 
 class _LearningDetail extends StatelessWidget {
-  const _LearningDetail({required this.topic, required this.train});
+  const _LearningDetail({
+    required this.topic,
+    required this.train,
+    required this.citations,
+  });
 
   final String topic;
   final TrainRecommendation train;
+  final List<Citation> citations;
 
   @override
   Widget build(BuildContext context) {
@@ -4465,7 +4531,7 @@ class _LearningDetail extends StatelessWidget {
           : NbsDiagramCard(kind: diagram),
       'components' => _ComponentExplanationList(train: train),
       'plants' => _TopTrainPlantingGuidance(train: train),
-      _ => const _CuratedReferencesPlaceholder(),
+      _ => _CuratedReferencesPanel(citations: citations),
     };
   }
 }
@@ -4614,29 +4680,49 @@ class _ComponentExplanationList extends StatelessWidget {
   }
 }
 
-class _CuratedReferencesPlaceholder extends StatelessWidget {
-  const _CuratedReferencesPlaceholder();
+class _CuratedReferencesPanel extends StatelessWidget {
+  const _CuratedReferencesPanel({required this.citations});
+
+  final List<Citation> citations;
 
   @override
   Widget build(BuildContext context) {
-    const sections = [
-      'Implementation photos',
-      'Technical guidance',
-      'Case examples',
-      'Videos / learning links',
-    ];
+    final grouped = _groupCitationsForLearning(citations);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Curated links will be added after source review.'),
-        const SizedBox(height: 12),
-        for (final section in sections)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.pending_actions_outlined),
-            title: Text(section),
-            subtitle: const Text('Source review pending'),
+        const Text(
+          'References below come from the evidence records resolved for this recommendation.',
+        ),
+        const SizedBox(height: 10),
+        for (final entry in grouped.entries) ...[
+          Text(
+            entry.key,
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
           ),
+          const SizedBox(height: 4),
+          if (entry.value.isEmpty)
+            const Text('No linked source is available in this category.')
+          else
+            for (final citation in entry.value)
+              ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.menu_book_outlined),
+                title: Text('Source ID ${citation.id} - ${citation.display}'),
+                subtitle: Text(citation.citation ?? citation.type ?? ''),
+                trailing: citation.url == null
+                    ? null
+                    : TextButton.icon(
+                        onPressed: () => openExternalUrl(citation.url!),
+                        icon: const Icon(Icons.open_in_new, size: 16),
+                        label: const Text('Open'),
+                      ),
+              ),
+          const SizedBox(height: 10),
+        ],
       ],
     );
   }
@@ -4666,7 +4752,7 @@ class RecommendationCard extends StatelessWidget {
             runSpacing: 8,
             children: [
               _MetricChip(
-                label: 'Technical match',
+                label: 'Screening match',
                 value: item.matchPercent,
                 color: NbsColors.researchBlue,
               ),
@@ -4709,7 +4795,7 @@ class RecommendationCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 5),
                     Text(
-                      'Technical match uses TOPSIS; result confidence is calculated separately.',
+                      'Screening match uses TOPSIS; result confidence is calculated separately.',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: NbsColors.mutedGrey,
                           ),
@@ -4726,7 +4812,7 @@ class RecommendationCard extends StatelessWidget {
                                 scoreChips,
                                 const SizedBox(height: 10),
                                 _ScoreBar(
-                                  label: 'Technical match',
+                                  label: 'Screening match',
                                   value: item.matchScore,
                                   color: NbsColors.researchBlue,
                                 ),
@@ -4741,7 +4827,7 @@ class RecommendationCard extends StatelessWidget {
                       scoreChips,
                       const SizedBox(height: 10),
                       _ScoreBar(
-                        label: 'Technical match',
+                        label: 'Screening match',
                         value: item.matchScore,
                         color: NbsColors.researchBlue,
                       ),
@@ -4833,7 +4919,7 @@ class DetailScreen extends StatelessWidget {
                   runSpacing: 10,
                   children: [
                     StatusPill(
-                      label: 'Technical match',
+                      label: 'Screening match',
                       value: item.matchPercent,
                     ),
                     StatusPill(
@@ -4875,7 +4961,7 @@ class DetailScreen extends StatelessWidget {
                 const SizedBox(height: 14),
                 const _ReadableBulletList(
                   values: [
-                    'Technical match is TOPSIS closeness for the supplied problem and context.',
+                    'Screening match is TOPSIS closeness for the supplied problem and context.',
                     'Result confidence reflects data completeness, evidence coverage, and context quality; it does not change rank.',
                     'Plant matches do not affect rank.',
                     'Site suitability reflects available metadata and active applicability rules.',
@@ -6195,7 +6281,7 @@ class _ResultsHero extends StatelessWidget {
                 color: NbsColors.warningAmber,
               ),
               _DashboardMetricCard(
-                label: 'Technical match',
+                label: 'Screening match',
                 value: topRecommendation?.matchPercent ?? 'N/A',
                 icon: Icons.trending_up,
                 color: NbsColors.researchBlue,
@@ -8073,6 +8159,32 @@ String _displayConfidenceLabel(String? value) {
   };
 }
 
+Map<String, List<Citation>> _groupCitationsForLearning(List<Citation> citations) {
+  final grouped = <String, List<Citation>>{
+    'Technical guidance': [],
+    'Implementation and O&M': [],
+    'Case examples': [],
+    'Planting guidance': [],
+  };
+  for (final citation in citations) {
+    final text = '${citation.type ?? ''} ${citation.display} ${citation.citation ?? ''}'
+        .toLowerCase();
+    if (text.contains('plant') || text.contains('vegetation')) {
+      grouped['Planting guidance']!.add(citation);
+    } else if (text.contains('case') || text.contains('example')) {
+      grouped['Case examples']!.add(citation);
+    } else if (text.contains('operation') ||
+        text.contains('maintenance') ||
+        text.contains('o&m') ||
+        text.contains('om ')) {
+      grouped['Implementation and O&M']!.add(citation);
+    } else {
+      grouped['Technical guidance']!.add(citation);
+    }
+  }
+  return grouped;
+}
+
 String _titleFromSnake(String value) {
   return value
       .split('_')
@@ -8080,6 +8192,20 @@ String _titleFromSnake(String value) {
       .map((part) => '${part[0].toUpperCase()}${part.substring(1)}')
       .join(' ');
 }
+
+String _sentenceFromSnake(String value) {
+  final text = value.replaceAll('_', ' ').trim().toLowerCase();
+  if (text.isEmpty) return 'not recorded';
+  return '${text[0].toUpperCase()}${text.substring(1)}';
+}
+
+String _standaloneUseLabel(String? value) => switch (value) {
+      'only_as_part_of_train' => 'only as part of a treatment train',
+      'can_be_standalone_source_control' => 'source-control measure only',
+      'can_be_standalone' => 'possible only after design review',
+      null || '' => 'use within the recommended implementation context',
+      _ => _sentenceFromSnake(value),
+    };
 
 String _readinessStatusLabel(String status) => switch (status) {
       'available' => 'Available',

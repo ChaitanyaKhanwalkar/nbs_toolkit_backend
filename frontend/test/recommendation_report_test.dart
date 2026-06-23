@@ -185,7 +185,8 @@ void main() {
   test('builds row-oriented CSV and concise copy summary', () {
     final report = RecommendationReport.fromResponse(response);
 
-    expect(report.csv, startsWith('"section","item","field","value"'));
+    expect(report.baseFileName, 'narmada_nbs_recommendation_report');
+    expect(report.csv, startsWith('\uFEFF"section","item","field","value"'));
     expect(report.csv, contains('"recommended_treatment_train"'));
     expect(report.csv, contains('"design_readiness"'));
     expect(report.csv, contains('"location_context"'));
@@ -193,7 +194,7 @@ void main() {
     expect(report.csv, contains('"scenario_comparison"'));
     expect(report.csv, contains('"evidence_records"'));
     expect(report.summary, contains('DEWATS modular train'));
-    expect(report.summary, contains('Technical match: 78.0%'));
+    expect(report.summary, contains('Screening match: 78.0%'));
     expect(report.summary, contains('Design readiness: Ready for planning'));
     expect(
       report.summary,

@@ -23,8 +23,10 @@ from app.engines.candidate_filtering import CandidateFilterResult
 from app.engines.input_normalization import normalize_match_key
 
 
-PROVISIONAL_WARNING = (
-    "Method: A0 applicability screening followed by criteria-weighted TOPSIS."
+METHOD_WARNING = (
+    "Method: A0 safety/applicability screening -> AHP-Fuzzy AHP ensemble "
+    "weighting -> TOPSIS treatment-train ranking -> confidence and "
+    "design-readiness checks."
 )
 USE_CASES = ("drinking", "irrigation", "discharge_inland")
 
@@ -38,7 +40,7 @@ CONFIDENCE_CAP_ONE_PARAMETER = 0.35
 CONFIDENCE_CAP_TWO_TO_THREE = 0.55
 CONFIDENCE_CAP_INCOMPLETE_KEY_PANEL = 0.72
 CONFIDENCE_CAP_COMPLETE_KEY_PANEL = 0.90
-PROVISIONAL_METHOD_CAP = 0.90
+METHOD_CONFIDENCE_CAP = 0.90
 
 # Global safety rules should normally guide the recommendation, not wipe out
 # every train. Example: drinking use needs disinfection/advanced treatment;
@@ -218,7 +220,7 @@ class TrainRecommendationEngine:
                 row["applicability_result"]["status"] == "conditional"
                 for row in candidates
             ),
-            "warnings": [PROVISIONAL_WARNING],
+            "warnings": [METHOD_WARNING],
         }
 
 
@@ -724,7 +726,7 @@ def _confidence(
         data_cap = CONFIDENCE_CAP_COMPLETE_KEY_PANEL
     else:
         data_cap = CONFIDENCE_CAP_INCOMPLETE_KEY_PANEL
-    confidence_cap = min(data_cap, PROVISIONAL_METHOD_CAP)
+    confidence_cap = min(data_cap, METHOD_CONFIDENCE_CAP)
     # Scaling preserves evidence-driven differences between trains while the
     # same cap still bounds every result built from the same thin input.
     score = min(score * confidence_cap, confidence_cap)
@@ -767,7 +769,7 @@ def _confidence(
         ),
         "Confidence also reflects canonical evidence coverage, source type, and site context completeness.",
         f"A documented rule-based data cap of {confidence_cap:.0%} applies to this input.",
-        "The method remains research-stage and requires expert calibration.",
+        "C5 health-risk integration remains reserved for future expert data.",
     ]
     return {
         "score": score,
@@ -784,7 +786,7 @@ def _confidence(
             "site_context_completeness": site_factor,
             "source_coverage": source_factor,
             "criteria_completeness": known_criteria,
-            "provisional_method_cap": PROVISIONAL_METHOD_CAP,
+            "method_confidence_cap": METHOD_CONFIDENCE_CAP,
         },
         "explanation": explanation,
         "caveats": caveats,

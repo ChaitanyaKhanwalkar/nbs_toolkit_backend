@@ -1,4 +1,4 @@
-/// Verifies the offline location schematic at a narrow mobile width.
+/// Verifies the honest location schematic/fallback at mobile and desktop widths.
 library;
 
 import 'package:flutter/material.dart';
@@ -60,12 +60,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Verified stored location'), findsOneWidget);
-    expect(
-      find.textContaining('offline-safe map canvas'),
-      findsOneWidget,
-    );
-    expect(find.byKey(const ValueKey('verified-location-map')), findsOneWidget);
-    expect(find.text('Offline map canvas'), findsOneWidget);
+    expect(find.textContaining('map tiles are unavailable'), findsOneWidget);
+    expect(find.text('Verified location context'), findsOneWidget);
+    expect(find.byKey(const ValueKey('verified-location-map')), findsNothing);
+    expect(find.textContaining('Map status: Verified coordinates'), findsOneWidget);
     expect(
       find.textContaining('Verified location: 21.7000, 72.9000'),
       findsOneWidget,
