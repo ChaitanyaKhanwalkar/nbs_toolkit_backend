@@ -2092,37 +2092,46 @@ class _SizingEstimateCard extends StatelessWidget {
             ExpansionTile(
               tilePadding: EdgeInsets.zero,
               childrenPadding: const EdgeInsets.only(bottom: 8),
+              expandedAlignment: Alignment.centerLeft,
+              expandedCrossAxisAlignment: CrossAxisAlignment.start,
               title: const Text(
                 'Show calculations and assumptions',
                 style: TextStyle(fontWeight: FontWeight.w800),
               ),
               children: [
-                _TextBlockList(
-                  title: 'Inputs used',
-                  values: estimate.inputsUsed,
-                  emptyText: 'No flow, population, or land value was supplied.',
+                SizedBox(
+                  width: double.infinity,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _TextBlockList(
+                        title: 'Inputs used',
+                        values: estimate.inputsUsed,
+                        emptyText:
+                            'No flow, population, or land value was supplied.',
+                      ),
+                      const SizedBox(height: 10),
+                      _TextBlockList(
+                        title: 'Key assumptions',
+                        values: estimate.keyAssumptions,
+                        emptyText:
+                            'No calculation assumptions apply because an area was not estimated.',
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Footprint basis: ${_calculationDetailLabel(estimate.basis)}',
+                        textAlign: TextAlign.left,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Sizing confidence: ${_calculationDetailLabel(estimate.sizingConfidence)}',
+                        textAlign: TextAlign.left,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(estimate.designCaution, textAlign: TextAlign.left),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 10),
-                _TextBlockList(
-                  title: 'Key assumptions',
-                  values: estimate.keyAssumptions,
-                  emptyText:
-                      'No calculation assumptions apply because an area was not estimated.',
-                ),
-                const SizedBox(height: 10),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                        'Footprint basis: ${_sentenceFromSnake(estimate.basis)}'),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Sizing confidence: ${_sentenceFromSnake(estimate.sizingConfidence)}',
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(estimate.designCaution),
               ],
             ),
           ],
@@ -8261,6 +8270,14 @@ String _sentenceFromSnake(String value) {
   final text = value.replaceAll('_', ' ').trim().toLowerCase();
   if (text.isEmpty) return 'not recorded';
   return '${text[0].toUpperCase()}${text.substring(1)}';
+}
+
+String _calculationDetailLabel(String value) {
+  return switch (value) {
+    'area_per_person_band' => 'area-per-person band',
+    'insufficient_data' => 'insufficient data',
+    _ => value.replaceAll('_', '-').trim().toLowerCase(),
+  };
 }
 
 String _standaloneUseLabel(String? value) => switch (value) {
