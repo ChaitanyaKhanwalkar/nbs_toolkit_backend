@@ -2065,12 +2065,9 @@ class _SizingEstimateCard extends StatelessWidget {
               ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 8),
-            Text(
-              _sizingEstimateDisplay(estimate),
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: NbsColors.researchBlue,
-                    fontWeight: FontWeight.w900,
-                  ),
+            _ReadableBulletList(
+              values: _sizingEstimateLines(estimate),
+              emptyText: estimate.estimateLabel,
             ),
             const SizedBox(height: 8),
             Text(
@@ -2079,7 +2076,7 @@ class _SizingEstimateCard extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             _TextBlockList(
-              title: 'What to collect next',
+              title: 'To calculate area, provide',
               values: estimate.missingInputs,
               emptyText:
                   'The screening inputs are present; detailed design inputs are still required.',
@@ -2113,8 +2110,16 @@ class _SizingEstimateCard extends StatelessWidget {
                       'No calculation assumptions apply because an area was not estimated.',
                 ),
                 const SizedBox(height: 10),
-                Text(
-                  'Footprint basis: ${_sentenceFromSnake(estimate.basis)}. Sizing confidence: ${_sentenceFromSnake(estimate.sizingConfidence)}.',
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                        'Footprint basis: ${_sentenceFromSnake(estimate.basis)}'),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Sizing confidence: ${_sentenceFromSnake(estimate.sizingConfidence)}',
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 8),
                 Text(estimate.designCaution),
@@ -2440,18 +2445,22 @@ String _landFitShort(String value) => switch (value) {
       _ => 'Needs data',
     };
 
-String _sizingEstimateDisplay(SizingEstimate estimate) {
-  if (estimate.estimatedAreaLowM2 != null || estimate.estimatedAreaHighM2 != null) {
-    return estimate.estimateLabel;
+List<String> _sizingEstimateLines(SizingEstimate estimate) {
+  if (estimate.estimatedAreaLowM2 != null ||
+      estimate.estimatedAreaHighM2 != null) {
+    return [estimate.estimateLabel];
   }
   if (estimate.areaPerPersonBand != null &&
       estimate.areaPerPersonBand!.trim().isNotEmpty) {
-    return 'Stored screening footprint: ${estimate.areaPerPersonBand}. Area estimate not calculated because population/PE was not supplied.';
+    return [
+      'Stored screening footprint: ${estimate.areaPerPersonBand}.',
+      'Area estimate not calculated because population/PE was not supplied.',
+    ];
   }
   if (estimate.missingInputs.isNotEmpty) {
-    return 'Area estimate not calculated. To calculate area, provide: ${estimate.missingInputs.join(', ')}.';
+    return ['Area estimate not calculated.'];
   }
-  return estimate.estimateLabel;
+  return [estimate.estimateLabel];
 }
 
 String _optionalPercent(double? value) =>
@@ -3463,23 +3472,37 @@ class _EvidenceWorkspace extends StatelessWidget {
             child: _ReadableBulletList(
               values: [
                 'The site-safety check screens placement and safety constraints before ranking.',
-                'Criteria-weighted TOPSIS compares eligible treatment trains.',
+                'Ranking uses final v1 AHP-Fuzzy AHP ensemble weights with TOPSIS.',
+                'Final v1 AHP-Fuzzy AHP weighted TOPSIS after safety/applicability screening.',
                 'Confidence uses ${_confidenceMethodLabel(response, bundle).toLowerCase()} and is reported separately from rank.',
-                'Research-stage comparison weights require expert calibration.',
+                'C5 health-risk and field validation remain future work.',
               ],
             ),
           ),
           const SizedBox(height: 14),
           _DetailSection(
             title: 'Scientific criteria values',
-            child: _TextBlockList(
-              title: 'Top-train criteria',
-              values: [
-                for (final item in train?.criteriaBreakdown ??
-                    const <Map<String, dynamic>>[])
-                  '${item['criterion_code']} ${_titleFromSnake(item['criterion_name']?.toString() ?? '')}: ${item['data_status'] == 'known' ? ((item['normalized_value'] as num?)?.toDouble() ?? 0).toStringAsFixed(3) : 'Evidence gap'}',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _TextBlockList(
+                  title: 'Top-train criteria',
+                  values: [
+                    for (final item in train?.criteriaBreakdown ??
+                        const <Map<String, dynamic>>[])
+                      '${_criterionMapLabel(item)}: ${item['data_status'] == 'known' ? ((item['normalized_value'] as num?)?.toDouble() ?? 0).toStringAsFixed(3) : 'Evidence gap'}',
+                  ],
+                  emptyText: 'No criteria values are available.',
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Values are normalized/scored criteria used by TOPSIS; they are not the final weights.',
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Weights come from final v1 AHP-Fuzzy AHP ensemble weights.',
+                ),
               ],
-              emptyText: 'No criteria values are available.',
             ),
           ),
           const SizedBox(height: 14),
@@ -3702,7 +3725,7 @@ class _ReportPreview extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         const Text(
-          'Method: AHP-Fuzzy AHP weighted TOPSIS after safety/applicability screening',
+          'Method: Final v1 AHP-Fuzzy AHP weighted TOPSIS after safety/applicability screening',
         ),
         const SizedBox(height: 16),
         _TextBlockList(
@@ -4989,6 +5012,14 @@ class DetailScreen extends StatelessWidget {
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      const Text(
+                        'Values are normalized/scored criteria used by TOPSIS; they are not the final weights.',
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Weights come from final v1 AHP-Fuzzy AHP ensemble weights.',
+                      ),
+                      const SizedBox(height: 12),
                       for (final criterion in item.criteriaBreakdown) ...[
                         _ScoreBar(
                           label:
@@ -5679,19 +5710,25 @@ class MethodAboutScreen extends StatelessWidget {
           _MethodCard(
             title: 'Ranking method',
             body:
-                'TOPSIS compares candidate options against ideal best and worst cases. The displayed technical match is the TOPSIS closeness value.',
+                'Weights: final v1 AHP-Fuzzy AHP ensemble criteria weights. Ranking: TOPSIS closeness to ideal-best and ideal-worst treatment-train profiles.',
+          ),
+          SizedBox(height: 12),
+          _MethodCard(
+            title: 'Safety screening',
+            body:
+                'Safety: A0 applicability/safety screening runs before ranking. Ranking uses final v1 AHP-Fuzzy AHP ensemble weights with TOPSIS.',
           ),
           SizedBox(height: 12),
           _MethodCard(
             title: 'Confidence',
             body:
-                'Confidence is calculated separately from ranking. It reflects data quality, evidence completeness, criteria coverage, and active caution flags.',
+                'Confidence: calculated separately from match score. It reflects data quality, evidence completeness, criteria coverage, and active caution flags.',
           ),
           SizedBox(height: 12),
           _MethodCard(
             title: 'Current limitations',
             body:
-                'Current criteria weights support research-stage comparison and remain subject to expert calibration. Health-risk classification requires separate expert data.',
+                'Boundary: C5 health-risk is reserved for future integration; final engineering design still requires expert review and field validation.',
           ),
           SizedBox(height: 12),
           _MethodCard(
@@ -8065,7 +8102,9 @@ List<String> _treatmentSequenceLabels(
 
 String _displayStatus(String? value) {
   return switch (value) {
-    'temporary_not_expert_validated' => 'Criteria-weighted',
+    'temporary_not_expert_validated' =>
+      'Final v1 AHP-Fuzzy AHP weighted TOPSIS',
+    'final_v1_ahp_fuzzy_ensemble' => 'Final v1 AHP-Fuzzy AHP weighted TOPSIS',
     'expert_validated' => 'Expert validated',
     'weights_missing' => 'Weights missing',
     'invalid_weights' => 'Invalid weights',
@@ -8076,7 +8115,7 @@ String _displayStatus(String? value) {
 
 String _displayMethod(String? value) {
   return switch (value) {
-    'topsis' => 'TOPSIS',
+    'topsis' => 'Final v1 AHP-Fuzzy AHP weighted TOPSIS',
     'rule_based_v1' => 'Rule-based confidence',
     null || '' => 'Unknown',
     _ => _titleFromSnake(value),
@@ -8159,7 +8198,8 @@ String _displayConfidenceLabel(String? value) {
   };
 }
 
-Map<String, List<Citation>> _groupCitationsForLearning(List<Citation> citations) {
+Map<String, List<Citation>> _groupCitationsForLearning(
+    List<Citation> citations) {
   final grouped = <String, List<Citation>>{
     'Technical guidance': [],
     'Implementation and O&M': [],
@@ -8167,8 +8207,9 @@ Map<String, List<Citation>> _groupCitationsForLearning(List<Citation> citations)
     'Planting guidance': [],
   };
   for (final citation in citations) {
-    final text = '${citation.type ?? ''} ${citation.display} ${citation.citation ?? ''}'
-        .toLowerCase();
+    final text =
+        '${citation.type ?? ''} ${citation.display} ${citation.citation ?? ''}'
+            .toLowerCase();
     if (text.contains('plant') || text.contains('vegetation')) {
       grouped['Planting guidance']!.add(citation);
     } else if (text.contains('case') || text.contains('example')) {
@@ -8191,6 +8232,29 @@ String _titleFromSnake(String value) {
       .where((part) => part.isNotEmpty)
       .map((part) => '${part[0].toUpperCase()}${part.substring(1)}')
       .join(' ');
+}
+
+String _criterionMapLabel(Map<String, dynamic> item) {
+  final code = item['criterion_code']?.toString().trim() ?? '';
+  final name = item['criterion_name']?.toString().trim() ?? '';
+  final label = _criterionNameLabel(name);
+  if (code.isEmpty) return label;
+  if (label.isEmpty) return code;
+  return '$code $label';
+}
+
+String _criterionNameLabel(String value) {
+  final normalized = value.trim().toLowerCase();
+  if (normalized == 'om' ||
+      normalized == 'o_m' ||
+      normalized == 'om_simplicity') {
+    return 'O&M practicality';
+  }
+  if (normalized.contains('operation') && normalized.contains('maintenance')) {
+    return 'O&M practicality';
+  }
+  if (normalized.contains('o&m')) return 'O&M practicality';
+  return _titleFromSnake(value);
 }
 
 String _sentenceFromSnake(String value) {

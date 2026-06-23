@@ -24,8 +24,8 @@ from app.engines.input_normalization import normalize_match_key
 
 
 METHOD_WARNING = (
-    "Method: A0 safety/applicability screening -> AHP-Fuzzy AHP ensemble "
-    "weighting -> TOPSIS treatment-train ranking -> confidence and "
+    "Method: A0 safety/applicability screening -> final v1 AHP-Fuzzy AHP "
+    "ensemble weighting -> TOPSIS treatment-train ranking -> confidence and "
     "design-readiness checks."
 )
 USE_CASES = ("drinking", "irrigation", "discharge_inland")

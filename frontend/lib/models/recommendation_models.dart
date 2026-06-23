@@ -1034,6 +1034,15 @@ class CriterionBreakdown {
   }
 
   String get label {
+    final normalized = criterionName.trim().toLowerCase();
+    if (normalized == 'om' ||
+        normalized == 'o_m' ||
+        normalized == 'om_simplicity' ||
+        normalized.contains('o&m') ||
+        (normalized.contains('operation') &&
+            normalized.contains('maintenance'))) {
+      return 'O&M practicality';
+    }
     final readable = criterionName.replaceAll('_', ' ');
     return readable.isEmpty
         ? criterionName

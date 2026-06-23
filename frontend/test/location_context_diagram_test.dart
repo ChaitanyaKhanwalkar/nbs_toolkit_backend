@@ -47,6 +47,10 @@ void main() {
   ) async {
     final location = LocationContext.fromJson({
       'station': 'Verified station',
+      'district': 'Bharuch',
+      'basin': 'Narmada',
+      'river': 'Narmada River',
+      'stream_order': 7,
       'coordinates_available': true,
       'latitude': 21.7,
       'longitude': 72.9,
@@ -59,15 +63,24 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Verified stored location'), findsOneWidget);
-    expect(find.textContaining('map tiles are unavailable'), findsOneWidget);
-    expect(find.text('Verified location context'), findsOneWidget);
+    expect(find.text('Offline geo-context panel'), findsOneWidget);
+    expect(find.textContaining('not a surveyed GIS map'), findsOneWidget);
+    expect(find.text('Verified stored coordinates'), findsOneWidget);
     expect(find.byKey(const ValueKey('verified-location-map')), findsNothing);
-    expect(find.textContaining('Map status: Verified coordinates'), findsOneWidget);
     expect(
-      find.textContaining('Verified location: 21.7000, 72.9000'),
+      find.textContaining('live map tiles are not required'),
       findsOneWidget,
     );
+    expect(_richTextContaining(tester, 'Latitude: 21.70000'), isTrue);
+    expect(_richTextContaining(tester, 'Longitude: 72.90000'), isTrue);
+    expect(
+        _richTextContaining(tester, 'Site/station: Verified station'), isTrue);
+    expect(_richTextContaining(tester, 'District: Bharuch'), isTrue);
+    expect(_richTextContaining(tester, 'Basin: Narmada'), isTrue);
+    expect(_richTextContaining(tester, 'River: Narmada River'), isTrue);
+    expect(_richTextContaining(tester, 'Stream order: 7'), isTrue);
+    expect(find.text('Open in Google Maps'), findsOneWidget);
+    expect(find.text('Open in OpenStreetMap'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -90,4 +103,10 @@ void main() {
     expect(find.text('Use the site checklist before design.'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+}
+
+bool _richTextContaining(WidgetTester tester, String text) {
+  return tester
+      .widgetList<RichText>(find.byType(RichText))
+      .any((widget) => widget.text.toPlainText().contains(text));
 }

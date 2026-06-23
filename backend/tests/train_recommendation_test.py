@@ -365,14 +365,31 @@ def test_mandleshwar_industrial_acidic_mainstem_requires_expert_review() -> None
     assert all("green roof" not in name for name in top_names)
     assert all("green wall" not in name for name in top_names)
     assert all("rain garden" not in name for name in top_names)
-    green_roof = next(
-        row
-        for row in payload["component_recommendations"]
-        if row["name"] == "Green Roof"
+
+    blocked_component_terms = (
+        "green roof",
+        "green wall",
+        "rain garden",
+        "bioswale",
+        "filter strip",
     )
-    assert green_roof["role"] == "polishing_or_buffer"
-    assert green_roof["standalone_suitability"] == "only_as_part_of_train"
-    assert any("ETP/CETP" in item for item in green_roof["key_constraints"])
+    component_names = [
+        row["name"].lower() for row in payload["component_recommendations"]
+    ]
+    assert all(
+        term not in name
+        for name in component_names
+        for term in blocked_component_terms
+    )
+    filtered = payload["filtered_components"]
+    filtered_names = [row["name"].lower() for row in filtered]
+    assert any("green roof" in name for name in filtered_names)
+    filtered_reasons = " ".join(
+        reason for row in filtered for reason in row["reasons"]
+    ).lower()
+    assert "etp/cetp" in filtered_reasons
+    assert "neutralization" in filtered_reasons
+    assert "off-channel" in filtered_reasons
 
 
 def test_unknown_performance_is_not_scored_as_zero() -> None:

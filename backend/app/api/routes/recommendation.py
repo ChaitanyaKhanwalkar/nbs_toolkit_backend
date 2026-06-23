@@ -512,13 +512,14 @@ def _expert_validated(
 
 
 def _warnings(payload: dict[str, Any], weights_status: str | None) -> list[str]:
-    """Combine workflow warnings with a temporary-weight note when needed."""
+    """Combine workflow warnings with a final-v1 method note when needed."""
 
     warnings = list(payload.get("warnings") or [])
     if weights_status == "temporary_not_expert_validated":
         warning = (
-            "Temporary weights are provisional and remain "
-            "temporary_not_expert_validated."
+            "Treatment-train ranking uses final v1 AHP-Fuzzy AHP ensemble "
+            "weights with TOPSIS; C5 health-risk remains reserved for future "
+            "integration."
         )
         if warning not in warnings:
             warnings.append(warning)
@@ -547,9 +548,9 @@ def _provisional_note(weights_status: str | None) -> str | None:
 
     if weights_status == "temporary_not_expert_validated":
         return (
-            "A temporary weight profile was used for the staged component "
-            "workflow. Treatment-train ranking uses the final v1 AHP-Fuzzy AHP "
-            "weighted TOPSIS method when canonical weights are available."
+            "Treatment-train ranking uses final v1 AHP-Fuzzy AHP ensemble "
+            "weights with TOPSIS. C5 health-risk and field validation remain "
+            "future work."
         )
     if weights_status == "weights_missing":
         return (

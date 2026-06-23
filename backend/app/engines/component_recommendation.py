@@ -21,6 +21,19 @@ SOURCE_CONTROL_TOKENS = {
     "filter_strip",
     "vegetated_buffer",
 }
+HIGH_RISK_CONTEXT_EXCLUSION_TOKENS = {
+    "bioretention",
+    "rain_garden",
+    "bioswale",
+    "vegetated_swale",
+    "filter_strip",
+    "vegetated_buffer",
+    "buffer_strip",
+    "green_roof",
+    "green_wall",
+    "roof",
+    "stormwater",
+}
 PRIMARY_PROCESS_TOKENS = {
     "anaerobic_baffled_reactor",
     "dewats",
@@ -119,17 +132,36 @@ class IndividualNbsRecommendationEngine:
             ordered.sort(key=lambda row: _context_sort_key(row, context))
             method = "a0_screened_context_role_order"
 
-        recommendations = [
-            self._component(
-                row,
-                candidate=candidates.get(row.get("nbs_id"), {}),
-                applicability=applicability.get(row.get("nbs_id"), {}),
-                context=context,
-                method=method,
+        recommendations: list[dict[str, Any]] = []
+        context_filtered: list[dict[str, Any]] = []
+        for row in ordered:
+            nbs_id = row.get("nbs_id")
+            if nbs_id is None:
+                continue
+            identity = self._component_identity(int(nbs_id), row)
+            if _excluded_in_high_risk_context(
+                identity["name"],
+                identity.get("family"),
+                context,
+            ):
+                context_filtered.append(
+                    {
+                        "nbs_id": nbs_id,
+                        "name": identity["name"],
+                        "status": "not_suitable_for_scenario",
+                        "reasons": _high_risk_context_exclusion_reasons(context),
+                    }
+                )
+                continue
+            recommendations.append(
+                self._component(
+                    row,
+                    candidate=candidates.get(nbs_id, {}),
+                    applicability=applicability.get(nbs_id, {}),
+                    context=context,
+                    method=method,
+                )
             )
-            for row in ordered
-            if row.get("nbs_id") is not None
-        ]
         filtered = [
             {
                 "nbs_id": nbs_id,
@@ -143,7 +175,7 @@ class IndividualNbsRecommendationEngine:
                 ),
             }
             for nbs_id, row in sorted(rejected.items())
-        ]
+        ] + context_filtered
         return {
             "method": method,
             "train_recommendation_remains_primary": True,
@@ -153,6 +185,24 @@ class IndividualNbsRecommendationEngine:
                 "Individual components support the primary treatment-train decision.",
                 "Context-only component ordering is rule-based and unscored.",
             ],
+        }
+
+    def _component_identity(
+        self,
+        nbs_id: int,
+        ranked: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Return the minimum catalogue identity needed for scenario filtering."""
+
+        profile = self.catalogue.get_full_nbs_profile(nbs_id)
+        option = profile.get("option") or {}
+        return {
+            "name": str(
+                option.get("solution")
+                or ranked.get("nbs_name")
+                or "NbS component"
+            ),
+            "family": option.get("family"),
         }
 
     def _component(
@@ -325,6 +375,55 @@ def _context_sort_key(row: dict[str, Any], context: dict[str, Any]) -> tuple[int
     else:
         priority = 0
     return priority, int(row.get("nbs_id") or 0)
+
+
+def _excluded_in_high_risk_context(
+    name: str,
+    family: Any,
+    context: dict[str, Any],
+) -> bool:
+    """Hide stormwater/roof/source-control items from high-risk recommendations."""
+
+    if not _is_high_risk_exclusion_context(context):
+        return False
+    text = normalize_match_key(f"{name} {family or ''}") or ""
+    return _contains(text, HIGH_RISK_CONTEXT_EXCLUSION_TOKENS)
+
+
+def _is_high_risk_exclusion_context(context: dict[str, Any]) -> bool:
+    source = normalize_match_key(context.get("pollution_source_type")) or ""
+    position = normalize_match_key(context.get("intervention_position")) or ""
+    high_order_in_channel = (
+        _number(context.get("stream_order")) >= 5
+        and position in {"in_channel", "mainstem", "mainstem_high_order"}
+    )
+    return (
+        "industrial" in source
+        or context.get("_requires_neutralization") is True
+        or high_order_in_channel
+    )
+
+
+def _high_risk_context_exclusion_reasons(context: dict[str, Any]) -> list[str]:
+    reasons = [
+        "Excluded from current recommendations because this scenario requires treatment-train, pretreatment, or off-channel controls before any polishing/source-control component.",
+        "Roof, wall, rain-garden, bioswale, and filter-strip components remain catalogue items for suitable stormwater or urban-runoff contexts only.",
+    ]
+    source = normalize_match_key(context.get("pollution_source_type")) or ""
+    position = normalize_match_key(context.get("intervention_position")) or ""
+    if "industrial" in source:
+        reasons.append(
+            "ETP/CETP pretreatment and compliance verification are required for industrial or mixed-industrial wastewater."
+        )
+    if context.get("_requires_neutralization"):
+        reasons.append(
+            "Neutralization and pH control are required before biological or NbS stages."
+        )
+    if position == "in_channel" or _number(context.get("stream_order")) >= 5:
+        reasons.append(
+            "High-order or in-channel contexts require off-channel treatment and must protect river conveyance."
+        )
+    return _unique(reasons)
 
 
 def _pollutants(rows: list[dict[str, Any]]) -> list[str]:

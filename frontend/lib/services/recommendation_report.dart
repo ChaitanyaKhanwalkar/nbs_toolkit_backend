@@ -66,7 +66,7 @@ class RecommendationReport {
     final payload = <String, dynamic>{
       'report_type': 'Narmada NbS planning-level recommendation',
       'method':
-          'AHP-Fuzzy AHP weighted TOPSIS after safety/applicability screening',
+          'Final v1 AHP-Fuzzy AHP weighted TOPSIS after safety/applicability screening',
       'project_input_summary': {
         'workflow_mode': input.workflowMode,
         'use_case': response.useCase,
@@ -213,7 +213,7 @@ String _buildSummary(
 ) {
   final lines = <String>[
     'NARMADA NBS PLANNING-LEVEL RECOMMENDATION',
-    'Method: AHP-Fuzzy AHP weighted TOPSIS after safety/applicability screening',
+    'Method: Final v1 AHP-Fuzzy AHP weighted TOPSIS after safety/applicability screening',
     '',
     'Input basis: ${_workflowLabel(response.inputSummary.workflowMode)}',
     response.inputSummary.dataUsed.isEmpty
@@ -412,7 +412,7 @@ String _buildPrintHtml(Map<String, dynamic> payload, String summary) {
 </head>
 <body>
   <h1>Narmada NbS recommendation report</h1>
-  <p class="method">Method: AHP-Fuzzy AHP weighted TOPSIS after safety/applicability screening</p>
+  <p class="method">Method: Final v1 AHP-Fuzzy AHP weighted TOPSIS after safety/applicability screening</p>
   <h2>Recommendation summary</h2>
   <p class="summary">$escapedSummary</p>
   <h2>References</h2>

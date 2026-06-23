@@ -1,13 +1,12 @@
-/// Shows verified coordinates on a map canvas or an honest context schematic.
+/// Shows verified site context without depending on live map tiles.
 library;
 
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart' as latlong;
 
 import '../models/recommendation_models.dart';
+import '../services/report_platform.dart';
 import '../theme/nbs_theme.dart';
 
 class LocationContextDiagram extends StatelessWidget {
@@ -18,6 +17,8 @@ class LocationContextDiagram extends StatelessWidget {
   });
 
   final LocationContext location;
+
+  /// Retained for old callers; live tiles are intentionally not used.
   final bool enableOnlineTiles;
 
   @override
@@ -58,7 +59,7 @@ class LocationContextDiagram extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: NbsColors.researchBlue.withValues(alpha: 0.04),
+        color: Colors.white,
         border: Border.all(color: NbsColors.cardBorder),
         borderRadius: BorderRadius.circular(8),
       ),
@@ -67,7 +68,7 @@ class LocationContextDiagram extends StatelessWidget {
         children: [
           Text(
             location.coordinatesAvailable
-                ? 'Verified stored location'
+                ? 'Offline geo-context panel'
                 : 'Schematic context view',
             style: Theme.of(
               context,
@@ -76,42 +77,29 @@ class LocationContextDiagram extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             location.coordinatesAvailable
-                ? enableOnlineTiles
-                    ? 'The marker uses verified stored coordinates on an OpenStreetMap base.'
-                    : 'Verified coordinates are available; map tiles are unavailable or offline.'
+                ? 'This panel shows verified stored coordinates and basin context. It is not a surveyed GIS map.'
                 : 'Schematic only, not a surveyed map. Verify the site position and levels before design.',
             style: Theme.of(
               context,
             ).textTheme.bodySmall?.copyWith(color: NbsColors.mutedGrey),
           ),
           const SizedBox(height: 12),
-          AspectRatio(
-            aspectRatio: 2.15,
-            child: location.coordinatesAvailable
-                ? enableOnlineTiles
-                    ? _VerifiedLocationMap(
-                        latitude: location.latitude!,
-                        longitude: location.longitude!,
-                      )
-                    : _VerifiedLocationContextCard(location: location)
-                : CustomPaint(
-                    painter: _LocationContextPainter(
-                      showSite: location.station != null,
-                      highOrder: highOrder,
-                      offChannelRequired:
-                          location.contextFlags['off_channel_required'] == true,
-                      interventionPosition: location.interventionPosition,
-                    ),
-                    child: const SizedBox.expand(),
-                  ),
-          ),
-          if (location.coordinatesAvailable) ...[
-            const SizedBox(height: 8),
-            Text(
-              'Verified location: ${location.latitude!.toStringAsFixed(4)}, ${location.longitude!.toStringAsFixed(4)}',
-              style: const TextStyle(fontWeight: FontWeight.w700),
+          if (location.coordinatesAvailable)
+            _OfflineGeoContextPanel(location: location)
+          else
+            AspectRatio(
+              aspectRatio: 2.15,
+              child: CustomPaint(
+                painter: _LocationContextPainter(
+                  showSite: location.station != null,
+                  highOrder: highOrder,
+                  offChannelRequired:
+                      location.contextFlags['off_channel_required'] == true,
+                  interventionPosition: location.interventionPosition,
+                ),
+                child: const SizedBox.expand(),
+              ),
             ),
-          ],
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -125,6 +113,11 @@ class LocationContextDiagram extends StatelessWidget {
                 _ContextLabel(label: 'Basin', value: location.basin!),
               if (location.river != null)
                 _ContextLabel(label: 'River', value: location.river!),
+              if (location.streamOrder != null)
+                _ContextLabel(
+                  label: 'Stream order',
+                  value: _formatNumber(location.streamOrder!),
+                ),
             ],
           ),
           if (highOrder) ...[
@@ -143,137 +136,188 @@ class LocationContextDiagram extends StatelessWidget {
   }
 }
 
-class _VerifiedLocationMap extends StatelessWidget {
-  const _VerifiedLocationMap({
-    required this.latitude,
-    required this.longitude,
-  });
+class _OfflineGeoContextPanel extends StatelessWidget {
+  const _OfflineGeoContextPanel({required this.location});
 
-  final double latitude;
-  final double longitude;
+  final LocationContext location;
 
   @override
   Widget build(BuildContext context) {
-    final point = latlong.LatLng(latitude, longitude);
+    final latitude = location.latitude;
+    final longitude = location.longitude;
+    final hasCoordinates = latitude != null && longitude != null;
+    final googleUrl = hasCoordinates
+        ? 'https://www.google.com/maps/search/?api=1&query=$latitude,$longitude'
+        : null;
+    final osmUrl = hasCoordinates
+        ? 'https://www.openstreetmap.org/?mlat=$latitude&mlon=$longitude#map=15/$latitude/$longitude'
+        : null;
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(6),
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: ColoredBox(
-              color: const Color(0xFFE8F1F3),
-              child: FlutterMap(
-                key: const ValueKey('verified-location-map'),
-                options: MapOptions(
-                  initialCenter: point,
-                  initialZoom: 12,
-                  interactionOptions: const InteractionOptions(
-                    flags: InteractiveFlag.pinchZoom | InteractiveFlag.drag,
-                  ),
-                ),
-                children: [
-                  TileLayer(
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'org.nbsgct.narmada_nbs_planner',
-                  ),
-                  MarkerLayer(
-                    markers: [
-                      Marker(
-                        point: point,
-                        width: 42,
-                        height: 42,
-                        child: const Icon(
-                          Icons.location_pin,
-                          size: 40,
-                          color: NbsColors.warningAmber,
-                          shadows: [Shadow(color: Colors.white, blurRadius: 4)],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: NbsColors.softBackground,
+        border: Border.all(color: NbsColors.cardBorder),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth > 560;
+          final marker = const SizedBox(
+            width: 84,
+            height: 84,
+            child: CustomPaint(painter: _CoordinateMarkerPainter()),
+          );
+          final details = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Verified stored coordinates',
+                style: TextStyle(fontWeight: FontWeight.w900),
               ),
-            ),
-          ),
-          const Positioned(
-              right: 8,
-              bottom: 8,
-              child: _MapBadge(label: 'OpenStreetMap contributors'),
-            ),
-        ],
+              const SizedBox(height: 8),
+              _GeoRow(
+                label: 'Latitude',
+                value: latitude?.toStringAsFixed(5) ?? 'Not available',
+              ),
+              _GeoRow(
+                label: 'Longitude',
+                value: longitude?.toStringAsFixed(5) ?? 'Not available',
+              ),
+              _GeoRow(
+                label: 'Site/station',
+                value: _valueOrDash(location.station),
+              ),
+              _GeoRow(
+                  label: 'District', value: _valueOrDash(location.district)),
+              _GeoRow(label: 'Basin', value: _valueOrDash(location.basin)),
+              _GeoRow(label: 'River', value: _valueOrDash(location.river)),
+              _GeoRow(
+                label: 'Stream order',
+                value: location.streamOrder == null
+                    ? 'Not available'
+                    : _formatNumber(location.streamOrder!),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Map status: Verified coordinates available; live map tiles are not required for this demo.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: NbsColors.mutedGrey,
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+              if (googleUrl != null && osmUrl != null) ...[
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: () => openExternalUrl(googleUrl),
+                      icon: const Icon(Icons.open_in_new, size: 17),
+                      label: const Text('Open in Google Maps'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () => openExternalUrl(osmUrl),
+                      icon: const Icon(Icons.open_in_new, size: 17),
+                      label: const Text('Open in OpenStreetMap'),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          );
+          return isWide
+              ? Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    marker,
+                    const SizedBox(width: 16),
+                    Expanded(child: details),
+                  ],
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [marker, const SizedBox(height: 12), details],
+                );
+        },
       ),
     );
   }
 }
 
-class _VerifiedLocationContextCard extends StatelessWidget {
-  const _VerifiedLocationContextCard({required this.location});
+class _GeoRow extends StatelessWidget {
+  const _GeoRow({required this.label, required this.value});
 
-  final LocationContext location;
+  final String label;
+  final String value;
 
   @override
-  Widget build(BuildContext context) => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: NbsColors.cardBorder),
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.location_on_outlined, color: NbsColors.riverTeal),
-            const SizedBox(height: 8),
-            const Text(
-              'Verified location context',
-              style: TextStyle(fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Coordinates: ${location.latitude!.toStringAsFixed(4)}, ${location.longitude!.toStringAsFixed(4)}',
-            ),
-            if (location.station != null)
-              Text('Site/station: ${location.station}'),
-            if (location.district != null) Text('District: ${location.district}'),
-            if (location.basin != null) Text('Basin: ${location.basin}'),
-            if (location.river != null) Text('River: ${location.river}'),
-            const SizedBox(height: 8),
-            Text(
-              'Map status: Verified coordinates available; map tiles unavailable/offline.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: NbsColors.mutedGrey,
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-          ],
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: RichText(
+          text: TextSpan(
+            style: Theme.of(context).textTheme.bodyMedium,
+            children: [
+              TextSpan(
+                text: '$label: ',
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+              TextSpan(text: value),
+            ],
+          ),
         ),
       );
 }
 
-class _MapBadge extends StatelessWidget {
-  const _MapBadge({required this.label});
-
-  final String label;
+class _CoordinateMarkerPainter extends CustomPainter {
+  const _CoordinateMarkerPainter();
 
   @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.92),
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Text(
-          label,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: NbsColors.deepNavy,
-                fontWeight: FontWeight.w700,
-              ),
-        ),
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final grid = Paint()
+      ..color = NbsColors.cardBorder
+      ..strokeWidth = 1;
+    final axis = Paint()
+      ..color = NbsColors.riverTeal
+      ..strokeWidth = 1.6;
+    final marker = Paint()..color = NbsColors.warningAmber;
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(8)),
+      Paint()..color = Colors.white,
+    );
+    for (final fraction in const [0.25, 0.5, 0.75]) {
+      canvas.drawLine(
+        Offset(size.width * fraction, 8),
+        Offset(size.width * fraction, size.height - 8),
+        grid,
       );
+      canvas.drawLine(
+        Offset(8, size.height * fraction),
+        Offset(size.width - 8, size.height * fraction),
+        grid,
+      );
+    }
+    canvas.drawLine(
+        Offset(center.dx, 8), Offset(center.dx, size.height - 8), axis);
+    canvas.drawLine(
+        Offset(8, center.dy), Offset(size.width - 8, center.dy), axis);
+    canvas.drawCircle(center, 7, marker);
+    canvas.drawCircle(
+      center,
+      7,
+      Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _CoordinateMarkerPainter oldDelegate) => false;
 }
 
 class _ContextLabel extends StatelessWidget {
@@ -449,4 +493,15 @@ class _LocationContextPainter extends CustomPainter {
       oldDelegate.highOrder != highOrder ||
       oldDelegate.offChannelRequired != offChannelRequired ||
       oldDelegate.interventionPosition != interventionPosition;
+}
+
+String _valueOrDash(String? value) {
+  final trimmed = value?.trim();
+  if (trimmed == null || trimmed.isEmpty) return 'Not available';
+  return trimmed;
+}
+
+String _formatNumber(double value) {
+  if (value == value.roundToDouble()) return value.toStringAsFixed(0);
+  return value.toStringAsFixed(1);
 }
