@@ -822,7 +822,7 @@ def _pollutant_gap_breakdown(
         status = normalize_match_key(gap.get("status"))
         if status == "within_standard":
             gap_status = "below_target"
-            severity = "Target met for the selected use case."
+            severity = "Within selected target."
         elif status in {"exceeds_standard", "below_minimum", "outside_range"}:
             gap_status = "exceeds_target"
             severity = "Target is not met; treatment or adjustment is required."

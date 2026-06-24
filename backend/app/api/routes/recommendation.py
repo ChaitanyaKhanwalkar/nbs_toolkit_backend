@@ -8,7 +8,7 @@ settings.
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -18,7 +18,8 @@ from app.engines.component_recommendation import IndividualNbsRecommendationEngi
 from app.engines.design_readiness import DesignReadinessEngine
 from app.engines.scenario_comparison import ScenarioComparisonEngine
 from app.engines.sizing_estimator import SizingEstimator
-from app.engines.input_normalization import InputContext
+from app.engines.input_normalization import InputContext, InputNormalizationEngine
+from app.engines.target_validation import TargetUseCaseValidator
 from app.engines.train_recommendation import TrainRecommendationEngine
 from app.engines.treatment_need import TreatmentNeedBundle
 from app.repositories import EngineDataRepository
@@ -82,6 +83,14 @@ def get_location_context_service(
     return LocationContextService(db)
 
 
+def get_target_use_case_validator(
+    db: Annotated[Session, Depends(get_db)],
+) -> TargetUseCaseValidator:
+    """Build the canonical target-use-case validator for one request."""
+
+    return TargetUseCaseValidator.from_session(db)
+
+
 @router.post("", response_model=RecommendationResponse)
 def run_local_recommendation_workflow(
     request: RecommendationRequest,
@@ -109,12 +118,35 @@ def run_local_recommendation_workflow(
         LocationContextService,
         Depends(get_location_context_service),
     ],
+    target_validator: Annotated[
+        TargetUseCaseValidator,
+        Depends(get_target_use_case_validator),
+    ],
 ) -> dict[str, Any]:
     """Run the staged A-L workflow and return safe recommendation assembly output."""
 
+    normalized_request_input = request.workflow_input()
+    target_context = InputNormalizationEngine().normalize(**normalized_request_input)
+    target_validation = target_validator.validate(target_context)
+    if target_validation.validation_status != "valid":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "message": (
+                    "Select a valid target use case before running the "
+                    "recommendation."
+                ),
+                "errors": target_validation.errors,
+                "available_use_cases": target_validation.available_use_cases,
+            },
+        )
+    normalized_request_input["use_case"] = target_validation.normalized_input[
+        "use_case"
+    ]
+
     try:
         result = workflow_service.run(
-            request.workflow_input(),
+            normalized_request_input,
             max_step="L",
             supplied_weights=request.temporary_weights,
             weights_source=(
@@ -418,13 +450,20 @@ def _parameter_coverage(
         str(row.get("parameter") or "").lower(): row for row in top_breakdown
     }
     rows = []
+    selected_use_case = input_summary.get("use_case")
     for observation in input_summary.get("data_used") or []:
         parameter = str(observation.get("parameter") or "").lower()
         gap = breakdown_by_parameter.get(parameter) or {}
         category = gap.get("coverage_category") or "read_not_assessed"
+        target_threshold = gap.get("target_threshold") or {}
+        target_available = _target_available(target_threshold)
         rows.append(
             {
                 **observation,
+                "selected_use_case": selected_use_case,
+                "target_limit": target_threshold if target_available else None,
+                "target_available": target_available,
+                "target_status": _target_status(gap.get("gap_status")),
                 "coverage_category": category,
                 "coverage_label": gap.get("coverage_label")
                 or "Read, but not scored yet.",
@@ -448,12 +487,34 @@ def _parameter_coverage(
                         "value": None,
                         "unit": None,
                         "source": "user_csv",
+                        "selected_use_case": selected_use_case,
+                        "target_limit": None,
+                        "target_available": False,
+                        "target_status": "not_applicable",
                         "coverage_category": "skipped",
                         "coverage_label": "Not recognized or skipped.",
                         "treatment_evidence_status": "not_applicable",
                     }
                 )
     return rows
+
+
+def _target_available(target_threshold: dict[str, Any]) -> bool:
+    """Return whether a stored target limit is present for one row."""
+
+    return any(
+        target_threshold.get(key) is not None for key in ("limit_low", "limit_high")
+    )
+
+
+def _target_status(gap_status: Any) -> str:
+    """Translate engine gap status into export-stable target status wording."""
+
+    if gap_status == "below_target":
+        return "within_selected_target"
+    if gap_status == "exceeds_target":
+        return "exceeds_selected_target"
+    return "read_not_scored_against_stored_target"
 
 
 def _contaminant_gaps(payload: dict[str, Any]) -> list[dict[str, Any]]:

@@ -14,6 +14,11 @@ import '../widgets/nbs_diagrams.dart';
 const _maxContentWidth = 1160.0;
 const _csvTemplate =
     'parameter,value,unit\nBOD,30,mg/L\nCOD,100,mg/L\nTSS,80,mg/L\npH,7.2,';
+const _targetUseCaseLabels = {
+  'discharge_inland': 'Discharge to inland surface water',
+  'irrigation': 'Irrigation reuse',
+  'drinking': 'Drinking / strict-use screening',
+};
 
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key, required this.onStart});
@@ -252,12 +257,14 @@ class AnalysisInput {
     required this.regionId,
     required this.station,
     required this.context,
+    required this.useCase,
   });
 
   final List<Map<String, dynamic>> observations;
   final int? regionId;
   final String? station;
   final Map<String, dynamic> context;
+  final String useCase;
 }
 
 class AnalysisSetupScreen extends StatefulWidget {
@@ -299,6 +306,7 @@ class _AnalysisSetupScreenState extends State<AnalysisSetupScreen> {
   final _availableLand = TextEditingController();
   List<SiteOption> _sites = [];
   SiteOption? _site;
+  String? _targetUseCase;
   String _source = 'domestic_sewage';
   String _position = 'off_channel_or_stp_polishing';
   List<Map<String, dynamic>>? _uploaded;
@@ -351,6 +359,13 @@ class _AnalysisSetupScreenState extends State<AnalysisSetupScreen> {
   }
 
   Future<void> _chooseCsv() async {
+    if (_targetUseCase == null) {
+      setState(
+        () => _localError =
+            'Select a target use case before running the recommendation.',
+      );
+      return;
+    }
     final picked = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: const ['csv'],
@@ -368,6 +383,7 @@ class _AnalysisSetupScreenState extends State<AnalysisSetupScreen> {
       final result = await widget.api.uploadWaterCsv(
         bytes: file!.bytes!,
         filename: file.name,
+        useCase: _targetUseCase!,
       );
       if (mounted) {
         setState(() {
@@ -416,6 +432,13 @@ class _AnalysisSetupScreenState extends State<AnalysisSetupScreen> {
 
   void _submit() {
     setState(() => _localError = null);
+    if (_targetUseCase == null) {
+      setState(
+        () => _localError =
+            'Select a target use case before running the recommendation.',
+      );
+      return;
+    }
     if (_isSiteMode && _site == null) {
       setState(() => _localError = 'Select a Narmada site/station first.');
       return;
@@ -448,6 +471,7 @@ class _AnalysisSetupScreenState extends State<AnalysisSetupScreen> {
         observations: observations,
         regionId: _site?.regionId,
         station: _site?.station,
+        useCase: _targetUseCase!,
         context: <String, dynamic>{
           'workflow_mode': _workflowModeKey,
           if (!_isSiteMode) 'pollution_source_type': _source,
@@ -540,6 +564,39 @@ class _AnalysisSetupScreenState extends State<AnalysisSetupScreen> {
         return 'Source-risk focus: provide screening and primary/biological treatment for collected sewage, then assess NbS units for secondary treatment and polishing.';
     }
   }
+
+  Widget _targetUseCaseSelector() => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          DropdownButtonFormField<String>(
+            isExpanded: true,
+            initialValue: _targetUseCase,
+            decoration: const InputDecoration(
+              labelText: 'Target use case',
+              prefixIcon: Icon(Icons.fact_check_outlined),
+            ),
+            items: const [
+              DropdownMenuItem(
+                value: 'discharge_inland',
+                child: Text('Discharge to inland surface water'),
+              ),
+              DropdownMenuItem(
+                value: 'irrigation',
+                child: Text('Irrigation reuse'),
+              ),
+              DropdownMenuItem(
+                value: 'drinking',
+                child: Text('Drinking / strict-use screening'),
+              ),
+            ],
+            onChanged: (value) => setState(() => _targetUseCase = value),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Choose the standard/purpose used to judge whether the treated water meets the target. This is different from pollution source.',
+          ),
+        ],
+      );
 
   Widget _siteSelector() => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -961,6 +1018,8 @@ class _AnalysisSetupScreenState extends State<AnalysisSetupScreen> {
                 context,
               ).textTheme.bodyMedium?.copyWith(color: NbsColors.mutedGrey),
             ),
+            const SizedBox(height: 16),
+            _targetUseCaseSelector(),
             const SizedBox(height: 16),
             _siteSelector(),
             if (_isPollutionMode && _site == null) ...[
@@ -1511,6 +1570,8 @@ class ResultsScreen extends StatelessWidget {
                       train: topTrain,
                     ),
                     const SizedBox(height: 12),
+                    _TargetAndSourceSummary(response: response),
+                    const SizedBox(height: 12),
                     _DetailSection(
                       title: 'What this means',
                       child: Text(
@@ -1812,6 +1873,45 @@ class _SummaryDecisionMetrics extends StatelessWidget {
   }
 }
 
+class _TargetAndSourceSummary extends StatelessWidget {
+  const _TargetAndSourceSummary({required this.response});
+
+  final RecommendationResponse response;
+
+  @override
+  Widget build(BuildContext context) {
+    final source = response.inputSummary.context['pollution_source_type'];
+    return _DetailSection(
+      title: 'Target and source context',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              StatusPill(
+                label: 'Selected target use case',
+                value: _targetUseCaseLabel(response.useCase),
+                color: NbsColors.researchBlue,
+              ),
+              StatusPill(
+                label: 'Pollution source',
+                value: _pollutionSourceLabel(source?.toString()),
+                color: NbsColors.riverTeal,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Source type tells where pollution comes from. Target use case tells which standard is checked.',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SummaryNavigation extends StatelessWidget {
   const _SummaryNavigation({
     required this.onWhy,
@@ -1900,7 +2000,10 @@ class _WhyResultWorkspace extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          _PollutantGapPanel(train: topTrain),
+          _PollutantGapPanel(
+            train: topTrain,
+            selectedUseCase: response.useCase,
+          ),
           if (trains.isNotEmpty) ...[
             const SizedBox(height: 14),
             _DetailSection(
@@ -1917,6 +2020,7 @@ class _WhyResultWorkspace extends StatelessWidget {
                 contextOnly: contextOnly,
                 hasMeasuredData: hasMeasuredData,
                 citationsById: response.citationsById,
+                selectedUseCase: response.useCase,
               ),
             ),
           AppCard(
@@ -2962,6 +3066,25 @@ class _DataUsedPanel extends StatelessWidget {
             style: const TextStyle(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              StatusPill(
+                label: 'Selected target use case',
+                value: _targetUseCaseLabel(response.useCase),
+                color: NbsColors.researchBlue,
+              ),
+              StatusPill(
+                label: 'Pollution source',
+                value: _pollutionSourceLabel(
+                  inputSummary.context['pollution_source_type']?.toString(),
+                ),
+                color: NbsColors.riverTeal,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
           if (rows.isEmpty)
             const Text(
               'No recent water-quality file was supplied. Station and site context supports early screening where available.',
@@ -3003,9 +3126,13 @@ class _DataUsedPanel extends StatelessWidget {
 }
 
 class _PollutantGapPanel extends StatelessWidget {
-  const _PollutantGapPanel({required this.train});
+  const _PollutantGapPanel({
+    required this.train,
+    required this.selectedUseCase,
+  });
 
   final TrainRecommendation? train;
+  final String? selectedUseCase;
 
   @override
   Widget build(BuildContext context) {
@@ -3041,6 +3168,11 @@ class _PollutantGapPanel extends StatelessWidget {
                           runSpacing: 8,
                           children: [
                             StatusPill(
+                              label: 'Selected target use case',
+                              value: _targetUseCaseLabel(selectedUseCase),
+                              color: NbsColors.researchBlue,
+                            ),
+                            StatusPill(
                               label: 'Target status',
                               value: _gapStatusLabel(
                                 row['gap_status']?.toString(),
@@ -3050,9 +3182,10 @@ class _PollutantGapPanel extends StatelessWidget {
                                   : NbsColors.wetlandGreen,
                             ),
                             StatusPill(
-                              label: 'Use-case target',
+                              label: 'Target limit for selected use case',
                               value: _targetThresholdLabel(
                                 row['target_threshold'],
+                                parameter: row['parameter']?.toString(),
                               ),
                             ),
                             StatusPill(
@@ -3084,9 +3217,7 @@ class _PollutantGapPanel extends StatelessWidget {
                         ),
                         const SizedBox(height: 6),
                         if (row['train_addresses_parameter'] != true) ...[
-                          const Text(
-                            'Treatment evidence is not yet sufficient for this parameter.',
-                          ),
+                          Text(_targetGapMessage(row)),
                           const SizedBox(height: 6),
                         ],
                         Text(
@@ -3481,8 +3612,8 @@ class _EvidenceWorkspace extends StatelessWidget {
             child: _ReadableBulletList(
               values: [
                 'The site-safety check screens placement and safety constraints before ranking.',
-                'Ranking uses final v1 AHP-Fuzzy AHP ensemble weights with TOPSIS.',
-                'Final v1 AHP-Fuzzy AHP weighted TOPSIS after safety/applicability screening.',
+                'Target-use-case selection determines standards and AHP-Fuzzy AHP weight set.',
+                'After the user selects a target use case, the app applies safety/applicability screening, uses the matching final v1 AHP-Fuzzy AHP ensemble weight set, and ranks treatment trains with TOPSIS.',
                 'Confidence uses ${_confidenceMethodLabel(response, bundle).toLowerCase()} and is reported separately from rank.',
                 'C5 health-risk and field validation remain future work.',
               ],
@@ -3734,14 +3865,16 @@ class _ReportPreview extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         const Text(
-          'Method: Final v1 AHP-Fuzzy AHP weighted TOPSIS after safety/applicability screening',
+          'Method: Final v1 AHP-Fuzzy AHP weighted TOPSIS. Target-use-case selection determines standards and AHP-Fuzzy AHP weight set.',
         ),
         const SizedBox(height: 16),
         _TextBlockList(
           title: 'Project and input summary',
           values: [
             'Workflow: ${_titleFromSnake(response.inputSummary.workflowMode ?? 'available inputs')}',
-            'Use case: ${_titleFromSnake(response.useCase ?? 'not specified')}',
+            'Selected target use case: ${_targetUseCaseLabel(response.useCase)}',
+            'Pollution source: ${_pollutionSourceLabel(response.inputSummary.context['pollution_source_type']?.toString())}',
+            'Target use case controls standards and final v1 AHP-Fuzzy AHP weight set.',
             values.isEmpty
                 ? 'No recent water-quality values were supplied.'
                 : '${values.length} recent water-quality values informed this result.',
@@ -3878,13 +4011,23 @@ class _ReportPreview extends StatelessWidget {
         ),
         const SizedBox(height: 14),
         _TextBlockList(
-          title: 'Use-case suitability',
+          title: 'Selected-use-case suitability',
+          values: [
+            if (train != null)
+              '${_targetUseCaseLabel(response.useCase)}: ${_suitabilityLabel(train.useCaseVerdicts[response.useCase] ?? 'unknown', contextOnly: response.inputSummary.isContextOnly, hasMeasuredData: response.inputSummary.observationCount > 0)}',
+          ],
+          emptyText: 'Use-case suitability could not be concluded.',
+        ),
+        const SizedBox(height: 10),
+        _TextBlockList(
+          title: 'Other use-case notes',
           values: [
             for (final entry in train?.useCaseVerdicts.entries ??
                 const <MapEntry<String, String>>[])
-              '${_titleFromSnake(entry.key)}: ${_titleFromSnake(entry.value)}',
+              if (entry.key != response.useCase)
+                '${_targetUseCaseLabel(entry.key)}: ${_titleFromSnake(entry.value)}',
           ],
-          emptyText: 'Use-case suitability could not be concluded.',
+          emptyText: 'No other use-case notes are available.',
         ),
         const SizedBox(height: 14),
         _TextBlockList(
@@ -3926,12 +4069,14 @@ class TrainRecommendationCard extends StatelessWidget {
     required this.contextOnly,
     required this.hasMeasuredData,
     required this.citationsById,
+    required this.selectedUseCase,
   });
 
   final TrainRecommendation train;
   final bool contextOnly;
   final bool hasMeasuredData;
   final Map<int, Citation> citationsById;
+  final String? selectedUseCase;
 
   @override
   Widget build(BuildContext context) {
@@ -3941,6 +4086,14 @@ class TrainRecommendationCard extends StatelessWidget {
       'fail': Colors.red.shade700,
       'unknown': NbsColors.mutedGrey,
     };
+    final selectedVerdict = train.useCaseVerdicts[selectedUseCase] ?? 'unknown';
+    final otherUseCaseNotes = train.useCaseVerdicts.entries
+        .where((entry) => entry.key != selectedUseCase)
+        .map(
+          (entry) =>
+              '${_targetUseCaseLabel(entry.key)}: ${_suitabilityLabel(entry.value, contextOnly: contextOnly, hasMeasuredData: hasMeasuredData)}',
+        )
+        .toList();
     return AppCard(
       padding: EdgeInsets.zero,
       borderColor: train.applicabilityStatus == 'conditional'
@@ -3995,22 +4148,21 @@ class TrainRecommendationCard extends StatelessWidget {
                       value: 'Needs data for use-case assessment',
                       color: NbsColors.warningAmber,
                     ),
-                  for (final entry in train.useCaseVerdicts.entries)
-                    Tooltip(
-                      message: entry.value == 'unknown'
-                          ? 'This use case cannot be concluded without current water-quality input or sufficient evidence.'
-                          : '${_titleFromSnake(entry.key)} suitability from available linked evidence.',
-                      child: _MetricChip(
-                        label: '${_titleFromSnake(entry.key)} suitability',
-                        value: _suitabilityLabel(
-                          entry.value,
-                          contextOnly: contextOnly,
-                          hasMeasuredData: hasMeasuredData,
-                        ),
-                        color:
-                            verdictColors[entry.value] ?? NbsColors.mutedGrey,
+                  Tooltip(
+                    message: selectedVerdict == 'unknown'
+                        ? 'The selected target use case cannot be concluded without current water-quality input or sufficient evidence.'
+                        : 'Suitability for the selected target use case from available linked evidence.',
+                    child: _MetricChip(
+                      label: 'Selected-use-case suitability',
+                      value: _suitabilityLabel(
+                        selectedVerdict,
+                        contextOnly: contextOnly,
+                        hasMeasuredData: hasMeasuredData,
                       ),
+                      color:
+                          verdictColors[selectedVerdict] ?? NbsColors.mutedGrey,
                     ),
+                  ),
                 ],
               ),
               const SizedBox(height: 8),
@@ -4056,7 +4208,16 @@ class TrainRecommendationCard extends StatelessWidget {
             emptyText: 'No treatment sequence is recorded.',
           ),
           const SizedBox(height: 12),
-          _PollutantGapPanel(train: train),
+          _TextBlockList(
+            title: 'Other use-case notes',
+            values: otherUseCaseNotes,
+            emptyText: 'No other use-case notes are available.',
+          ),
+          const SizedBox(height: 12),
+          _PollutantGapPanel(
+            train: train,
+            selectedUseCase: selectedUseCase,
+          ),
           const SizedBox(height: 12),
           _TextBlockList(
             title: 'Why this confidence level',
@@ -8171,22 +8332,63 @@ String _suitabilityLabel(
 
 String _gapStatusLabel(String? status) {
   return switch (status) {
-    'below_target' => 'Below / within target',
+    'below_target' => 'Within selected target',
     'near_target' => 'Near target',
-    'exceeds_target' => 'Exceeds target',
-    _ => 'Read, but not scored yet',
+    'exceeds_target' => 'Exceeds selected target',
+    _ => 'Read, but not scored against a stored target',
   };
 }
 
-String _targetThresholdLabel(dynamic value) {
-  if (value is! Map) return 'Not available';
+String _targetThresholdLabel(dynamic value, {String? parameter}) {
+  if (value is! Map) return _missingTargetLabel(parameter);
   final low = value['limit_low'];
   final high = value['limit_high'];
   final unit = _displayUnit(value['unit']);
   if (low != null && high != null) return '$low-$high $unit'.trim();
   if (high != null) return '<= $high $unit'.trim();
   if (low != null) return '>= $low $unit'.trim();
-  return 'Not available';
+  return _missingTargetLabel(parameter);
+}
+
+String _missingTargetLabel(String? parameter) {
+  if (_isPhosphorusParameter(parameter)) {
+    return 'No stored target limit for phosphate/TP under the selected use case.';
+  }
+  return 'not available for this parameter/use case';
+}
+
+String _targetGapMessage(Map<String, dynamic> row) {
+  if (row['gap_status'] == 'not_assessed') {
+    final parameter = row['parameter']?.toString();
+    if (_isPhosphorusParameter(parameter)) {
+      return 'No stored target limit for phosphate/TP under the selected use case.';
+    }
+    return 'Status: read, but not scored against a stored target.';
+  }
+  return 'Treatment evidence is not yet sufficient for this parameter.';
+}
+
+bool _isPhosphorusParameter(String? parameter) {
+  final value = parameter?.toLowerCase();
+  return value == 'phosphate_p' ||
+      value == 'total_p' ||
+      value == 'total_phosphorus' ||
+      value == 'tp';
+}
+
+String _targetUseCaseLabel(String? value) {
+  if (value == null || value.trim().isEmpty) return 'Not selected';
+  return _targetUseCaseLabels[value] ?? _titleFromSnake(value);
+}
+
+String _pollutionSourceLabel(String? value) {
+  return switch (value) {
+    'domestic_sewage' => 'Domestic sewage',
+    'high_agriculture_only_no_water_data' => 'Agricultural runoff',
+    'industrial_or_mixed_industrial' => 'Industrial / mixed industrial',
+    null || '' => 'Not specified',
+    _ => _titleFromSnake(value),
+  };
 }
 
 List<String> _sourceLocationGuidance(List<TrainRecommendation> trains) {

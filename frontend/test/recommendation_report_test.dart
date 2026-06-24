@@ -137,13 +137,20 @@ void main() {
       'data_used': [
         {'parameter': 'bod', 'value': 80, 'unit': 'mg_l'},
       ],
-      'context': {'workflow_mode': 'uploaded_water_quality'},
+      'context': {
+        'workflow_mode': 'uploaded_water_quality',
+        'pollution_source_type': 'domestic_sewage',
+      },
     },
     'parameter_coverage': [
       {
         'parameter': 'bod',
         'value': 80,
         'unit': 'mg_l',
+        'selected_use_case': 'discharge_inland',
+        'target_limit': {'limit_high': 30, 'unit': 'mg_l'},
+        'target_status': 'exceeds_selected_target',
+        'target_available': true,
         'coverage_category': 'used_in_scoring',
         'coverage_label': 'Used in scoring.',
       },
@@ -155,7 +162,22 @@ void main() {
     final decoded = jsonDecode(report.json) as Map<String, dynamic>;
 
     expect(decoded['project_input_summary'], isA<Map<String, dynamic>>());
+    expect(
+      decoded['project_input_summary']['selected_target_use_case'],
+      'discharge_inland',
+    );
+    expect(
+      decoded['project_input_summary']['target_use_case_method_note'],
+      contains('Target-use-case selection determines standards'),
+    );
+    expect(decoded['project_input_summary']['pollution_source'],
+        'domestic_sewage');
     expect(decoded['project_input_summary']['parameter_coverage'], isNotEmpty);
+    expect(
+      decoded['project_input_summary']['parameter_coverage'][0]
+          ['selected_use_case'],
+      'discharge_inland',
+    );
     expect(decoded['location_context']['station'], 'Test station');
     expect(
       decoded['location_context']['map_status'],
@@ -188,12 +210,19 @@ void main() {
     expect(report.baseFileName, 'narmada_nbs_recommendation_report');
     expect(report.csv, startsWith('\uFEFF"section","item","field","value"'));
     expect(report.csv, contains('"recommended_treatment_train"'));
+    expect(report.csv, contains('"selected_target_use_case"'));
+    expect(report.csv, contains('"target_status"'));
     expect(report.csv, contains('"design_readiness"'));
     expect(report.csv, contains('"location_context"'));
     expect(report.csv, contains('"sizing_and_land"'));
     expect(report.csv, contains('"scenario_comparison"'));
     expect(report.csv, contains('"evidence_records"'));
     expect(report.summary, contains('DEWATS modular train'));
+    expect(
+      report.summary,
+      contains('Selected target use case: Discharge to inland surface water'),
+    );
+    expect(report.summary, contains('Pollution source: Domestic sewage'));
     expect(report.summary, contains('Screening match: 78.0%'));
     expect(report.summary, contains('Design readiness: Ready for planning'));
     expect(

@@ -44,6 +44,7 @@ void main() {
     tester,
   ) async {
     await pumpSetup(tester, const Size(390, 844), 'Pollution Source Screening');
+    expect(find.text('Target use case'), findsOneWidget);
     expect(find.text('Pollution source context'), findsOneWidget);
     expect(find.text('Intervention position'), findsOneWidget);
     expect(find.text('Narmada site / station'), findsOneWidget);
@@ -58,6 +59,10 @@ void main() {
 
   testWidgets('upload workflow fits at 768x1024', (tester) async {
     await pumpSetup(tester, const Size(768, 1024), 'Upload Water Data');
+    expect(
+      find.textContaining('Choose the standard/purpose used to judge'),
+      findsOneWidget,
+    );
     expect(find.text('Copy template'), findsOneWidget);
     expect(find.text('Example upload format'), findsOneWidget);
     expect(find.text('CSV template'), findsNothing);
@@ -69,6 +74,22 @@ void main() {
     await pumpSetup(tester, const Size(1280, 900), 'Measured Water Quality');
     expect(find.text('Measured water-quality panel'), findsOneWidget);
     expect(find.text('Faecal coliform'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('target use case is required before recommendation run', (
+    tester,
+  ) async {
+    await pumpSetup(tester, const Size(1280, 900), 'Measured Water Quality');
+
+    await tester.ensureVisible(find.text('Run Recommendation'));
+    await tester.tap(find.text('Run Recommendation'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Select a target use case before running the recommendation.'),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -234,6 +255,10 @@ void main() {
           'parameter': 'bod',
           'value': 80,
           'unit': 'mg_l',
+          'selected_use_case': 'discharge_inland',
+          'target_available': true,
+          'target_limit': {'limit_high': 30, 'unit': 'mg_l'},
+          'target_status': 'exceeds_selected_target',
           'coverage_category': 'used_in_scoring',
         },
       ],
@@ -252,6 +277,10 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Recommended option'), findsOneWidget);
+    expect(find.text('Target and source context'), findsOneWidget);
+    expect(find.text('Selected target use case'), findsWidgets);
+    expect(find.text('Discharge to inland surface water'), findsWidgets);
+    expect(find.text('Pollution source'), findsWidgets);
     expect(find.text('Pollutant gaps and train coverage'), findsNothing);
     expect(find.text('Report and export'), findsNothing);
     expect(find.text('Design readiness'), findsOneWidget);

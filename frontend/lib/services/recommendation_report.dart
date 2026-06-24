@@ -7,6 +7,10 @@ import '../models/recommendation_models.dart';
 
 const planningLevelDisclaimer =
     'This is a planning-level decision-support output. It is not a final engineering design. Confirm flow, pollutant loads, land availability, hydraulics, and site constraints before implementation.';
+const _targetMethodNote =
+    'Target-use-case selection determines standards and AHP-Fuzzy AHP weight set.';
+const _methodLabel =
+    'Final v1 AHP-Fuzzy AHP weighted TOPSIS after safety/applicability screening';
 
 class RecommendationReport {
   RecommendationReport._({
@@ -43,6 +47,7 @@ class RecommendationReport {
           if (citation.license != null) 'license': citation.license,
         },
     ];
+    final pollutionSource = input.context['pollution_source_type']?.toString();
     final trainPayload = train == null
         ? null
         : {
@@ -65,11 +70,17 @@ class RecommendationReport {
           };
     final payload = <String, dynamic>{
       'report_type': 'Narmada NbS planning-level recommendation',
-      'method':
-          'Final v1 AHP-Fuzzy AHP weighted TOPSIS after safety/applicability screening',
+      'method': _methodLabel,
+      'method_note': _targetMethodNote,
+      'selected_target_use_case': response.useCase,
+      'pollution_source': pollutionSource,
       'project_input_summary': {
         'workflow_mode': input.workflowMode,
-        'use_case': response.useCase,
+        'selected_target_use_case': response.useCase,
+        'selected_target_use_case_label': _targetUseCaseLabel(response.useCase),
+        'pollution_source': pollutionSource,
+        'pollution_source_label': _pollutionSourceLabel(pollutionSource),
+        'target_use_case_method_note': _targetMethodNote,
         'observation_count': input.observationCount,
         'selected_parameters': input.selectedParameters,
         'water_quality_values_used': input.dataUsed,
@@ -213,9 +224,12 @@ String _buildSummary(
 ) {
   final lines = <String>[
     'NARMADA NBS PLANNING-LEVEL RECOMMENDATION',
-    'Method: Final v1 AHP-Fuzzy AHP weighted TOPSIS after safety/applicability screening',
+    'Method: $_methodLabel',
+    _targetMethodNote,
     '',
     'Input basis: ${_workflowLabel(response.inputSummary.workflowMode)}',
+    'Selected target use case: ${_targetUseCaseLabel(response.useCase)}',
+    'Pollution source: ${_pollutionSourceLabel(response.inputSummary.context['pollution_source_type']?.toString())}',
     response.inputSummary.dataUsed.isEmpty
         ? 'No recent water-quality values were supplied.'
         : '${response.inputSummary.dataUsed.length} recent water-quality values informed this result.',
@@ -412,7 +426,7 @@ String _buildPrintHtml(Map<String, dynamic> payload, String summary) {
 </head>
 <body>
   <h1>Narmada NbS recommendation report</h1>
-  <p class="method">Method: Final v1 AHP-Fuzzy AHP weighted TOPSIS after safety/applicability screening</p>
+  <p class="method">Method: $_methodLabel<br>${const HtmlEscape().convert(_targetMethodNote)}</p>
   <h2>Recommendation summary</h2>
   <p class="summary">$escapedSummary</p>
   <h2>References</h2>
@@ -430,6 +444,22 @@ String _workflowLabel(String? value) => switch (value) {
       'site_context_only' => 'Station and site context',
       'pollution_source_screening' => 'Pollution-source and site context',
       _ => 'Available project inputs',
+    };
+
+String _targetUseCaseLabel(String? value) => switch (value) {
+      'discharge_inland' => 'Discharge to inland surface water',
+      'irrigation' => 'Irrigation reuse',
+      'drinking' => 'Drinking / strict-use screening',
+      null || '' => 'Not selected',
+      _ => _title(value),
+    };
+
+String _pollutionSourceLabel(String? value) => switch (value) {
+      'domestic_sewage' => 'Domestic sewage',
+      'high_agriculture_only_no_water_data' => 'Agricultural runoff',
+      'industrial_or_mixed_industrial' => 'Industrial / mixed industrial',
+      null || '' => 'Not specified',
+      _ => _title(value),
     };
 
 String _confidenceLabel(TrainRecommendation train) {

@@ -392,6 +392,71 @@ def test_mandleshwar_industrial_acidic_mainstem_requires_expert_review() -> None
     assert "off-channel" in filtered_reasons
 
 
+def test_recommendation_route_requires_target_use_case() -> None:
+    """Missing target use case should fail before recommendation assembly."""
+
+    response = TestClient(app).post(
+        "/api/v1/recommend",
+        json={
+            "selected_parameters": ["bod"],
+            "measured_observations": [
+                {"parameter": "bod", "value": 80, "unit": "mg_l"},
+            ],
+            "context": {"workflow_mode": "manual_measured_water_quality"},
+        },
+    )
+
+    assert response.status_code == 422
+    assert "use_case" in response.text
+
+
+def test_recommendation_route_rejects_unknown_target_use_case() -> None:
+    """Unknown target use cases must not silently fall back to discharge."""
+
+    response = TestClient(app).post(
+        "/api/v1/recommend",
+        json={
+            "use_case": "unknown_target",
+            "selected_parameters": ["bod"],
+            "measured_observations": [
+                {"parameter": "bod", "value": 80, "unit": "mg_l"},
+            ],
+            "context": {"workflow_mode": "manual_measured_water_quality"},
+        },
+    )
+
+    assert response.status_code == 422
+    payload = response.json()
+    assert "Unknown use_case" in " ".join(payload["detail"]["errors"])
+    assert {"discharge_inland", "irrigation", "drinking"}.issubset(
+        set(payload["detail"]["available_use_cases"])
+    )
+
+
+def test_recommendation_route_accepts_explicit_active_target_use_cases() -> None:
+    """Frontend target choices should all reach the recommendation workflow."""
+
+    client = TestClient(app)
+    for use_case in ("discharge_inland", "irrigation", "drinking"):
+        response = client.post(
+            "/api/v1/recommend",
+            json={
+                "use_case": use_case,
+                "selected_parameters": ["bod", "ph"],
+                "measured_observations": [
+                    {"parameter": "bod", "value": 80, "unit": "mg_l"},
+                    {"parameter": "ph", "value": 7.2, "unit": "ph_units"},
+                ],
+                "context": {"workflow_mode": "manual_measured_water_quality"},
+            },
+        )
+
+        assert response.status_code == 200, response.text
+        payload = response.json()
+        assert payload["use_case"] == use_case
+        assert payload["parameter_coverage"][0]["selected_use_case"] == use_case
+
+
 def test_unknown_performance_is_not_scored_as_zero() -> None:
     result = _rank()
     assert any(

@@ -82,6 +82,26 @@ def test_final_v1_weights_have_required_active_criteria() -> None:
         repository.session.close()
 
 
+def test_final_v1_weights_differ_by_selected_use_case() -> None:
+    """Verify selected target use cases load their own final v1 weights."""
+
+    repository = _repository()
+    try:
+        profiles = {
+            use_case: {
+                row["criterion_code"]: round(float(row["weight"]), 6)
+                for row in repository.list_criteria_weights(use_case)
+            }
+            for use_case in USE_CASES
+        }
+    finally:
+        repository.session.close()
+
+    assert profiles["drinking"] != profiles["irrigation"]
+    assert profiles["drinking"] != profiles["discharge_inland"]
+    assert profiles["irrigation"] != profiles["discharge_inland"]
+
+
 def test_usecase_matrix_returns_three_verdicts_per_train() -> None:
     """Verify each train can display drinking/irrigation/discharge together."""
 

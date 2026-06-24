@@ -21,12 +21,12 @@ class SiteOption {
   final double? drainageAreaKm2;
 
   factory SiteOption.fromJson(Map<String, dynamic> json) => SiteOption(
-    regionId: (json['region_id'] as num).toInt(),
-    station: json['station']?.toString() ?? 'Station',
-    streamOrder: (json['stream_order_strahler'] as num?)?.toInt(),
-    dischargeCms: (json['nat_discharge_cms'] as num?)?.toDouble(),
-    drainageAreaKm2: (json['drainage_area_km2'] as num?)?.toDouble(),
-  );
+        regionId: (json['region_id'] as num).toInt(),
+        station: json['station']?.toString() ?? 'Station',
+        streamOrder: (json['stream_order_strahler'] as num?)?.toInt(),
+        dischargeCms: (json['nat_discharge_cms'] as num?)?.toDouble(),
+        drainageAreaKm2: (json['drainage_area_km2'] as num?)?.toDouble(),
+      );
 }
 
 class UploadedWaterCsv {
@@ -90,30 +90,30 @@ class CsvValidationSummary {
   }
 
   Map<String, dynamic> toJson() => {
-    'rows_read': rowsRead,
-    'rows_used': rowsUsed,
-    'blank_rows': blankRows,
-    'blank_parameters': blankParameters,
-    'blank_values': blankValues,
-    'unknown_parameters': unknownParameters,
-    'non_numeric_values': nonNumericValues,
-    'missing_headers': missingHeaders,
-    'warnings': warnings,
-    'errors': errors,
-    'is_valid': isValid,
-  };
+        'rows_read': rowsRead,
+        'rows_used': rowsUsed,
+        'blank_rows': blankRows,
+        'blank_parameters': blankParameters,
+        'blank_values': blankValues,
+        'unknown_parameters': unknownParameters,
+        'non_numeric_values': nonNumericValues,
+        'missing_headers': missingHeaders,
+        'warnings': warnings,
+        'errors': errors,
+        'is_valid': isValid,
+      };
 }
 
 class RecommendationApi {
   RecommendationApi({http.Client? client, String? baseUrl})
-    : _client = client ?? http.Client(),
-      _baseUrl = _cleanBaseUrl(
-        baseUrl ??
-            const String.fromEnvironment(
-              'API_BASE_URL',
-              defaultValue: 'http://127.0.0.1:8000',
-            ),
-      );
+      : _client = client ?? http.Client(),
+        _baseUrl = _cleanBaseUrl(
+          baseUrl ??
+              const String.fromEnvironment(
+                'API_BASE_URL',
+                defaultValue: 'http://127.0.0.1:8000',
+              ),
+        );
 
   final http.Client _client;
   final String _baseUrl;
@@ -123,8 +123,10 @@ class RecommendationApi {
     required double tss,
     required double nitrateN,
     required double ph,
+    required String useCase,
   }) async {
     return runContextualRecommendation(
+      useCase: useCase,
       observations: [
         {'parameter': 'bod', 'value': bod, 'unit': 'mg_l', 'source_id': 101},
         {'parameter': 'tss', 'value': tss, 'unit': 'mg_l', 'source_id': 101},
@@ -140,10 +142,10 @@ class RecommendationApi {
   }
 
   Future<RecommendationResponse> runContextualRecommendation({
+    required String useCase,
     required List<Map<String, dynamic>> observations,
     int? regionId,
     String? station,
-    String useCase = 'discharge_inland',
     Map<String, dynamic> context = const {},
   }) async {
     final uri = Uri.parse('$_baseUrl/api/v1/recommend');
@@ -216,9 +218,9 @@ class RecommendationApi {
     final decoded = jsonDecode(response.body);
     return decoded is List
         ? decoded
-              .whereType<Map<String, dynamic>>()
-              .map(SiteOption.fromJson)
-              .toList()
+            .whereType<Map<String, dynamic>>()
+            .map(SiteOption.fromJson)
+            .toList()
         : <SiteOption>[];
   }
 
@@ -230,28 +232,24 @@ class RecommendationApi {
       return 0;
     }
     final decoded = jsonDecode(response.body);
-    final rows = decoded is Map<String, dynamic>
-        ? decoded['pollution_sources']
-        : null;
+    final rows =
+        decoded is Map<String, dynamic> ? decoded['pollution_sources'] : null;
     return rows is List ? rows.length : 0;
   }
 
   Future<UploadedWaterCsv> uploadWaterCsv({
     required List<int> bytes,
     required String filename,
-    String useCase = 'discharge_inland',
+    required String useCase,
   }) async {
-    final request =
-        http.MultipartRequest(
-            'POST',
-            Uri.parse('$_baseUrl/api/v1/water/upload?use_case=$useCase'),
-          )
-          ..files.add(
-            http.MultipartFile.fromBytes('file', bytes, filename: filename),
-          );
-    final streamed = await _client
-        .send(request)
-        .timeout(const Duration(seconds: 30));
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$_baseUrl/api/v1/water/upload?use_case=$useCase'),
+    )..files.add(
+        http.MultipartFile.fromBytes('file', bytes, filename: filename),
+      );
+    final streamed =
+        await _client.send(request).timeout(const Duration(seconds: 30));
     final response = await http.Response.fromStream(streamed);
     final decoded = jsonDecode(response.body);
     if (response.statusCode != 200) {
@@ -267,9 +265,8 @@ class RecommendationApi {
     final rows = decoded is Map<String, dynamic>
         ? decoded['observations_used'] ?? decoded['observations']
         : null;
-    final unknown = decoded is Map<String, dynamic>
-        ? decoded['unknown_parameters']
-        : null;
+    final unknown =
+        decoded is Map<String, dynamic> ? decoded['unknown_parameters'] : null;
     return UploadedWaterCsv(
       observations: rows is List
           ? rows.whereType<Map<String, dynamic>>().toList()
