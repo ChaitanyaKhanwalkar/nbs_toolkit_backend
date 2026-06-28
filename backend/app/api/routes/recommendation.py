@@ -18,7 +18,11 @@ from app.engines.component_recommendation import IndividualNbsRecommendationEngi
 from app.engines.design_readiness import DesignReadinessEngine
 from app.engines.scenario_comparison import ScenarioComparisonEngine
 from app.engines.sizing_estimator import SizingEstimator
-from app.engines.input_normalization import InputContext, InputNormalizationEngine
+from app.engines.input_normalization import (
+    InputContext,
+    InputNormalizationEngine,
+    normalize_match_key,
+)
 from app.engines.target_validation import TargetUseCaseValidator
 from app.engines.train_recommendation import TrainRecommendationEngine
 from app.engines.treatment_need import TreatmentNeedBundle
@@ -190,9 +194,11 @@ def run_local_recommendation_workflow(
     weights_status = _weights_status(payload, assembly_bundle)
     expert_validated = _expert_validated(payload, assembly_bundle)
     train_usecase_matrix = engine_data.list_engine_usecase_matrix()
+    selected_use_case = _use_case(payload, request.use_case) or request.use_case
+    contaminant_gaps = _contaminant_gaps(payload)
     train_result = TrainRecommendationEngine(engine_data).rank(
-        use_case=_use_case(payload, request.use_case) or request.use_case,
-        contaminant_gaps=_contaminant_gaps(payload),
+        use_case=selected_use_case,
+        contaminant_gaps=contaminant_gaps,
         context=request.context,
         region_id=request.region_id,
         input_source_type=(payload.get("water_input_bundle") or {}).get(
@@ -213,9 +219,24 @@ def run_local_recommendation_workflow(
         candidate_bundle=candidate_bundle,
         applicability_bundle=applicability_bundle,
         context=request.context,
-        contaminant_gaps=_contaminant_gaps(payload),
+        contaminant_gaps=contaminant_gaps,
     )
     input_summary = _input_summary(payload)
+    parameter_coverage = _parameter_coverage(
+        input_summary,
+        train_result["ranked_trains"],
+    )
+    validation_notes = _validation_notes(
+        use_case=selected_use_case,
+        context=request.context,
+        contaminant_gaps=contaminant_gaps,
+        parameter_coverage=parameter_coverage,
+        ranked_trains=train_result["ranked_trains"],
+    )
+    component_result = _harden_component_result_for_validation(
+        component_result,
+        validation_notes,
+    )
     location_context = location_service.build(
         region_id=request.region_id,
         station=request.station,
@@ -226,6 +247,10 @@ def run_local_recommendation_workflow(
         context=request.context,
         location_context=location_context,
         ranked_trains=train_result["ranked_trains"],
+    )
+    design_readiness = _harden_design_readiness_for_validation(
+        design_readiness,
+        validation_notes,
     )
     sizing_estimates = SizingEstimator(engine_data).estimate(
         ranked_trains=train_result["ranked_trains"],
@@ -241,7 +266,7 @@ def run_local_recommendation_workflow(
         component_recommendations=component_result["recommendations"],
         sizing_estimates=sizing_estimates,
         design_readiness=design_readiness,
-        context=request.context,
+        context={**request.context, "use_case": selected_use_case},
     )
     citations = _resolve_citations(
         assembly_bundle,
@@ -263,11 +288,8 @@ def run_local_recommendation_workflow(
         "sizing_estimates": sizing_estimates,
         "scenario_comparison": scenario_comparison,
         "input_summary": input_summary,
-        "parameter_coverage": _parameter_coverage(
-            input_summary,
-            train_result["ranked_trains"],
-        ),
-        "contaminant_gaps": _contaminant_gaps(payload),
+        "parameter_coverage": parameter_coverage,
+        "contaminant_gaps": contaminant_gaps,
         "ranked_trains": train_result["ranked_trains"],
         "component_recommendations": component_result["recommendations"],
         "filtered_components": component_result["filtered_components"],
@@ -284,6 +306,7 @@ def run_local_recommendation_workflow(
                 *_warnings(payload, weights_status),
                 *train_result["warnings"],
                 *_context_guidance_warnings(payload, request.context),
+                *validation_notes.get("warnings", []),
             ]
         ),
         "errors": list(payload.get("errors") or []),
@@ -291,7 +314,377 @@ def run_local_recommendation_workflow(
         "weights_status": weights_status,
         "expert_validated": expert_validated,
         "provisional_note": _provisional_note(weights_status),
+        "validation_notes": validation_notes,
     }
+
+
+STRICT_USE_WARNING = (
+    "Drinking / strict-use screening only. NbS alone must not be used as "
+    "standalone potable-water treatment."
+)
+ADVANCED_TREATMENT_WARNING = (
+    "Requires advanced treatment, disinfection, pathogen monitoring, and "
+    "regulatory validation beyond NbS."
+)
+SALINITY_WARNING = (
+    "High EC/salinity exceeds the irrigation target. Ordinary NbS treatment "
+    "may not reliably remove dissolved salts; consider source control, "
+    "blending, crop-specific irrigation review, or advanced salinity treatment."
+)
+MATCH_SUITABILITY_EXPLANATION = (
+    "Screening match ranks the train by scored criteria; suitability indicates "
+    "whether stored evidence confirms the selected use case."
+)
+
+
+def _validation_notes(
+    *,
+    use_case: str | None,
+    context: dict[str, Any],
+    contaminant_gaps: list[dict[str, Any]],
+    parameter_coverage: list[dict[str, Any]],
+    ranked_trains: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Return non-scoring safety and standards-coverage notes for the UI."""
+
+    drinking = _is_drinking_use_case(use_case)
+    irrigation = normalize_match_key(use_case) == "irrigation"
+    strict_blockers = _strict_use_blockers(contaminant_gaps) if drinking else []
+    pathogen_note = _pathogen_gap_note(contaminant_gaps) if drinking else None
+    salinity_warning = (
+        SALINITY_WARNING
+        if irrigation and _has_salinity_exceedance(contaminant_gaps)
+        else None
+    )
+    standards_note = _standards_coverage_note(
+        use_case=use_case,
+        parameter_coverage=parameter_coverage,
+    )
+    match_note = _match_vs_suitability_note(
+        use_case=use_case,
+        ranked_trains=ranked_trains,
+    )
+    soil_cautions = _soil_filter_cautions(ranked_trains)
+
+    warnings: list[str] = []
+    if drinking:
+        warnings.append(STRICT_USE_WARNING)
+        if _strict_source_requires_advanced_treatment(context):
+            warnings.append(ADVANCED_TREATMENT_WARNING)
+    if salinity_warning:
+        warnings.append(salinity_warning)
+    if strict_blockers:
+        warnings.append(
+            "Strict-use blockers detected: " + ", ".join(strict_blockers) + "."
+        )
+    if pathogen_note:
+        warnings.append(pathogen_note)
+    warnings.extend(soil_cautions)
+
+    return {
+        "strict_use": {
+            "active": drinking,
+            "warning": STRICT_USE_WARNING if drinking else None,
+            "advanced_treatment_warning": (
+                ADVANCED_TREATMENT_WARNING
+                if drinking and _strict_source_requires_advanced_treatment(context)
+                else None
+            ),
+            "blockers": strict_blockers,
+            "pathogen_note": pathogen_note,
+            "selected_use_case_badge": (
+                "Evidence gap - strict-use review required" if drinking else None
+            ),
+        },
+        "salinity": {
+            "active": bool(salinity_warning),
+            "warning": salinity_warning,
+        },
+        "standards_coverage": standards_note,
+        "match_vs_suitability": {
+            "explanation": MATCH_SUITABILITY_EXPLANATION,
+            "note": match_note,
+        },
+        "soil_filter_cautions": soil_cautions,
+        "warnings": _unique(warnings),
+    }
+
+
+def _harden_design_readiness_for_validation(
+    readiness: dict[str, Any],
+    validation_notes: dict[str, Any],
+) -> dict[str, Any]:
+    """Apply strict-use review language without changing ranking."""
+
+    strict = validation_notes.get("strict_use") or {}
+    if not strict.get("active"):
+        return readiness
+    result = dict(readiness)
+    result["level"] = "needs_expert_review"
+    result["short_label"] = "Expert review needed"
+    result["expert_review_required"] = True
+    result["explanation"] = (
+        "Drinking / strict-use screening requires expert review, advanced "
+        "treatment, disinfection, pathogen monitoring, and regulatory "
+        "validation beyond NbS."
+    )
+    result["reasons"] = _unique(
+        [
+            *list(result.get("reasons") or []),
+            STRICT_USE_WARNING,
+            *(strict.get("blockers") or []),
+        ]
+    )
+    result["required_next_steps"] = _unique(
+        [
+            *list(result.get("required_next_steps") or []),
+            "Complete strict-use expert review before any potable-water claim.",
+            "Confirm advanced treatment, disinfection, pathogen monitoring, and regulatory validation.",
+        ]
+    )
+    return result
+
+
+def _harden_component_result_for_validation(
+    component_result: dict[str, Any],
+    validation_notes: dict[str, Any],
+) -> dict[str, Any]:
+    """Move unsuitable strict-use support components out of recommendations."""
+
+    strict = validation_notes.get("strict_use") or {}
+    if not strict.get("active") or not strict.get("advanced_treatment_warning"):
+        return component_result
+    blocked: list[dict[str, Any]] = []
+    kept: list[dict[str, Any]] = []
+    for component in component_result.get("recommendations") or []:
+        name = normalize_match_key(component.get("name")) or ""
+        if _component_name_is_strict_use_blocked(name):
+            blocked.append(
+                {
+                    "nbs_id": component.get("nbs_id"),
+                    "name": component.get("name"),
+                    "status": "not_suitable_for_drinking_strict_use",
+                    "reasons": [
+                        "Not for standalone drinking-water treatment.",
+                        ADVANCED_TREATMENT_WARNING,
+                    ],
+                }
+            )
+        else:
+            hardened = dict(component)
+            hardened["standalone_suitability"] = "only_as_part_of_train"
+            hardened["standalone_guidance"] = (
+                "Not for standalone drinking-water treatment. Strict-use "
+                "applications require advanced treatment, disinfection, "
+                "pathogen monitoring, and regulatory validation."
+            )
+            kept.append(hardened)
+
+    result = dict(component_result)
+    result["recommendations"] = kept
+    result["filtered_components"] = [
+        *list(component_result.get("filtered_components") or []),
+        *blocked,
+    ]
+    return result
+
+
+def _is_drinking_use_case(use_case: str | None) -> bool:
+    key = normalize_match_key(use_case)
+    return key in {"drinking", "drinking_strict_use", "potable", "strict_use"}
+
+
+def _strict_source_requires_advanced_treatment(context: dict[str, Any]) -> bool:
+    source = normalize_match_key(context.get("pollution_source_type"))
+    if not source:
+        return True
+    return any(
+        token in source
+        for token in ("domestic", "municipal", "sewage", "wastewater", "mixed", "industrial")
+    )
+
+
+def _strict_use_blockers(contaminant_gaps: list[dict[str, Any]]) -> list[str]:
+    blocker_parameters = {
+        "ammonia_n",
+        "nh4_n",
+        "nh4",
+        "turbidity",
+        "tds",
+        "ecoli",
+        "e_coli",
+        "faecal_coliform",
+        "fecal_coliform",
+        "total_coliform",
+        "ph",
+    }
+    blocked: list[str] = []
+    for gap in contaminant_gaps:
+        status = normalize_match_key(gap.get("status"))
+        parameter = normalize_match_key(gap.get("parameter"))
+        if (
+            status in {"exceeds_standard", "below_minimum", "outside_range"}
+            and parameter in blocker_parameters
+        ):
+            blocked.append(_display_parameter(parameter))
+    return _unique(blocked)
+
+
+def _pathogen_gap_note(contaminant_gaps: list[dict[str, Any]]) -> str | None:
+    pathogen_parameters = {
+        "ecoli",
+        "e_coli",
+        "faecal_coliform",
+        "fecal_coliform",
+        "total_coliform",
+    }
+    for gap in contaminant_gaps:
+        parameter = normalize_match_key(gap.get("parameter"))
+        status = normalize_match_key(gap.get("status"))
+        if parameter in pathogen_parameters and status == "standard_missing":
+            return (
+                "Pathogen indicator supplied but not directly scored against "
+                "a stored drinking target."
+            )
+    return None
+
+
+def _has_salinity_exceedance(contaminant_gaps: list[dict[str, Any]]) -> bool:
+    salinity_parameters = {"conductivity", "ec", "tds"}
+    return any(
+        normalize_match_key(gap.get("parameter")) in salinity_parameters
+        and normalize_match_key(gap.get("status")) == "exceeds_standard"
+        for gap in contaminant_gaps
+    )
+
+
+def _standards_coverage_note(
+    *,
+    use_case: str | None,
+    parameter_coverage: list[dict[str, Any]],
+) -> dict[str, Any]:
+    supporting = []
+    for row in parameter_coverage:
+        if (
+            row.get("target_available") is False
+            and row.get("coverage_category") == "supporting_context"
+            and row.get("parameter")
+        ):
+            supporting.append(_display_parameter(row.get("parameter")))
+    supporting = _unique(supporting)
+    if not supporting:
+        return {"active": False, "parameters": [], "note": None}
+    label = _target_use_case_label(use_case)
+    return {
+        "active": True,
+        "parameters": supporting,
+        "note": (
+            "Standards coverage note: "
+            + ", ".join(supporting)
+            + " are used as supporting context because no stored target limit "
+            + f"is available for {label}."
+        ),
+    }
+
+
+def _match_vs_suitability_note(
+    *,
+    use_case: str | None,
+    ranked_trains: list[dict[str, Any]],
+) -> str | None:
+    if not ranked_trains:
+        return None
+    selected = normalize_match_key(use_case)
+    top = ranked_trains[0]
+    top_verdict = _train_use_case_verdict(top, selected)
+    if top_verdict not in {"unknown", "marginal", "conditional", "fail"}:
+        return None
+    confirmed = next(
+        (
+            train
+            for train in ranked_trains[1:]
+            if _train_use_case_verdict(train, selected) == "pass"
+        ),
+        None,
+    )
+    if not confirmed:
+        return None
+    return (
+        "Highest screening match has an evidence gap/conditional suitability. "
+        f"Also review the highest confirmed-suitability option: {confirmed.get('name')}."
+    )
+
+
+def _soil_filter_cautions(ranked_trains: list[dict[str, Any]]) -> list[str]:
+    cautions = []
+    for train in ranked_trains:
+        rules = (train.get("applicability_result") or {}).get("triggered_rules") or []
+        if any(rule.get("rule_id") == "APP_RULE_023" for rule in rules):
+            cautions.append(
+                "Conditional: requires confirmed soil/infiltration and groundwater/flood safety checks."
+            )
+    return _unique(cautions)
+
+
+def _train_use_case_verdict(train: dict[str, Any], use_case: str | None) -> str:
+    verdicts = train.get("all_use_case_verdicts") or {}
+    row = verdicts.get(use_case or "")
+    if isinstance(row, dict):
+        return normalize_match_key(row.get("verdict")) or "unknown"
+    return "unknown"
+
+
+def _component_name_is_strict_use_blocked(name: str) -> bool:
+    blocked_tokens = {
+        "sewage_fed_aquaculture",
+        "green_roof",
+        "green_wall",
+        "rain_garden",
+        "bioswale",
+        "filter_strip",
+        "vegetated_buffer",
+        "buffer_strip",
+        "soak_pit",
+        "soakaway",
+        "on_site_disposal",
+    }
+    return any(token in name for token in blocked_tokens)
+
+
+def _display_parameter(value: Any) -> str:
+    key = normalize_match_key(value)
+    labels = {
+        "ammonia_n": "NH4-N",
+        "nh4_n": "NH4-N",
+        "nh4": "NH4-N",
+        "nitrate_n": "NO3-N",
+        "no3_n": "NO3-N",
+        "total_phosphorus": "TP",
+        "phosphate_p": "PO4-P",
+        "conductivity": "EC",
+        "ec": "EC",
+        "tds": "TDS",
+        "turbidity": "turbidity",
+        "ecoli": "E. coli",
+        "e_coli": "E. coli",
+        "faecal_coliform": "faecal coliform",
+        "fecal_coliform": "faecal coliform",
+        "total_coliform": "total coliform",
+        "ph": "pH",
+        "cod": "COD",
+        "bod": "BOD",
+        "tss": "TSS",
+    }
+    return labels.get(key or "", str(value or "parameter"))
+
+
+def _target_use_case_label(value: str | None) -> str:
+    key = normalize_match_key(value)
+    return {
+        "discharge_inland": "discharge to inland surface water",
+        "irrigation": "irrigation reuse",
+        "drinking": "drinking / strict-use screening",
+    }.get(key or "", str(value or "the selected use case"))
 
 
 def _resolve_citations(

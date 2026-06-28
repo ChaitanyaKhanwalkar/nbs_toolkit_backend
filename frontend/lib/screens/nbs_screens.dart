@@ -1578,6 +1578,10 @@ class ResultsScreen extends StatelessWidget {
                         '$keyCaution ${response.designReadiness.explanation}',
                       ),
                     ),
+                    if (_validationSummaryMessages(response).isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      _ValidationNotesPanel(response: response),
+                    ],
                     if (summaryWarning != null) ...[
                       const SizedBox(height: 12),
                       _AlertBanner.compact(
@@ -2000,9 +2004,11 @@ class _WhyResultWorkspace extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          _DecisionXrayCard(train: topTrain),
+          _DecisionXrayCard(train: topTrain, allTrains: trains),
           const SizedBox(height: 14),
           _TreatmentTrainPathwayCard(train: topTrain),
+          const SizedBox(height: 14),
+          _ValidationNotesPanel(response: response),
           const SizedBox(height: 14),
           _PollutantGapPanel(
             train: topTrain,
@@ -4038,7 +4044,7 @@ class _ReportPreview extends StatelessWidget {
           title: 'Selected-use-case suitability',
           values: [
             if (train != null)
-              '${_targetUseCaseLabel(response.useCase)}: ${_suitabilityLabel(train.useCaseVerdicts[response.useCase] ?? 'unknown', contextOnly: response.inputSummary.isContextOnly, hasMeasuredData: response.inputSummary.observationCount > 0)}',
+              '${_targetUseCaseLabel(response.useCase)}: ${_selectedSuitabilityLabel(response.useCase, train.useCaseVerdicts[response.useCase] ?? 'unknown', contextOnly: response.inputSummary.isContextOnly, hasMeasuredData: response.inputSummary.observationCount > 0)}',
           ],
           emptyText: 'Use-case suitability could not be concluded.',
         ),
@@ -4087,9 +4093,13 @@ class _ReportPreview extends StatelessWidget {
 }
 
 class _DecisionXrayCard extends StatelessWidget {
-  const _DecisionXrayCard({required this.train});
+  const _DecisionXrayCard({
+    required this.train,
+    this.allTrains = const [],
+  });
 
   final TrainRecommendation? train;
+  final List<TrainRecommendation> allTrains;
 
   @override
   Widget build(BuildContext context) {
@@ -4115,7 +4125,13 @@ class _DecisionXrayCard extends StatelessWidget {
             for (final item in criteria)
               Padding(
                 padding: const EdgeInsets.only(bottom: 10),
-                child: _DecisionXrayRow(item: item),
+                child: _DecisionXrayRow(
+                  item: item,
+                  differentiationNote: _criterionDifferentiationNote(
+                    item.code,
+                    allTrains,
+                  ),
+                ),
               ),
             const SizedBox(height: 2),
             Text(
@@ -4133,9 +4149,13 @@ class _DecisionXrayCard extends StatelessWidget {
 }
 
 class _DecisionXrayRow extends StatelessWidget {
-  const _DecisionXrayRow({required this.item});
+  const _DecisionXrayRow({
+    required this.item,
+    required this.differentiationNote,
+  });
 
   final CriteriaExplanation item;
+  final String? differentiationNote;
 
   @override
   Widget build(BuildContext context) {
@@ -4227,7 +4247,35 @@ class _DecisionXrayRow extends StatelessWidget {
                   ),
             ),
           ],
+          if (differentiationNote != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              differentiationNote!,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: NbsColors.deepNavy,
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+          ],
         ],
+      ),
+    );
+  }
+}
+
+class _ValidationNotesPanel extends StatelessWidget {
+  const _ValidationNotesPanel({required this.response});
+
+  final RecommendationResponse response;
+
+  @override
+  Widget build(BuildContext context) {
+    final messages = _validationSummaryMessages(response);
+    return _DetailSection(
+      title: 'Validation notes',
+      child: _ReadableBulletList(
+        values: messages,
+        emptyText: 'No additional validation warning is active for this run.',
       ),
     );
   }
@@ -4439,6 +4487,12 @@ class TrainRecommendationCard extends StatelessWidget {
       'unknown': NbsColors.mutedGrey,
     };
     final selectedVerdict = train.useCaseVerdicts[selectedUseCase] ?? 'unknown';
+    final selectedSuitabilityLabel = _selectedSuitabilityLabel(
+      selectedUseCase,
+      selectedVerdict,
+      contextOnly: contextOnly,
+      hasMeasuredData: hasMeasuredData,
+    );
     final otherUseCaseNotes = train.useCaseVerdicts.entries
         .where((entry) => entry.key != selectedUseCase)
         .map(
@@ -4506,16 +4560,16 @@ class TrainRecommendationCard extends StatelessWidget {
                         : 'Suitability for the selected target use case from available linked evidence.',
                     child: _MetricChip(
                       label: 'Selected-use-case suitability',
-                      value: _suitabilityLabel(
-                        selectedVerdict,
-                        contextOnly: contextOnly,
-                        hasMeasuredData: hasMeasuredData,
-                      ),
+                      value: selectedSuitabilityLabel,
                       color:
                           verdictColors[selectedVerdict] ?? NbsColors.mutedGrey,
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Screening match ranks the train by scored criteria; suitability indicates whether stored evidence confirms the selected use case.',
               ),
               const SizedBox(height: 8),
               Text(
@@ -8116,6 +8170,13 @@ Map<String, List<Map<String, dynamic>>> _groupPlantMappings(
   RecommendationResponse response,
   TrainRecommendation? train,
 ) {
+  final validationMessages = _validationSummaryMessages(response);
+  if (validationMessages.isNotEmpty) {
+    return (
+      label: 'Validation note',
+      reason: validationMessages.first,
+    );
+  }
   final context = response.inputSummary.context;
   final source = context['pollution_source_type']?.toString() ?? '';
   if (source.contains('industrial')) {
@@ -8675,6 +8736,24 @@ String _suitabilityLabel(
   return 'Evidence gap';
 }
 
+String _selectedSuitabilityLabel(
+  String? selectedUseCase,
+  String verdict, {
+  required bool contextOnly,
+  required bool hasMeasuredData,
+}) {
+  if (selectedUseCase == 'drinking') {
+    return verdict == 'fail'
+        ? 'Not suitable alone'
+        : 'Evidence gap - strict-use review required';
+  }
+  return _suitabilityLabel(
+    verdict,
+    contextOnly: contextOnly,
+    hasMeasuredData: hasMeasuredData,
+  );
+}
+
 String _gapStatusLabel(String? status) {
   return switch (status) {
     'below_target' => 'Within selected target',
@@ -8864,6 +8943,27 @@ List<CriteriaExplanation> _topCriteriaDrivers(TrainRecommendation? train) {
   return rows;
 }
 
+String? _criterionDifferentiationNote(
+  String code,
+  List<TrainRecommendation> trains,
+) {
+  final values = <double>[];
+  for (final train in trains) {
+    for (final item in train.criteriaExplanation) {
+      if (item.code == code && item.score != null) {
+        values.add(item.score!);
+      }
+    }
+  }
+  if (values.length < 2) return null;
+  final minValue = values.reduce((a, b) => a < b ? a : b);
+  final maxValue = values.reduce((a, b) => a > b ? a : b);
+  if ((maxValue - minValue).abs() < 0.001) {
+    return 'Did not differentiate candidates in this run.';
+  }
+  return 'Differentiated candidates in this run.';
+}
+
 String _pathwayPreviewSummary(TrainRecommendation train) {
   if (train.trainPathway.isEmpty) {
     return 'Treatment sequence details are not available for this train.';
@@ -8873,6 +8973,36 @@ String _pathwayPreviewSummary(TrainRecommendation train) {
     ...train.trainPathway.map((step) => step.componentName),
     'Outlet / selected target screening',
   ].join(' -> ');
+}
+
+List<String> _validationSummaryMessages(RecommendationResponse response) {
+  final notes = response.validationNotes;
+  final strict = _validationMap(notes['strict_use']);
+  final salinity = _validationMap(notes['salinity']);
+  final standards = _validationMap(notes['standards_coverage']);
+  final match = _validationMap(notes['match_vs_suitability']);
+  return _uniqueStrings([
+    if (strict['warning'] != null) strict['warning'].toString(),
+    if (strict['advanced_treatment_warning'] != null)
+      strict['advanced_treatment_warning'].toString(),
+    if ((strict['blockers'] as List?)?.isNotEmpty ?? false)
+      'Strict-use blockers detected: ${(strict['blockers'] as List).join(', ')}.',
+    if (strict['pathogen_note'] != null) strict['pathogen_note'].toString(),
+    if (salinity['warning'] != null) salinity['warning'].toString(),
+    if (standards['note'] != null) standards['note'].toString(),
+    if (match['explanation'] != null) match['explanation'].toString(),
+    if (match['note'] != null) match['note'].toString(),
+    ..._stringListFromDynamic(notes['soil_filter_cautions']),
+  ]);
+}
+
+Map<String, dynamic> _validationMap(Object? value) {
+  return value is Map<String, dynamic> ? value : <String, dynamic>{};
+}
+
+List<String> _stringListFromDynamic(Object? value) {
+  if (value is! List) return const [];
+  return value.map((item) => item.toString()).toList();
 }
 
 String _sentenceFromSnake(String value) {

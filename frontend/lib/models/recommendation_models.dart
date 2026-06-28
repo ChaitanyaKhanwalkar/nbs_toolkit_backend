@@ -26,6 +26,7 @@ class RecommendationResponse {
     required this.sizingEstimates,
     required this.scenarioComparison,
     required this.parameterCoverage,
+    required this.validationNotes,
   });
 
   final String workflowStatus;
@@ -54,6 +55,7 @@ class RecommendationResponse {
   final List<SizingEstimate> sizingEstimates;
   final ScenarioComparison scenarioComparison;
   final List<Map<String, dynamic>> parameterCoverage;
+  final Map<String, dynamic> validationNotes;
 
   /// Resolved citations indexed by source ID for quick lookup in the UI.
   Map<int, Citation> get citationsById {
@@ -149,6 +151,9 @@ class RecommendationResponse {
               ?.whereType<Map<String, dynamic>>()
               .toList() ??
           <Map<String, dynamic>>[],
+      validationNotes: json['validation_notes'] is Map<String, dynamic>
+          ? json['validation_notes'] as Map<String, dynamic>
+          : <String, dynamic>{},
     );
   }
 }
@@ -462,6 +467,7 @@ class ComparisonOption {
     required this.landFit,
     required this.omIntensity,
     required this.applicabilityStatus,
+    required this.selectedUseCaseVerdict,
     required this.warnings,
     required this.keyStrength,
     required this.keyLimitation,
@@ -479,6 +485,7 @@ class ComparisonOption {
   final String landFit;
   final String omIntensity;
   final String? applicabilityStatus;
+  final String selectedUseCaseVerdict;
   final List<String> warnings;
   final String? keyStrength;
   final String? keyLimitation;
@@ -500,6 +507,10 @@ class ComparisonOption {
         omIntensity:
             _stringValue(json['om_intensity'], fallback: 'Not recorded'),
         applicabilityStatus: _nullableString(json['applicability_status']),
+        selectedUseCaseVerdict: _stringValue(
+          json['selected_use_case_verdict'],
+          fallback: 'unknown',
+        ),
         warnings: _stringList(json['warnings']),
         keyStrength: _nullableString(json['key_strength']),
         keyLimitation: _nullableString(json['key_limitation']),

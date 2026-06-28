@@ -147,6 +147,7 @@ class RecommendationReport {
         ],
         'grouped_input_checklist': readinessGroups,
       },
+      'validation_notes': response.validationNotes,
       'recommended_treatment_train': trainPayload,
       'sizing_and_land': [
         for (final estimate in response.sizingEstimates)
@@ -187,6 +188,7 @@ class RecommendationReport {
               'land_fit': option.landFit,
               'operation_and_maintenance': option.omIntensity,
               'applicability_status': option.applicabilityStatus,
+              'selected_use_case_verdict': option.selectedUseCaseVerdict,
               'warnings': option.warnings,
               'key_strength': option.keyStrength,
               'key_limitation': option.keyLimitation,
@@ -266,6 +268,7 @@ String _buildSummary(
       'River discharge context: ${response.locationContext.riverDischargeCms} m³/s (not treatment design flow)',
     'Design readiness: ${response.designReadiness.shortLabel}',
     response.designReadiness.explanation,
+    ..._validationSummaryMessages(response),
   ];
   if (train == null) {
     lines.add('Recommended treatment train: No ranked option available');
@@ -361,6 +364,10 @@ String _buildCsv(Map<String, dynamic> payload) {
   final readiness = payload['design_readiness'] as Map<String, dynamic>;
   for (final entry in readiness.entries) {
     addValue('design_readiness', 'readiness', entry.key, entry.value);
+  }
+  final validation = payload['validation_notes'] as Map<String, dynamic>;
+  for (final entry in validation.entries) {
+    addValue('validation_notes', 'safety_and_coverage', entry.key, entry.value);
   }
   final train = payload['recommended_treatment_train'];
   if (train is Map<String, dynamic>) {
@@ -519,6 +526,36 @@ String _pathwaySummary(TrainRecommendation train) {
     ...train.trainPathway.map((step) => step.componentName),
     'Outlet / selected target screening',
   ].join(' -> ');
+}
+
+List<String> _validationSummaryMessages(RecommendationResponse response) {
+  final notes = response.validationNotes;
+  final strict = _validationMap(notes['strict_use']);
+  final salinity = _validationMap(notes['salinity']);
+  final standards = _validationMap(notes['standards_coverage']);
+  final match = _validationMap(notes['match_vs_suitability']);
+  return [
+    if (strict['warning'] != null) strict['warning'].toString(),
+    if (strict['advanced_treatment_warning'] != null)
+      strict['advanced_treatment_warning'].toString(),
+    if ((strict['blockers'] as List?)?.isNotEmpty ?? false)
+      'Strict-use blockers detected: ${(strict['blockers'] as List).join(', ')}.',
+    if (strict['pathogen_note'] != null) strict['pathogen_note'].toString(),
+    if (salinity['warning'] != null) salinity['warning'].toString(),
+    if (standards['note'] != null) standards['note'].toString(),
+    if (match['explanation'] != null) match['explanation'].toString(),
+    if (match['note'] != null) match['note'].toString(),
+    ..._stringListFromDynamic(notes['soil_filter_cautions']),
+  ];
+}
+
+Map<String, dynamic> _validationMap(Object? value) {
+  return value is Map<String, dynamic> ? value : <String, dynamic>{};
+}
+
+List<String> _stringListFromDynamic(Object? value) {
+  if (value is! List) return const [];
+  return value.map((item) => item.toString()).toList();
 }
 
 String _mapStatus(LocationContext location) {

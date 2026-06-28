@@ -305,6 +305,30 @@ void main() {
           'coverage_category': 'used_in_scoring',
         },
       ],
+      'validation_notes': {
+        'strict_use': {
+          'active': false,
+          'warning': null,
+          'advanced_treatment_warning': null,
+          'blockers': [],
+          'pathogen_note': null,
+        },
+        'salinity': {'active': false, 'warning': null},
+        'standards_coverage': {
+          'active': true,
+          'parameters': ['COD'],
+          'note':
+              'Standards coverage note: COD is used as supporting context because no stored target limit is available for discharge to inland surface water.',
+        },
+        'match_vs_suitability': {
+          'explanation':
+              'Screening match ranks the train by scored criteria; suitability indicates whether stored evidence confirms the selected use case.',
+          'note':
+              'Highest screening match has an evidence gap/conditional suitability. Also review the highest confirmed-suitability option: DEWATS modular train.',
+        },
+        'soil_filter_cautions': [],
+        'warnings': [],
+      },
     });
     await tester.pumpWidget(
       MaterialApp(
@@ -392,6 +416,9 @@ void main() {
         find.textContaining('C5 health-risk remains reserved'), findsOneWidget);
     expect(find.textContaining('C5 Health'), findsNothing);
     expect(find.text('Treatment train pathway'), findsOneWidget);
+    expect(find.text('Validation notes'), findsWidgets);
+    expect(find.textContaining('Standards coverage note'), findsWidgets);
+    expect(find.textContaining('Screening match ranks'), findsWidgets);
     expect(find.textContaining('Step 1: Settler'), findsOneWidget);
     expect(find.textContaining('Step 2: ABR'), findsOneWidget);
     expect(find.text('Show technical details'), findsOneWidget);

@@ -87,3 +87,4 @@ class RecommendationResponse(RawResponseModel):
     weights_status: str | None = None
     expert_validated: bool = False
     provisional_note: str | None = None
+    validation_notes: dict[str, Any] = Field(default_factory=dict)

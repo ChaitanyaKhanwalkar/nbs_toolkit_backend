@@ -518,6 +518,195 @@ def test_mandleshwar_industrial_acidic_mainstem_requires_expert_review() -> None
     assert "off-channel" in filtered_reasons
 
 
+def test_drinking_domestic_strict_use_requires_expert_review() -> None:
+    """Drinking/strict-use screening must not look design-ready for wastewater."""
+
+    response = TestClient(app).post(
+        "/api/v1/recommend",
+        json={
+            "use_case": "drinking",
+            "region_id": 27,
+            "selected_parameters": ["ammonia_n", "turbidity", "ph"],
+            "measured_observations": [
+                {"parameter": "ammonia_n", "value": 200, "unit": "mg_l"},
+                {"parameter": "turbidity", "value": 5, "unit": "ntu"},
+                {"parameter": "ph", "value": 7.4, "unit": "ph_units"},
+            ],
+            "context": {
+                "workflow_mode": "manual_measured_water_quality",
+                "pollution_source_type": "domestic_sewage",
+            },
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["design_readiness"]["level"] == "needs_expert_review"
+    assert payload["design_readiness"]["short_label"] == "Expert review needed"
+    assert any("NbS alone" in warning for warning in payload["warnings"])
+    assert any("advanced treatment" in warning.lower() for warning in payload["warnings"])
+    assert payload["validation_notes"]["strict_use"]["selected_use_case_badge"]
+    assert "NH4-N" in payload["validation_notes"]["strict_use"]["blockers"]
+    assert "turbidity" in payload["validation_notes"]["strict_use"]["blockers"]
+
+
+def test_drinking_strict_use_filters_unsuitable_support_components() -> None:
+    """Strict-use wastewater output must not promote source-control components."""
+
+    response = TestClient(app).post(
+        "/api/v1/recommend",
+        json={
+            "use_case": "drinking",
+            "selected_parameters": ["ammonia_n"],
+            "measured_observations": [
+                {"parameter": "ammonia_n", "value": 200, "unit": "mg_l"},
+            ],
+            "context": {
+                "workflow_mode": "manual_measured_water_quality",
+                "pollution_source_type": "domestic_sewage",
+            },
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    blocked_names = " ".join(
+        str(row.get("name", "")).lower()
+        for row in payload["filtered_components"]
+        if row.get("status") == "not_suitable_for_drinking_strict_use"
+    )
+    assert "rain" in blocked_names or "filter" in blocked_names or "green" in blocked_names
+    assert all(
+        row.get("standalone_suitability") == "only_as_part_of_train"
+        for row in payload["component_recommendations"]
+    )
+
+
+def test_irrigation_ec_exceedance_returns_salinity_warning() -> None:
+    """Irrigation EC exceedance should disclose salinity limits of ordinary NbS."""
+
+    response = TestClient(app).post(
+        "/api/v1/recommend",
+        json={
+            "use_case": "irrigation",
+            "selected_parameters": ["ec"],
+            "measured_observations": [
+                {"parameter": "ec", "value": 4200, "unit": "us_cm"},
+            ],
+            "context": {"workflow_mode": "manual_measured_water_quality"},
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["validation_notes"]["salinity"]["active"] is True
+    assert "Ordinary NbS treatment may not reliably remove dissolved salts" in (
+        payload["validation_notes"]["salinity"]["warning"]
+    )
+    assert any("salinity" in warning.lower() for warning in payload["warnings"])
+
+
+def test_irrigation_missing_standards_are_aggregated_supporting_context() -> None:
+    """Missing selected-use-case standards should be grouped without failing."""
+
+    response = TestClient(app).post(
+        "/api/v1/recommend",
+        json={
+            "use_case": "irrigation",
+            "region_id": 27,
+            "selected_parameters": ["cod", "ammonia_n", "total_phosphorus", "bod"],
+            "measured_observations": [
+                {"parameter": "cod", "value": 500, "unit": "mg_l"},
+                {"parameter": "ammonia_n", "value": 200, "unit": "mg_l"},
+                {"parameter": "total_phosphorus", "value": 40, "unit": "mg_l"},
+                {"parameter": "bod", "value": 250, "unit": "mg_l"},
+            ],
+            "context": {
+                "workflow_mode": "manual_measured_water_quality",
+                "pollution_source_type": "domestic_sewage",
+            },
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    coverage = payload["validation_notes"]["standards_coverage"]
+    assert coverage["active"] is True
+    assert {"COD", "NH4-N", "TP"}.issubset(set(coverage["parameters"]))
+    assert "supporting context" in coverage["note"]
+
+
+def test_match_vs_suitability_note_when_top_has_evidence_gap_and_lower_pass() -> None:
+    """Keep ranking order but explain when confirmed suitability differs."""
+
+    response = TestClient(app).post(
+        "/api/v1/recommend",
+        json={
+            "use_case": "irrigation",
+            "region_id": 27,
+            "selected_parameters": [
+                "bod",
+                "cod",
+                "tss",
+                "ammonia_n",
+                "total_phosphorus",
+                "ph",
+            ],
+            "measured_observations": [
+                {"parameter": "bod", "value": 250, "unit": "mg_l"},
+                {"parameter": "cod", "value": 500, "unit": "mg_l"},
+                {"parameter": "tss", "value": 275, "unit": "mg_l"},
+                {"parameter": "ammonia_n", "value": 200, "unit": "mg_l"},
+                {"parameter": "total_phosphorus", "value": 40, "unit": "mg_l"},
+                {"parameter": "ph", "value": 7.4, "unit": "ph_units"},
+            ],
+            "context": {
+                "workflow_mode": "manual_measured_water_quality",
+                "pollution_source_type": "domestic_sewage",
+            },
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["ranked_trains"][0]["name"] == "WSP Train (pond series)"
+    note = payload["validation_notes"]["match_vs_suitability"]["note"]
+    assert note
+    assert "highest confirmed-suitability option" in note.lower()
+
+
+def test_soil_filter_conditional_caution_remains_visible() -> None:
+    """APP_RULE_023 should stay visible as a validation caution."""
+
+    response = TestClient(app).post(
+        "/api/v1/recommend",
+        json={
+            "use_case": "discharge_inland",
+            "region_id": 27,
+            "selected_parameters": ["bod"],
+            "measured_observations": [
+                {"parameter": "bod", "value": 250, "unit": "mg_l"},
+            ],
+            "context": {
+                "workflow_mode": "manual_measured_water_quality",
+                "pollution_source_type": "domestic_sewage",
+            },
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert any(
+        "soil/infiltration" in caution
+        for caution in payload["validation_notes"]["soil_filter_cautions"]
+    )
+    on_site = next(row for row in payload["ranked_trains"] if row["name"] == "On-site disposal")
+    assert any(
+        rule["rule_id"] == "APP_RULE_023"
+        for rule in on_site["applicability_result"]["triggered_rules"]
+    )
+
+
 def test_recommendation_route_requires_target_use_case() -> None:
     """Missing target use case should fail before recommendation assembly."""
 

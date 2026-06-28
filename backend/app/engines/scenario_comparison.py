@@ -25,6 +25,7 @@ class ScenarioComparisonEngine:
             int(row["train_id"]): row for row in sizing_estimates
         }
         source_type = str(context.get("pollution_source_type") or "").lower()
+        selected_use_case = str(context.get("use_case") or "").strip()
         off_channel = context.get("intervention_position") in {
             "off_channel_or_stp_polishing",
             "in_channel",
@@ -48,6 +49,10 @@ class ScenarioComparisonEngine:
                     "applicability_status": (
                         train.get("applicability_result") or {}
                     ).get("status"),
+                    "selected_use_case_verdict": _use_case_verdict(
+                        train,
+                        selected_use_case,
+                    ),
                     "warnings": list(train.get("caveats") or [])[:2],
                     "key_strength": _first_text(train.get("why_recommended")),
                     "key_limitation": _first_text(
@@ -100,18 +105,30 @@ class ScenarioComparisonEngine:
             if isinstance(option.get("result_confidence"), (int, float))
         ]
         if confidence_candidates:
+            pass_candidates = [
+                option
+                for option in confidence_candidates
+                if option.get("selected_use_case_verdict") == "pass"
+            ]
+            strongest_pool = pass_candidates or confidence_candidates
             strongest = max(
-                confidence_candidates,
+                strongest_pool,
                 key=lambda row: row["result_confidence"],
             )
+            if pass_candidates:
+                explanation = (
+                    "This option has a stored pass verdict for the selected use case and the strongest result-confidence score among those confirmed alternatives."
+                )
+            else:
+                explanation = (
+                    "This option has the highest result-confidence score among the current alternatives."
+                )
             takeaways.append(
                 {
                     "label": "Strongest evidence",
                     "train_id": strongest["train_id"],
                     "train_name": strongest["name"],
-                    "explanation": (
-                        "This option has the highest result-confidence score among the current alternatives."
-                    ),
+                    "explanation": explanation,
                 }
             )
         maintenance_order = {"Lower": 0, "Moderate": 1, "Higher": 2}
@@ -185,6 +202,16 @@ def _first_text(values: Any) -> str | None:
     if isinstance(values, list) and values:
         return str(values[0])
     return None
+
+
+def _use_case_verdict(train: dict[str, Any], use_case: str) -> str:
+    """Return the stored verdict for the selected use case, if available."""
+
+    verdicts = train.get("all_use_case_verdicts") or {}
+    row = verdicts.get(use_case)
+    if isinstance(row, dict):
+        return str(row.get("verdict") or "unknown").lower()
+    return "unknown"
 
 
 def _is_high_order(value: Any) -> bool:

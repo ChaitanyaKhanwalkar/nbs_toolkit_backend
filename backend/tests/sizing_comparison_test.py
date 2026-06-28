@@ -230,3 +230,29 @@ def test_comparison_preserves_rank_and_exposes_takeaways() -> None:
     assert result["options"][0]["key_strength"] is None
     assert "confirming flow" in result["options"][0]["when_to_choose"]
     assert any(row["label"] == "Strongest evidence" for row in result["takeaways"])
+
+
+def test_comparison_strongest_evidence_prefers_selected_use_case_pass() -> None:
+    """Confidence takeaway should prefer confirmed selected-use-case evidence."""
+
+    first = _train(1, (10,))
+    first["confidence_score"] = 0.9
+    first["all_use_case_verdicts"] = {"irrigation": {"verdict": "unknown"}}
+    second = _train(2, (20,))
+    second["confidence_score"] = 0.6
+    second["all_use_case_verdicts"] = {"irrigation": {"verdict": "pass"}}
+
+    result = ScenarioComparisonEngine().compare(
+        ranked_trains=[first, second],
+        component_recommendations=[],
+        sizing_estimates=[],
+        design_readiness={"short_label": "Ready for planning"},
+        context={"workflow_mode": "uploaded_water_quality", "use_case": "irrigation"},
+    )
+
+    strongest = next(
+        row for row in result["takeaways"] if row["label"] == "Strongest evidence"
+    )
+    assert strongest["train_id"] == 2
+    assert "stored pass verdict" in strongest["explanation"]
+    assert result["options"][1]["selected_use_case_verdict"] == "pass"

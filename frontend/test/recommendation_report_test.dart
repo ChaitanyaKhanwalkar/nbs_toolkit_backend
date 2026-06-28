@@ -130,6 +130,7 @@ void main() {
           'land_demand': 'Approximately 240-400 m2',
           'land_fit': 'borderline',
           'om_intensity': 'Moderate',
+          'selected_use_case_verdict': 'pass',
           'warnings': ['Confirm hydraulic loading.'],
           'key_strength': 'Suitable for decentralized sewage treatment.',
           'key_limitation': 'Confirm hydraulic loading.',
@@ -198,6 +199,31 @@ void main() {
         'coverage_label': 'Used in scoring.',
       },
     ],
+    'validation_notes': {
+      'strict_use': {
+        'active': false,
+        'warning': null,
+        'advanced_treatment_warning': null,
+        'blockers': [],
+        'pathogen_note': null,
+      },
+      'salinity': {'active': false, 'warning': null},
+      'standards_coverage': {
+        'active': true,
+        'parameters': ['COD', 'NH4-N'],
+        'note':
+            'Standards coverage note: COD, NH4-N are used as supporting context because no stored target limit is available for discharge to inland surface water.',
+      },
+      'match_vs_suitability': {
+        'explanation':
+            'Screening match ranks the train by scored criteria; suitability indicates whether stored evidence confirms the selected use case.',
+        'note': null,
+      },
+      'soil_filter_cautions': [
+        'Conditional: requires confirmed soil/infiltration and groundwater/flood safety checks.',
+      ],
+      'warnings': [],
+    },
   });
 
   test('builds complete JSON report structure', () {
@@ -227,6 +253,7 @@ void main() {
       contains('Schematic context'),
     );
     expect(decoded['design_readiness']['short_label'], 'Ready for planning');
+    expect(decoded['validation_notes']['standards_coverage']['active'], isTrue);
     expect(
       decoded['design_readiness']['grouped_input_checklist'],
       isA<Map<String, dynamic>>(),
@@ -252,6 +279,10 @@ void main() {
     expect(decoded['individual_nbs_components'], isNotEmpty);
     expect(decoded['sizing_and_land'], isNotEmpty);
     expect(decoded['scenario_comparison']['options'], isNotEmpty);
+    expect(
+      decoded['scenario_comparison']['options'][0]['selected_use_case_verdict'],
+      'pass',
+    );
     expect(decoded['scenario_comparison']['component_options'], isNotEmpty);
     expect(
       decoded['scenario_comparison']['options'][0]['when_to_choose'],
@@ -274,6 +305,8 @@ void main() {
     expect(report.csv, contains('"scoring_role"'));
     expect(report.csv, contains('"treatment_evidence_status"'));
     expect(report.csv, contains('"design_readiness"'));
+    expect(report.csv, contains('"validation_notes"'));
+    expect(report.csv, contains('"standards_coverage.note"'));
     expect(report.csv, contains('"location_context"'));
     expect(report.csv, contains('"sizing_and_land"'));
     expect(report.csv, contains('"scenario_comparison"'));
@@ -296,6 +329,14 @@ void main() {
       contains('Sizing and land: Estimated screening area: 240-400 m²'),
     );
     expect(report.summary, contains('Parameter coverage: 1 used in scoring'));
+    expect(report.summary, contains('Standards coverage note: COD, NH4-N'));
+    expect(
+      report.summary,
+      contains(
+        'Screening match ranks the train by scored criteria; suitability indicates whether stored evidence confirms the selected use case.',
+      ),
+    );
+    expect(report.summary, contains('requires confirmed soil/infiltration'));
     expect(report.summary, contains('Best overall fit'));
     expect(report.summary, contains(planningLevelDisclaimer));
   });
@@ -325,5 +366,66 @@ void main() {
       decoded['recommended_treatment_train']['treatment_train_pathway'],
       isEmpty,
     );
+  });
+
+  test('summarizes strict-use and salinity validation notes', () {
+    final strictResponse = RecommendationResponse.fromJson({
+      'workflow_status': 'completed',
+      'use_case': 'drinking',
+      'design_readiness': {
+        'level': 'needs_expert_review',
+        'short_label': 'Expert review needed',
+        'explanation': 'Strict-use review is required.',
+      },
+      'ranked_trains': [
+        {
+          'train_id': 1,
+          'name': 'Polishing train',
+          'rank': 1,
+          'match_score': 0.5,
+          'all_use_case_verdicts': {
+            'drinking': {'verdict': 'unknown'},
+          },
+        },
+      ],
+      'input_summary': {
+        'observation_count': 2,
+        'selected_parameters': ['ammonia_n', 'ec'],
+        'data_used': [
+          {'parameter': 'ammonia_n', 'value': 120, 'unit': 'mg_l'},
+          {'parameter': 'ec', 'value': 4200, 'unit': 'us_cm'},
+        ],
+        'context': {'workflow_mode': 'manual_measured_water_quality'},
+      },
+      'validation_notes': {
+        'strict_use': {
+          'active': true,
+          'warning':
+              'Drinking / strict-use screening only. NbS alone must not be used as standalone potable-water treatment.',
+          'advanced_treatment_warning':
+              'Requires advanced treatment, disinfection, pathogen monitoring, and regulatory validation beyond NbS.',
+          'blockers': ['NH4-N'],
+          'pathogen_note': null,
+        },
+        'salinity': {
+          'active': true,
+          'warning':
+              'High EC/salinity exceeds the irrigation target. Ordinary NbS treatment may not reliably remove dissolved salts; consider source control, blending, crop-specific irrigation review, or advanced salinity treatment.',
+        },
+        'standards_coverage': {'active': false, 'parameters': [], 'note': null},
+        'match_vs_suitability': {
+          'explanation':
+              'Screening match ranks the train by scored criteria; suitability indicates whether stored evidence confirms the selected use case.',
+          'note': null,
+        },
+      },
+    });
+
+    final report = RecommendationReport.fromResponse(strictResponse);
+
+    expect(report.summary, contains('NbS alone must not be used'));
+    expect(report.summary, contains('Requires advanced treatment'));
+    expect(report.summary, contains('Strict-use blockers detected: NH4-N'));
+    expect(report.summary, contains('High EC/salinity exceeds'));
   });
 }
