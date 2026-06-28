@@ -456,8 +456,12 @@ def _final_rows_or_fallback(
     rows: list[dict[str, Any]],
     use_case: str | None,
 ) -> list[dict[str, Any]]:
-    """Return DB final-v1 rows, or the named final-v1 fallback for stale DBs."""
+    """Return current DB weight rows, or the named fallback for stale DBs."""
 
-    if rows and all(row.get("status") == FINAL_V1_AHP_FUZZY_STATUS for row in rows):
+    accepted_statuses = {
+        FINAL_V1_AHP_FUZZY_STATUS,
+        "temporary_not_expert_validated",
+    }
+    if rows and all(row.get("status") in accepted_statuses for row in rows):
         return rows
     return final_v1_ahp_fuzzy_weights(use_case)

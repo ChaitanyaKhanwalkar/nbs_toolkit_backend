@@ -39,13 +39,13 @@ _FINAL_WEIGHTS: dict[str, list[dict[str, Any]]] = {
         ("C8", "om", "cost", 0.121700),
     ],
     "irrigation": [
-        ("C1", "treatment_fit", "benefit", 0.240262),
-        ("C2", "standard_fit", "benefit", 0.240262),
-        ("C3", "site_fit", "benefit", 0.094255),
-        ("C4", "source_fit", "benefit", 0.115706),
-        ("C6", "hydrologic_fit", "benefit", 0.057253),
-        ("C7", "footprint", "cost", 0.115706),
-        ("C8", "om", "cost", 0.136557),
+        ("C1", "treatment_fit", "benefit", 0.231600),
+        ("C2", "standard_fit", "benefit", 0.231600),
+        ("C3", "site_fit", "benefit", 0.095100),
+        ("C4", "source_fit", "benefit", 0.116000),
+        ("C6", "hydrologic_fit", "benefit", 0.054900),
+        ("C7", "footprint", "cost", 0.116000),
+        ("C8", "om", "cost", 0.154700),
     ],
 }
 

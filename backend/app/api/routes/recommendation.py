@@ -999,9 +999,8 @@ def _warnings(payload: dict[str, Any], weights_status: str | None) -> list[str]:
     warnings = list(payload.get("warnings") or [])
     if weights_status == "temporary_not_expert_validated":
         warning = (
-            "Treatment-train ranking uses final v1 AHP-Fuzzy AHP ensemble "
-            "weights with TOPSIS; C5 health-risk remains reserved for future "
-            "integration."
+            "Treatment-train ranking uses provisional criteria_weights with "
+            "TOPSIS; C5 health-risk remains reserved for future integration."
         )
         if warning not in warnings:
             warnings.append(warning)
@@ -1030,9 +1029,8 @@ def _provisional_note(weights_status: str | None) -> str | None:
 
     if weights_status == "temporary_not_expert_validated":
         return (
-            "Treatment-train ranking uses final v1 AHP-Fuzzy AHP ensemble "
-            "weights with TOPSIS. C5 health-risk and field validation remain "
-            "future work."
+            "Treatment-train ranking uses provisional criteria_weights with "
+            "TOPSIS. C5 health-risk and field validation remain future work."
         )
     if weights_status == "weights_missing":
         return (

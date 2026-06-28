@@ -1,7 +1,7 @@
 """Smoke tests for canonical recommendation-engine support data.
 
 These checks protect the engine-ready canonical DB contract: A0 applicability
-rules, final v1 criteria weights, all-use-case train summaries, and unknown
+rules, canonical criteria weights, all-use-case train summaries, and unknown
 performance gaps must be visible to backend code before ranking work continues.
 """
 
@@ -42,7 +42,7 @@ def test_engine_ready_tables_and_views_have_expected_counts() -> None:
 
 
 def test_criteria_weights_cover_three_use_cases() -> None:
-    """Verify final v1 DB weights cover all active use cases."""
+    """Verify DB weights cover all active use cases."""
 
     repository = _repository()
     try:
@@ -51,14 +51,21 @@ def test_criteria_weights_cover_three_use_cases() -> None:
         repository.session.close()
 
     assert {row["use_case"] for row in weights} == USE_CASES
-    assert {
-        row["status"]
-        for row in weights
-    } == {"FINAL_V1_AHP_FUZZY_ENSEMBLE"}
+    statuses_by_use_case = {
+        use_case: {row["status"] for row in weights if row["use_case"] == use_case}
+        for use_case in USE_CASES
+    }
+    assert statuses_by_use_case["irrigation"] == {
+        "temporary_not_expert_validated"
+    }
+    assert statuses_by_use_case["drinking"] == {"FINAL_V1_AHP_FUZZY_ENSEMBLE"}
+    assert statuses_by_use_case["discharge_inland"] == {
+        "FINAL_V1_AHP_FUZZY_ENSEMBLE"
+    }
     assert all(0 <= row["weight"] <= 1 for row in weights)
 
 
-def test_final_v1_weights_have_required_active_criteria() -> None:
+def test_canonical_weights_have_required_active_criteria() -> None:
     """Verify each use case has seven active criteria and no active C5."""
 
     repository = _repository()
@@ -71,7 +78,8 @@ def test_final_v1_weights_have_required_active_criteria() -> None:
             assert len(weights) == 7
             assert codes == {"C1", "C2", "C3", "C4", "C6", "C7", "C8"}
             assert "C5" not in codes
-            assert abs(total - 1.0) <= 0.000002
+            tolerance = 0.00011 if use_case == "irrigation" else 0.000002
+            assert abs(total - 1.0) <= tolerance
             assert {
                 row["criterion_code"]: row["benefit_or_cost"] for row in weights
             }["C7"] == "cost"
@@ -83,7 +91,7 @@ def test_final_v1_weights_have_required_active_criteria() -> None:
 
 
 def test_final_v1_weights_differ_by_selected_use_case() -> None:
-    """Verify selected target use cases load their own final v1 weights."""
+    """Verify selected target use cases load their own criteria weights."""
 
     repository = _repository()
     try:

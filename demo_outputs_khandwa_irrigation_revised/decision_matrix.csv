@@ -1,0 +1,9 @@
+option,C1,C2,C3,C4,C6,C7,C8
+WSP Train (pond series),1.0,1.0,1.0,0.5,1.0,7.0,0.19999999999999998
+DEWATS modular train,1.0,1.0,1.0,0.5,1.0,10.3,0.19999999999999998
+Septic + HSSF + polishing,1.0,0.75,1.0,0.5,1.0,13.0,0.2
+VF nitrifying hybrid,1.0,1.0,1.0,0.5,1.0,14.0,0.3333333333333333
+UASB-based STP,1.0,0.5,1.0,0.5,1.0,3.05,0.275
+French VF (no primary),1.0,1.0,1.0,0.5,1.0,5.0,0.6
+Pond + sewage-fed aquaculture,1.0,1.0,1.0,0.5,1.0,54.0,0.275
+On-site disposal,1.0,1.0,0.0,0.15,1.0,10.3,0.2

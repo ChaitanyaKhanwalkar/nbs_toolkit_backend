@@ -1,0 +1,73 @@
+{
+  "errors": [],
+  "expert_validated": false,
+  "global_gaps": null,
+  "provisional_note": "Treatment-train ranking uses provisional criteria_weights with TOPSIS. C5 health-risk and field validation remain future work.",
+  "validation_notes": {
+    "match_vs_suitability": {
+      "explanation": "Screening match ranks the train by scored criteria; suitability indicates whether stored evidence confirms the selected use case.",
+      "note": "Highest screening match has an evidence gap/conditional suitability. Also review the highest confirmed-suitability option: DEWATS modular train."
+    },
+    "salinity": {
+      "active": false,
+      "warning": null
+    },
+    "soil_filter_cautions": [
+      "Conditional: requires confirmed soil/infiltration and groundwater/flood safety checks."
+    ],
+    "standards_coverage": {
+      "active": true,
+      "note": "Standards coverage note: COD, NH4-N, TP are used as supporting context because no stored target limit is available for irrigation reuse.",
+      "parameters": [
+        "COD",
+        "NH4-N",
+        "TP"
+      ]
+    },
+    "strict_use": {
+      "active": false,
+      "advanced_treatment_warning": null,
+      "blockers": [],
+      "pathogen_note": null,
+      "selected_use_case_badge": null,
+      "warning": null
+    },
+    "warnings": [
+      "Conditional: requires confirmed soil/infiltration and groundwater/flood safety checks."
+    ]
+  },
+  "warnings": [
+    "No standard was found for parameter 'cod'.",
+    "No standard was found for parameter 'ammonia_n'.",
+    "No standard was found for parameter 'total_phosphorus'.",
+    "Standard missing for cod; no treatment need was inferred.",
+    "Standard missing for ammonia_n; no treatment need was inferred.",
+    "Standard missing for total_phosphorus; no treatment need was inferred.",
+    "Criterion 'evidence_strength' has no variation and was not normalized.",
+    "Criterion 'removal_evidence_coverage' has no variation and was not normalized.",
+    "Loaded canonical criteria_weights for TOPSIS.",
+    "Loaded canonical criteria_weights for TOPSIS. C5 health-risk integration remains reserved for future expert data.",
+    "Some normalized MCDA criteria do not have supplied weights: removal_evidence, footprint, climate_site_suitability, maintenance_indicator, implementation_complexity, catalogue_criteria, site_suitability_breakdown, hydrological_suitability_breakdown, pollution_source_fit_breakdown, footprint_requirement_breakdown, om_simplicity_breakdown, evidence_strength, evidence_strength_breakdown.",
+    "Supplied weights are marked temporary_not_expert_validated. Do not treat them as final AHP/expert weights.",
+    "TOPSIS ranking uses temporary_not_expert_validated weights and must be treated as provisional.",
+    "Confidence scoring detected temporary_not_expert_validated weights; the TOPSIS ranking remains provisional.",
+    "No explicit plant mappings were found for nbs_id 24.",
+    "No explicit plant mappings were found for nbs_id 18.",
+    "No explicit plant mappings were found for nbs_id 14.",
+    "No explicit plant mappings were found for nbs_id 26.",
+    "No explicit plant mappings were found for nbs_id 19.",
+    "No explicit plant mappings were found for nbs_id 13.",
+    "No explicit plant mappings were found for nbs_id 28.",
+    "No explicit plant mappings were found for nbs_id 25.",
+    "No explicit plant mappings were found for nbs_id 27.",
+    "No explicit plant mappings were found for nbs_id 10.",
+    "Assembled recommendations use temporary_not_expert_validated weights and remain provisional.",
+    "Warning: TOPSIS ranking is provisional because weights are temporary and not expert validated.",
+    "Warning: 1 caution flag(s) reduce confidence but do not remove the candidate.",
+    "Treatment-train ranking uses provisional criteria_weights with TOPSIS; C5 health-risk remains reserved for future integration.",
+    "Method: A0 safety/applicability screening -> criteria-weighted TOPSIS treatment-train ranking -> confidence and design-readiness checks.",
+    "Conditional: requires confirmed soil/infiltration and groundwater/flood safety checks."
+  ],
+  "weights_status": "temporary_not_expert_validated",
+  "workflow_status": "completed"
+}

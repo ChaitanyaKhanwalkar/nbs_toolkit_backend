@@ -1,0 +1,9 @@
+option,C1_status,C2_status,C3_status,C4_status,C6_status,C7_status,C8_status,C1_value_source,C2_value_source,C3_value_source,C4_value_source,C6_value_source,C7_value_source,C8_value_source
+WSP Train (pond series),known,known,known,known,known,known,known,raw_value,raw_value,raw_value,raw_value,raw_value,raw_value,raw_value
+DEWATS modular train,known,known,known,known,known,known,known,raw_value,raw_value,raw_value,raw_value,raw_value,raw_value,raw_value
+Septic + HSSF + polishing,known,known,known,known,known,known,known,raw_value,raw_value,raw_value,raw_value,raw_value,raw_value,raw_value
+VF nitrifying hybrid,known,known,known,known,known,known,known,raw_value,raw_value,raw_value,raw_value,raw_value,raw_value,raw_value
+UASB-based STP,known,known,known,known,known,known,known,raw_value,raw_value,raw_value,raw_value,raw_value,raw_value,raw_value
+French VF (no primary),known,known,known,known,known,known,known,raw_value,raw_value,raw_value,raw_value,raw_value,raw_value,raw_value
+Pond + sewage-fed aquaculture,known,known,known,known,known,known,known,raw_value,raw_value,raw_value,raw_value,raw_value,raw_value,raw_value
+On-site disposal,unknown_median_imputed,unknown_median_imputed,known,known,known,unknown_median_imputed,known,median_imputed:1.0,median_imputed:1.0,raw_value,raw_value,raw_value,median_imputed:10.3,raw_value

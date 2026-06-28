@@ -1,0 +1,9 @@
+option,baseline_rank,P_top3_percent
+WSP Train (pond series),1,100.0
+DEWATS modular train,2,100.0
+Septic + HSSF + polishing,3,76.2
+VF nitrifying hybrid,4,23.7
+UASB-based STP,5,0.1
+On-site disposal,6,0.0
+French VF (no primary),7,0.0
+Pond + sewage-fed aquaculture,8,0.0

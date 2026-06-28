@@ -1,0 +1,20 @@
+BASELINE ranking (your weights):
+   1. WSP Train (pond series) Ci=0.9451
+   2. DEWATS modular train   Ci=0.9007
+   3. Septic + HSSF + polishing Ci=0.8006
+   4. VF nitrifying hybrid   Ci=0.7792
+   5. UASB-based STP         Ci=0.7273
+   6. On-site disposal       Ci=0.7067
+   7. French VF (no primary) Ci=0.6214
+   8. Pond + sewage-fed aquaculture Ci=0.4636
+
+OAT: top-1 changed in 0/49 single-weight perturbations (0%).
+Extreme cases (equal-weights, one-criterion-dropped) written to extreme_cases.csv.
+
+Monte Carlo (5000 draws, +/-30% per weight):
+  top-1 ('WSP Train (pond series)') held in 100.0% of draws.
+  mean Spearman vs baseline = 0.976 (1.0 = identical ranking).
+  per-option P(top-3) -> monte_carlo_stability.csv
+
+DONE. 4 CSVs written. The headline sentence for the paper is the
+Monte-Carlo top-1 retention % + mean Spearman.

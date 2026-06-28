@@ -1,0 +1,53 @@
+{
+  "context": {
+    "pollution_source_type": "domestic_sewage",
+    "pollution_source_type_requested": "domestic",
+    "profile_value_basis": "midpoint of source_id 9 ranges, with pH 7.4 carried from previous Khandwa run",
+    "water_type_profile": "Domestic sewage (blackwater mix)",
+    "water_type_profile_source_id": 9,
+    "workflow_mode": "manual_measured_water_quality"
+  },
+  "measured_observations": [
+    {
+      "parameter": "bod",
+      "unit": "mg_l",
+      "value": 250
+    },
+    {
+      "parameter": "cod",
+      "unit": "mg_l",
+      "value": 500
+    },
+    {
+      "parameter": "tss",
+      "unit": "mg_l",
+      "value": 275
+    },
+    {
+      "parameter": "ammonia_n",
+      "unit": "mg_l",
+      "value": 200
+    },
+    {
+      "parameter": "total_phosphorus",
+      "unit": "mg_l",
+      "value": 40
+    },
+    {
+      "parameter": "ph",
+      "unit": "ph_units",
+      "value": 7.4
+    }
+  ],
+  "region_id": 27,
+  "selected_parameters": [
+    "bod",
+    "cod",
+    "tss",
+    "ammonia_n",
+    "total_phosphorus",
+    "ph"
+  ],
+  "station": "Indirasagar Dam",
+  "use_case": "irrigation"
+}

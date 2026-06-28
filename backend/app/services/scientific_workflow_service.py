@@ -69,8 +69,8 @@ VALID_WORKFLOW_STEPS = {
 DEFAULT_WORKFLOW_END_STEP = "E"
 CANONICAL_WEIGHTS_SOURCE = "final_v1_ahp_fuzzy_ensemble"
 CANONICAL_WEIGHTS_NOTE = (
-    "Loaded final v1 AHP-Fuzzy AHP ensemble weights for TOPSIS. "
-    "C5 health-risk integration remains reserved for future expert data."
+    "Loaded canonical criteria_weights for TOPSIS. C5 health-risk integration "
+    "remains reserved for future expert data."
 )
 CANONICAL_TO_ENGINE_CRITERIA = {
     "treatment_fit": "removal_evidence_score",
@@ -214,7 +214,7 @@ def _database_weights_for_normalized_bundle(
     if mapped_weights:
         _append_unique(
             warnings,
-            "Loaded final v1 AHP-Fuzzy AHP ensemble criteria_weights for TOPSIS.",
+            "Loaded canonical criteria_weights for TOPSIS.",
         )
     return mapped_weights
 
@@ -578,7 +578,7 @@ class ScientificWorkflowService:
                 )
                 if effective_weights:
                     effective_weights_source = CANONICAL_WEIGHTS_SOURCE
-                    effective_expert_validated = True
+                    effective_expert_validated = False
                     _append_unique(warnings, CANONICAL_WEIGHTS_NOTE)
 
             if not effective_weights and use_default_weights and not expert_validated:

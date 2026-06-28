@@ -1,0 +1,9 @@
+case,new_top1,top3,spearman_vs_base
+equal_weights,WSP Train (pond series),WSP Train (pond series)|DEWATS modular train|UASB-based STP,0.9048
+drop_C1,WSP Train (pond series),WSP Train (pond series)|DEWATS modular train|Septic + HSSF + polishing,1.0
+drop_C2,WSP Train (pond series),WSP Train (pond series)|UASB-based STP|DEWATS modular train,0.8571
+drop_C3,WSP Train (pond series),WSP Train (pond series)|DEWATS modular train|Septic + HSSF + polishing,0.9286
+drop_C4,WSP Train (pond series),WSP Train (pond series)|DEWATS modular train|Septic + HSSF + polishing,0.9762
+drop_C6,WSP Train (pond series),WSP Train (pond series)|DEWATS modular train|Septic + HSSF + polishing,1.0
+drop_C7,WSP Train (pond series),WSP Train (pond series)|DEWATS modular train|Pond + sewage-fed aquaculture,0.5952
+drop_C8,French VF (no primary),French VF (no primary)|WSP Train (pond series)|DEWATS modular train,0.4762
