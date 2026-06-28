@@ -420,7 +420,36 @@ class EngineDataRepository(BaseRepository):
             """,
             {"region_id": region_id},
         )
-        return rows[0] if rows else None
+        if not rows:
+            return None
+
+        site = dict(rows[0])
+        if self.relation_exists("regions"):
+            region_rows = self.fetch_mappings(
+                """
+                SELECT
+                    soil_type,
+                    hydrologic_soil_group,
+                    soil_depth_m,
+                    soil_avail_water_mm_m,
+                    infiltration_class,
+                    rainfall_mm_yr,
+                    aridity_P_PET,
+                    district,
+                    river,
+                    lat,
+                    lon
+                FROM regions
+                WHERE id = :region_id
+                LIMIT 1
+                """,
+                {"region_id": region_id},
+            )
+            if region_rows:
+                for key, value in region_rows[0].items():
+                    if value is not None:
+                        site[key] = value
+        return site
 
 
 def _final_rows_or_fallback(

@@ -369,7 +369,7 @@ def _factor_matches(rule: dict[str, Any], context: dict[str, Any]) -> bool:
 
     category_value = normalize_match_key(rule.get("category_value"))
     if category_value:
-        return normalize_match_key(factor_value) == category_value
+        return _category_matches(factor_name, factor_value, category_value)
 
     operator = normalize_text(rule.get("operator"))
     value_min = _as_float(rule.get("value_min"))
@@ -434,6 +434,34 @@ def _factor_value(factor_name: str, context: dict[str, Any]) -> Any:
         if value not in (None, ""):
             return value
     return None
+
+
+def _category_matches(
+    factor_name: str,
+    factor_value: Any,
+    category_value: str,
+) -> bool:
+    """Return whether a context value belongs to a DB rule category token."""
+
+    normalized_value = normalize_match_key(factor_value)
+    if normalized_value == category_value:
+        return True
+
+    category_aliases = {
+        (
+            "soil_infiltration",
+            "low_infiltration_or_rocky_or_shallow_soil",
+        ): {
+            "low",
+            "very_low",
+            "low_infiltration",
+            "poor_infiltration",
+            "rocky",
+            "shallow_soil",
+            "rocky_or_shallow_soil",
+        },
+    }
+    return normalized_value in category_aliases.get((factor_name, category_value), set())
 
 
 def _rule_hit(rule: dict[str, Any]) -> ApplicabilityRuleHit:

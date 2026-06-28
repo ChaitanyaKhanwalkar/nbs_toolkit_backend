@@ -2000,6 +2000,10 @@ class _WhyResultWorkspace extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
+          _DecisionXrayCard(train: topTrain),
+          const SizedBox(height: 14),
+          _TreatmentTrainPathwayCard(train: topTrain),
+          const SizedBox(height: 14),
           _PollutantGapPanel(
             train: topTrain,
             selectedUseCase: response.useCase,
@@ -3954,6 +3958,28 @@ class _ReportPreview extends StatelessWidget {
         ),
         const SizedBox(height: 14),
         _TextBlockList(
+          title: 'Treatment train pathway',
+          values: train == null
+              ? const []
+              : [
+                  _pathwayPreviewSummary(train),
+                ],
+          emptyText:
+              'Treatment sequence details are not available for this train.',
+        ),
+        const SizedBox(height: 14),
+        _TextBlockList(
+          title: 'Decision X-ray summary',
+          values: [
+            for (final item in _topCriteriaDrivers(train).take(3))
+              '${item.code} ${item.label}: contribution ${item.weightedContributionLabel}',
+            if (train != null && _topCriteriaDrivers(train).isNotEmpty)
+              'Criteria values are normalized/scored values used by TOPSIS; they are not the final weights.',
+          ],
+          emptyText: 'Ranking-driver details are not available.',
+        ),
+        const SizedBox(height: 14),
+        _TextBlockList(
           title: 'Sizing and land',
           values: response.sizingEstimates.isEmpty
               ? const []
@@ -4058,6 +4084,334 @@ class _ReportPreview extends StatelessWidget {
       ],
     );
   }
+}
+
+class _DecisionXrayCard extends StatelessWidget {
+  const _DecisionXrayCard({required this.train});
+
+  final TrainRecommendation? train;
+
+  @override
+  Widget build(BuildContext context) {
+    final criteria = _activeCriteriaExplanation(train);
+    return _DetailSection(
+      title: 'Decision X-ray: why this train ranked here',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Scores are normalized/scored criteria used by TOPSIS. Weights come from final v1 AHP-Fuzzy AHP ensemble weights.',
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Criteria values are normalized/scored values used by TOPSIS; they are not the final weights.',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+          if (criteria.isEmpty) ...[
+            const SizedBox(height: 12),
+            const Text('Criteria explanation is not available for this train.'),
+          ] else ...[
+            const SizedBox(height: 12),
+            for (final item in criteria)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _DecisionXrayRow(item: item),
+              ),
+            const SizedBox(height: 2),
+            Text(
+              'C5 health-risk remains reserved for future integration.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: NbsColors.mutedGrey,
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DecisionXrayRow extends StatelessWidget {
+  const _DecisionXrayRow({required this.item});
+
+  final CriteriaExplanation item;
+
+  @override
+  Widget build(BuildContext context) {
+    final barValue = _criterionBarValue(item);
+    final status = _criterionContributionStatus(item);
+    final isCost = item.benefitOrCost == 'cost';
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: NbsColors.researchBlue.withValues(alpha: 0.035),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: NbsColors.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 38,
+                height: 28,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: NbsColors.researchBlue.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  item.code,
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.label,
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      [
+                        'Score ${item.scoreLabel}',
+                        'Weight ${item.weightLabel}',
+                        'Contribution ${item.weightedContributionLabel}',
+                      ].join(' | '),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 6),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: _SmallStatusPill(label: status),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: barValue,
+              minHeight: 8,
+              backgroundColor: NbsColors.cardBorder,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                status == 'Strong contributor'
+                    ? NbsColors.wetlandGreen
+                    : status == 'Moderate contributor'
+                        ? NbsColors.riverTeal
+                        : status == 'Limited contributor'
+                            ? NbsColors.warningAmber
+                            : NbsColors.mutedGrey,
+              ),
+            ),
+          ),
+          if (isCost || item.note != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              [
+                if (isCost)
+                  'Displayed score is direction-adjusted for TOPSIS; lower raw burden is better.',
+                if (item.note != null) item.note!,
+              ].join(' '),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: NbsColors.mutedGrey,
+                  ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _TreatmentTrainPathwayCard extends StatelessWidget {
+  const _TreatmentTrainPathwayCard({required this.train});
+
+  final TrainRecommendation? train;
+
+  @override
+  Widget build(BuildContext context) {
+    final steps = train?.trainPathway ?? const <TrainPathwayStep>[];
+    return _DetailSection(
+      title: 'Treatment train pathway',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Primary recommendation is the train; components support the train and are not standalone final recommendations.',
+          ),
+          const SizedBox(height: 12),
+          if (steps.isEmpty)
+            const Text(
+              'Treatment sequence details are not available for this train.',
+            )
+          else
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final items = [
+                  const _PathwayNode(
+                    label: 'Influent/source',
+                    role: 'Input',
+                    order: null,
+                  ),
+                  for (final step in steps)
+                    _PathwayNode(
+                      label: step.componentName,
+                      role: step.componentRole,
+                      order: step.stepOrder,
+                    ),
+                  const _PathwayNode(
+                    label: 'Outlet / selected target screening',
+                    role: 'Screening endpoint',
+                    order: null,
+                  ),
+                ];
+                return constraints.maxWidth >= 720
+                    ? _HorizontalPathway(nodes: items)
+                    : _VerticalPathway(nodes: items);
+              },
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PathwayNode {
+  const _PathwayNode({
+    required this.label,
+    required this.role,
+    required this.order,
+  });
+
+  final String label;
+  final String? role;
+  final int? order;
+}
+
+class _HorizontalPathway extends StatelessWidget {
+  const _HorizontalPathway({required this.nodes});
+
+  final List<_PathwayNode> nodes;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          for (var index = 0; index < nodes.length; index++) ...[
+            SizedBox(width: 150, child: _PathwayNodeCard(node: nodes[index])),
+            if (index != nodes.length - 1)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 6),
+                child: Icon(
+                  Icons.arrow_forward,
+                  size: 18,
+                  color: NbsColors.mutedGrey,
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _VerticalPathway extends StatelessWidget {
+  const _VerticalPathway({required this.nodes});
+
+  final List<_PathwayNode> nodes;
+
+  @override
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (var index = 0; index < nodes.length; index++) ...[
+            _PathwayNodeCard(node: nodes[index]),
+            if (index != nodes.length - 1)
+              const Padding(
+                padding: EdgeInsets.only(left: 16, top: 4, bottom: 4),
+                child: Icon(
+                  Icons.arrow_downward,
+                  size: 18,
+                  color: NbsColors.mutedGrey,
+                ),
+              ),
+          ],
+        ],
+      );
+}
+
+class _PathwayNodeCard extends StatelessWidget {
+  const _PathwayNodeCard({required this.node});
+
+  final _PathwayNode node;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: NbsColors.wetlandGreen.withValues(alpha: 0.055),
+          borderRadius: BorderRadius.circular(8),
+          border:
+              Border.all(color: NbsColors.wetlandGreen.withValues(alpha: 0.18)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              node.order == null
+                  ? node.label
+                  : 'Step ${node.order}: ${node.label}',
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+            if (node.role != null && node.role!.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                _titleFromSnake(node.role!),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: NbsColors.mutedGrey,
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ],
+          ],
+        ),
+      );
+}
+
+class _SmallStatusPill extends StatelessWidget {
+  const _SmallStatusPill({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        decoration: BoxDecoration(
+          color: NbsColors.deepNavy.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: NbsColors.cardBorder),
+        ),
+        child: Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+        ),
+      );
 }
 
 class TrainRecommendationCard extends StatelessWidget {
@@ -4197,14 +4551,7 @@ class TrainRecommendationCard extends StatelessWidget {
             emptyText: 'No additional train-specific condition is recorded.',
           ),
           const SizedBox(height: 12),
-          _TextBlockList(
-            title: 'Treatment sequence',
-            values: [
-              for (final step in train.treatmentSequence)
-                '${step['step_order']}. ${step['step_label']} (${step['role'] ?? 'step'})',
-            ],
-            emptyText: 'No treatment sequence is recorded.',
-          ),
+          _TreatmentTrainPathwayCard(train: train),
           const SizedBox(height: 12),
           _TextBlockList(
             title: 'Other use-case notes',
@@ -8468,6 +8815,64 @@ String _criterionNameLabel(String value) {
   }
   if (normalized.contains('o&m')) return 'O&M practicality';
   return _titleFromSnake(value);
+}
+
+List<CriteriaExplanation> _activeCriteriaExplanation(
+  TrainRecommendation? train,
+) {
+  const order = ['C1', 'C2', 'C3', 'C4', 'C6', 'C7', 'C8'];
+  final rows = [
+    for (final item
+        in train?.criteriaExplanation ?? const <CriteriaExplanation>[])
+      if (order.contains(item.code)) item,
+  ];
+  rows.sort((a, b) => order.indexOf(a.code).compareTo(order.indexOf(b.code)));
+  return rows;
+}
+
+double _criterionBarValue(CriteriaExplanation item) {
+  final value = item.weightedContribution ??
+      (item.score != null && item.weight != null
+          ? item.score! * item.weight!
+          : item.score);
+  return (value ?? 0).clamp(0.0, 1.0).toDouble();
+}
+
+String _criterionContributionStatus(CriteriaExplanation item) {
+  final contribution = item.weightedContribution ??
+      (item.score != null && item.weight != null
+          ? item.score! * item.weight!
+          : null);
+  if (contribution != null) {
+    if (contribution >= 0.12) return 'Strong contributor';
+    if (contribution >= 0.06) return 'Moderate contributor';
+    if (contribution > 0) return 'Limited contributor';
+    return 'Not available';
+  }
+  if (item.score != null) return 'Score only';
+  return 'Not available';
+}
+
+List<CriteriaExplanation> _topCriteriaDrivers(TrainRecommendation? train) {
+  final rows = [
+    for (final item in _activeCriteriaExplanation(train))
+      if (item.weightedContribution != null) item,
+  ];
+  rows.sort(
+    (a, b) => b.weightedContribution!.compareTo(a.weightedContribution!),
+  );
+  return rows;
+}
+
+String _pathwayPreviewSummary(TrainRecommendation train) {
+  if (train.trainPathway.isEmpty) {
+    return 'Treatment sequence details are not available for this train.';
+  }
+  return [
+    'Influent/source',
+    ...train.trainPathway.map((step) => step.componentName),
+    'Outlet / selected target screening',
+  ].join(' -> ');
 }
 
 String _sentenceFromSnake(String value) {

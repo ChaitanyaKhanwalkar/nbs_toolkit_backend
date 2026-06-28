@@ -10,7 +10,7 @@ const planningLevelDisclaimer =
 const _targetMethodNote =
     'Target-use-case selection determines standards and AHP-Fuzzy AHP weight set.';
 const _methodLabel =
-    'Final v1 AHP-Fuzzy AHP weighted TOPSIS after safety/applicability screening';
+    'Final v1 AHP-Fuzzy AHP weighted TOPSIS after safety/applicability screening.';
 
 class RecommendationReport {
   RecommendationReport._({
@@ -48,6 +48,7 @@ class RecommendationReport {
         },
     ];
     final pollutionSource = input.context['pollution_source_type']?.toString();
+    final rankingDrivers = _rankingDrivers(train);
     final trainPayload = train == null
         ? null
         : {
@@ -59,9 +60,32 @@ class RecommendationReport {
             'implementation_role': train.implementationRole,
             'applicability_status': train.applicabilityStatus,
             'why_recommended': train.whyRecommended,
+            'ranking_drivers': rankingDrivers,
+            'criteria_explanation': [
+              for (final item in train.criteriaExplanation)
+                if (item.code != 'C5')
+                  {
+                    'criterion_code': item.code,
+                    'criterion_name': item.label,
+                    'score': item.score,
+                    'weight': item.weight,
+                    'weighted_contribution': item.weightedContribution,
+                    'benefit_or_cost': item.benefitOrCost,
+                    'status': item.status,
+                  },
+            ],
             'use_case_suitability': train.useCaseVerdicts,
             'pretreatment_requirements': train.pretreatmentRequirements,
             'treatment_sequence': train.treatmentSequence,
+            'treatment_train_pathway': [
+              for (final step in train.trainPathway)
+                {
+                  'step_order': step.stepOrder,
+                  'component_name': step.componentName,
+                  'component_role': step.componentRole,
+                  'nbs_id': step.nbsId,
+                },
+            ],
             'pollutant_gaps': train.pollutantGapBreakdown,
             'important_limitations': train.caveats,
             'data_gaps': train.dataGaps,
@@ -222,6 +246,7 @@ String _buildSummary(
   RecommendationResponse response,
   TrainRecommendation? train,
 ) {
+  final rankingDrivers = _rankingDrivers(train);
   final lines = <String>[
     'NARMADA NBS PLANNING-LEVEL RECOMMENDATION',
     'Method: $_methodLabel',
@@ -252,6 +277,10 @@ String _buildSummary(
       'Result confidence: ${_confidenceLabel(train)}',
       if (train.implementationRole != null) 'Role: ${train.implementationRole}',
       if (train.whyRecommended.isNotEmpty) 'Why: ${train.whyRecommended.first}',
+      if (rankingDrivers.isNotEmpty)
+        'Ranking drivers: ${rankingDrivers.join('; ')}',
+      if (train.trainPathway.isNotEmpty)
+        'Treatment train pathway: ${_pathwaySummary(train)}',
       if (train.pretreatmentRequirements.isNotEmpty)
         'Pretreatment: ${train.pretreatmentRequirements.join('; ')}',
       if (train.useCaseVerdicts.isNotEmpty)
@@ -465,6 +494,31 @@ String _pollutionSourceLabel(String? value) => switch (value) {
 String _confidenceLabel(TrainRecommendation train) {
   if ((train.confidenceScore ?? 0) <= 0) return 'Data-limited';
   return train.confidencePercent;
+}
+
+List<String> _rankingDrivers(TrainRecommendation? train) {
+  if (train == null) return const [];
+  final rows = [
+    for (final item in train.criteriaExplanation)
+      if (item.code != 'C5' && item.weightedContribution != null) item,
+  ]..sort(
+      (a, b) => b.weightedContribution!.compareTo(a.weightedContribution!),
+    );
+  return [
+    for (final item in rows.take(3))
+      '${item.code} ${item.label}: ${item.weightedContributionLabel}',
+  ];
+}
+
+String _pathwaySummary(TrainRecommendation train) {
+  if (train.trainPathway.isEmpty) {
+    return 'Treatment sequence details are not available for this train.';
+  }
+  return [
+    'Influent/source',
+    ...train.trainPathway.map((step) => step.componentName),
+    'Outlet / selected target screening',
+  ].join(' -> ');
 }
 
 String _mapStatus(LocationContext location) {

@@ -157,6 +157,49 @@ void main() {
             'discharge_inland': {'verdict': 'pass'},
           },
           'applicability_result': {'status': 'allowed'},
+          'criteria_explanation': [
+            {
+              'criterion_code': 'C1',
+              'criterion_name': 'treatment_fit',
+              'score': 0.82,
+              'weight': 0.24,
+              'weighted_contribution': 0.14,
+              'benefit_or_cost': 'benefit',
+              'status': 'known',
+            },
+            {
+              'criterion_code': 'C2',
+              'criterion_name': 'standard_fit',
+              'score': 0.7,
+              'weight': 0.24,
+              'weighted_contribution': 0.08,
+              'benefit_or_cost': 'benefit',
+              'status': 'known',
+            },
+            {
+              'criterion_code': 'C5',
+              'criterion_name': 'health_risk',
+              'score': 0.5,
+              'weight': 0.1,
+              'weighted_contribution': 0.05,
+              'benefit_or_cost': 'benefit',
+              'status': 'reserved',
+            },
+          ],
+          'train_pathway': [
+            {
+              'step_order': 1,
+              'component_name': 'Settler',
+              'component_role': 'primary',
+              'nbs_id': null,
+            },
+            {
+              'step_order': 2,
+              'component_name': 'ABR',
+              'component_role': 'secondary',
+              'nbs_id': 17,
+            },
+          ],
           'treatment_sequence': [
             {'step_order': 1, 'step_label': 'ABR', 'role': 'primary'},
           ],
@@ -299,6 +342,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Planning-level report preview'), findsOneWidget);
     expect(find.text('Design readiness'), findsWidgets);
+    expect(find.text('Treatment train pathway'), findsOneWidget);
+    expect(find.text('Decision X-ray summary'), findsOneWidget);
     expect(find.text('Sizing and land'), findsOneWidget);
     expect(find.text('Scenario comparison'), findsOneWidget);
     expect(find.textContaining('Treatment design flow'), findsWidgets);
@@ -337,6 +382,18 @@ void main() {
     await tester.ensureVisible(find.text('Why this result'));
     await tester.tap(find.text('Why this result'));
     await tester.pumpAndSettle();
+    expect(
+      find.text('Decision X-ray: why this train ranked here'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('C1'), findsWidgets);
+    expect(find.textContaining('Treatment fit'), findsWidgets);
+    expect(
+        find.textContaining('C5 health-risk remains reserved'), findsOneWidget);
+    expect(find.textContaining('C5 Health'), findsNothing);
+    expect(find.text('Treatment train pathway'), findsOneWidget);
+    expect(find.textContaining('Step 1: Settler'), findsOneWidget);
+    expect(find.textContaining('Step 2: ABR'), findsOneWidget);
     expect(find.text('Show technical details'), findsOneWidget);
     expect(find.textContaining('A0 applicability screening'), findsNothing);
     await tester.ensureVisible(find.text('Show technical details'));

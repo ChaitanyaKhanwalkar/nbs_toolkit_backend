@@ -203,6 +203,12 @@ class TrainRecommendationEngine:
         )
         for index, candidate in enumerate(candidates, start=1):
             candidate["rank"] = index
+            candidate["criteria_explanation"] = _criteria_explanation(
+                candidate.get("criteria_breakdown", []),
+            )
+            candidate["train_pathway"] = _train_pathway(
+                candidate.get("treatment_sequence", []),
+            )
             candidate.update(
                 _implementation_explanation(
                     candidate,
@@ -246,18 +252,21 @@ def _train_applicability(
             )
         elif target in {"nbs", "family"}:
             target_matches = any(
-                _target_matches(
-                    CandidateFilterResult(
-                        nbs_id=step.get("nbs_id"),
-                        nbs_name=step.get("nbs_name"),
-                        nbs_family=step.get("nbs_family"),
-                        eligibility_status="eligible",
-                    ),
-                    rule,
-                )
+                _component_rule_matches(step, rule, context)
                 for step in steps
                 if step.get("nbs_id") is not None
             )
+            if target_matches:
+                matched = True
+                industrial_advisory = False
+                hit = _rule_hit(rule).to_dict()
+                hit["matched_target_level"] = target
+                if _global_rule_should_be_advisory(hit):
+                    hit["original_rule_type"] = hit.get("rule_type")
+                    hit["rule_type"] = "conditional_filter"
+                    hit["global_safety_advisory"] = True
+                hits.append(hit)
+                continue
         matched = target_matches and _factor_matches(rule, context)
         industrial_advisory = (
             target_matches
@@ -316,6 +325,44 @@ def _train_applicability(
             hit.get("confidence_modifier") or 0.0 for hit in hits
         ),
     }
+
+
+def _component_rule_matches(
+    step: dict[str, Any],
+    rule: dict[str, Any],
+    context: dict[str, Any],
+) -> bool:
+    """Return whether a component-targeted rule matches a train step."""
+
+    candidate = CandidateFilterResult(
+        nbs_id=step.get("nbs_id"),
+        nbs_name=step.get("nbs_name"),
+        nbs_family=step.get("nbs_family"),
+        eligibility_status="eligible",
+    )
+    if not _target_matches(candidate, rule):
+        return False
+
+    step_context = dict(context)
+    for key, value in _step_rule_context(step).items():
+        step_context[key] = value
+    return _factor_matches(rule, step_context)
+
+
+def _step_rule_context(step: dict[str, Any]) -> dict[str, Any]:
+    """Infer rule placement facts from treatment-train component metadata."""
+
+    role = normalize_match_key(step.get("role"))
+    family = normalize_match_key(step.get("nbs_family"))
+    name = normalize_match_key(step.get("nbs_name") or step.get("step_label"))
+    if (
+        role in {"disposal", "recharge"}
+        or family == "infiltration_soil_systems"
+        or "soak" in name
+        or "leach" in name
+    ):
+        return {"intervention_position": "soil_disposal_or_recharge"}
+    return {}
 
 
 def _global_rule_should_be_advisory(hit: dict[str, Any]) -> bool:
@@ -650,6 +697,7 @@ def _apply_topsis(candidates: list[dict[str, Any]], weights: list[dict[str, Any]
                 "normalized_value": normalized[code][index],
                 "weight": normalized_weights[code],
                 "weighted_value": weighted[code][index],
+                "benefit_or_cost": weight_by_code[code].get("benefit_or_cost"),
                 "data_status": "known" if row["criteria_raw"].get(code) is not None else "unknown_median_imputed",
             }
             for code in active_codes
@@ -1082,7 +1130,16 @@ def _implementation_explanation(
 def _site_rule_context(site: dict[str, Any] | None) -> dict[str, Any]:
     if not site:
         return {}
-    return {"stream_order": site.get("stream_order_strahler") or site.get("stream_order"), "slope": site.get("slope_mean"), "builtup_frac": site.get("builtup_frac"), "agri_frac": site.get("agri_frac"), "dom_land_cover": site.get("dom_land_cover")}
+    infiltration_class = site.get("infiltration_class")
+    return {
+        "stream_order": site.get("stream_order_strahler") or site.get("stream_order"),
+        "slope": site.get("slope_mean"),
+        "builtup_frac": site.get("builtup_frac"),
+        "agri_frac": site.get("agri_frac"),
+        "dom_land_cover": site.get("dom_land_cover"),
+        "infiltration_class": infiltration_class,
+        "soil_infiltration": infiltration_class,
+    }
 
 
 def _input_mode(source_type: str | None) -> str:
@@ -1091,6 +1148,45 @@ def _input_mode(source_type: str | None) -> str:
 
 def _treatment_sequence(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [{key: row.get(key) for key in ("step_order", "step_label", "role", "nbs_id", "nbs_name")} for row in rows]
+
+
+def _criteria_explanation(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return UI-facing TOPSIS criteria diagnostics without recalculating rank."""
+
+    return [
+        {
+            "criterion_code": row.get("criterion_code"),
+            "criterion_name": row.get("criterion_name"),
+            "score": row.get("normalized_value"),
+            "raw_value": row.get("raw_value"),
+            "weight": row.get("weight"),
+            "weighted_contribution": row.get("weighted_value"),
+            "benefit_or_cost": row.get("benefit_or_cost"),
+            "status": row.get("data_status"),
+            "note": (
+                "Unknown value was median-imputed for TOPSIS geometry."
+                if row.get("data_status") == "unknown_median_imputed"
+                else None
+            ),
+        }
+        for row in rows
+        if row.get("criterion_code") != "C5"
+    ]
+
+
+def _train_pathway(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return ordered treatment-train steps for explanation visuals."""
+
+    return [
+        {
+            "step_order": row.get("step_order"),
+            "component_name": row.get("step_label") or row.get("nbs_name"),
+            "component_role": row.get("role"),
+            "implementation_role": row.get("role"),
+            "nbs_id": row.get("nbs_id"),
+        }
+        for row in rows
+    ]
 
 
 def _nbs_components(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:

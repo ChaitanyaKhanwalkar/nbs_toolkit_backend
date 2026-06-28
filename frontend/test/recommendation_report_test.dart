@@ -42,6 +42,47 @@ void main() {
         'confidence_score': 0.52,
         'confidence_label': 'medium',
         'why_recommended': ['Suitable for decentralized sewage treatment.'],
+        'criteria_explanation': [
+          {
+            'criterion_code': 'C1',
+            'criterion_name': 'treatment_fit',
+            'score': 0.82,
+            'weight': 0.24,
+            'weighted_contribution': 0.14,
+            'benefit_or_cost': 'benefit',
+            'status': 'known',
+          },
+          {
+            'criterion_code': 'C7',
+            'criterion_name': 'footprint',
+            'score': 0.7,
+            'weight': 0.1,
+            'weighted_contribution': 0.07,
+            'benefit_or_cost': 'cost',
+            'status': 'known',
+          },
+          {
+            'criterion_code': 'C5',
+            'criterion_name': 'health_risk',
+            'score': 0.5,
+            'weight': 0.1,
+            'weighted_contribution': 0.05,
+            'status': 'reserved',
+          },
+        ],
+        'train_pathway': [
+          {
+            'step_order': 1,
+            'component_name': 'Settler',
+            'component_role': 'primary',
+          },
+          {
+            'step_order': 2,
+            'component_name': 'ABR',
+            'component_role': 'secondary',
+            'nbs_id': 17,
+          },
+        ],
         'pretreatment_requirements': ['Screening and settling required.'],
         'data_gaps': ['Confirm hydraulic loading.'],
         'caveats': ['Keep the train off-channel.'],
@@ -194,6 +235,20 @@ void main() {
       decoded['recommended_treatment_train']['name'],
       'DEWATS modular train',
     );
+    expect(
+      decoded['recommended_treatment_train']['ranking_drivers'],
+      isNotEmpty,
+    );
+    expect(
+      decoded['recommended_treatment_train']['criteria_explanation']
+          .map((row) => row['criterion_code']),
+      isNot(contains('C5')),
+    );
+    expect(
+      decoded['recommended_treatment_train']['treatment_train_pathway'][0]
+          ['component_name'],
+      'Settler',
+    );
     expect(decoded['individual_nbs_components'], isNotEmpty);
     expect(decoded['sizing_and_land'], isNotEmpty);
     expect(decoded['scenario_comparison']['options'], isNotEmpty);
@@ -212,6 +267,8 @@ void main() {
     expect(report.baseFileName, 'narmada_nbs_recommendation_report');
     expect(report.csv, startsWith('\uFEFF"section","item","field","value"'));
     expect(report.csv, contains('"recommended_treatment_train"'));
+    expect(report.csv, contains('"ranking_drivers"'));
+    expect(report.csv, contains('"treatment_train_pathway"'));
     expect(report.csv, contains('"selected_target_use_case"'));
     expect(report.csv, contains('"target_status"'));
     expect(report.csv, contains('"scoring_role"'));
@@ -228,6 +285,11 @@ void main() {
     );
     expect(report.summary, contains('Pollution source: Domestic sewage'));
     expect(report.summary, contains('Screening match: 78.0%'));
+    expect(report.summary, contains('Ranking drivers: C1 Treatment fit'));
+    expect(
+      report.summary,
+      contains('Treatment train pathway: Influent/source -> Settler -> ABR'),
+    );
     expect(report.summary, contains('Design readiness: Ready for planning'));
     expect(
       report.summary,
@@ -236,5 +298,32 @@ void main() {
     expect(report.summary, contains('Parameter coverage: 1 used in scoring'));
     expect(report.summary, contains('Best overall fit'));
     expect(report.summary, contains(planningLevelDisclaimer));
+  });
+
+  test('handles missing pathway data without inventing steps', () {
+    final partial = RecommendationResponse.fromJson({
+      'workflow_status': 'completed',
+      'use_case': 'discharge_inland',
+      'ranked_trains': [
+        {
+          'train_id': 1,
+          'name': 'Data-limited train',
+          'rank': 1,
+          'match_score': 0.4,
+          'applicability_result': {'status': 'allowed'},
+        },
+      ],
+    });
+
+    final train = partial.rankedTrains.single;
+    final report = RecommendationReport.fromResponse(partial);
+    final decoded = jsonDecode(report.json) as Map<String, dynamic>;
+
+    expect(train.trainPathway, isEmpty);
+    expect(train.criteriaExplanation, isEmpty);
+    expect(
+      decoded['recommended_treatment_train']['treatment_train_pathway'],
+      isEmpty,
+    );
   });
 }

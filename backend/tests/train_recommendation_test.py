@@ -376,6 +376,27 @@ def test_industrial_extreme_ph_does_not_rank_wetland_only_train_first() -> None:
     assert "neutralization" in caveats
 
 
+def test_indirasagar_low_infiltration_cautions_on_site_disposal() -> None:
+    """APP_RULE_023 should reach train ranking through canonical site context."""
+
+    result = _rank(
+        region_id=27,
+        context={"pollution_source_type": "domestic"},
+    )
+
+    on_site = next(
+        row for row in result["ranked_trains"] if row["name"] == "On-site disposal"
+    )
+    triggered_ids = {
+        rule["rule_id"]
+        for rule in on_site["applicability_result"]["triggered_rules"]
+    }
+
+    assert on_site["applicability_result"]["status"] == "conditional"
+    assert "APP_RULE_023" in triggered_ids
+    assert any("low-infiltration" in caveat for caveat in on_site["caveats"])
+
+
 def test_top_train_changes_with_source_chemistry_and_high_order_context() -> None:
     """Ranking should respond to source, chemistry, and placement inputs."""
 
@@ -648,6 +669,43 @@ def test_ranked_train_plants_exclude_invasive_catalogue_rows() -> None:
         for row in result["ranked_trains"]
         for item in row["criteria_breakdown"]
     )
+
+
+def test_ranked_train_exposes_explainable_criteria_without_c5() -> None:
+    result = _rank()
+    top = result["ranked_trains"][0]
+    explanation = top["criteria_explanation"]
+
+    assert explanation
+    assert {item["criterion_code"] for item in explanation}.issubset(
+        {"C1", "C2", "C3", "C4", "C6", "C7", "C8"}
+    )
+    assert "C5" not in {item["criterion_code"] for item in explanation}
+    assert all("weighted_contribution" in item for item in explanation)
+    assert all("score" in item for item in explanation)
+
+
+def test_train_pathway_preserves_step_order() -> None:
+    result = _rank()
+    train = next(row for row in result["ranked_trains"] if row["train_id"] == 3)
+    pathway = train["train_pathway"]
+
+    assert pathway
+    assert [row["step_order"] for row in pathway] == sorted(
+        row["step_order"] for row in pathway
+    )
+    assert pathway[0]["component_name"]
+    assert all("nbs_id" in row for row in pathway)
+
+
+def test_train_pathway_missing_steps_is_empty_not_invented() -> None:
+    result = _rank()
+    sequence_by_id = {
+        int(row["train_id"]): row["train_pathway"]
+        for row in result["ranked_trains"]
+    }
+
+    assert all(isinstance(pathway, list) for pathway in sequence_by_id.values())
 
 
 def test_csv_upload_returns_contaminant_gaps() -> None:

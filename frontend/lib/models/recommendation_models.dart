@@ -654,10 +654,12 @@ class TrainRecommendation {
     required this.pollutantGapBreakdown,
     required this.useCaseVerdicts,
     required this.criteriaBreakdown,
+    required this.criteriaExplanation,
     required this.applicabilityStatus,
     required this.whyRecommended,
     required this.caveats,
     required this.treatmentSequence,
+    required this.trainPathway,
     required this.nbsComponents,
     required this.suitablePlants,
     required this.sourceIds,
@@ -683,10 +685,12 @@ class TrainRecommendation {
   final List<Map<String, dynamic>> pollutantGapBreakdown;
   final Map<String, String> useCaseVerdicts;
   final List<Map<String, dynamic>> criteriaBreakdown;
+  final List<CriteriaExplanation> criteriaExplanation;
   final String applicabilityStatus;
   final List<String> whyRecommended;
   final List<String> caveats;
   final List<Map<String, dynamic>> treatmentSequence;
+  final List<TrainPathwayStep> trainPathway;
   final List<Map<String, dynamic>> nbsComponents;
   final List<Map<String, dynamic>> suitablePlants;
   final List<int> sourceIds;
@@ -701,6 +705,12 @@ class TrainRecommendation {
 
   factory TrainRecommendation.fromJson(Map<String, dynamic> json) {
     final verdictRows = json['all_use_case_verdicts'];
+    final criteriaRows = (json['criteria_explanation'] as List?) ??
+        (json['criteria_breakdown'] as List?) ??
+        const [];
+    final pathwayRows = (json['train_pathway'] as List?) ??
+        (json['treatment_sequence'] as List?) ??
+        const [];
     return TrainRecommendation(
       trainId: _intValue(json['train_id']),
       name: _stringValue(json['name'], fallback: 'Treatment train'),
@@ -731,6 +741,11 @@ class TrainRecommendation {
               ?.whereType<Map<String, dynamic>>()
               .toList() ??
           <Map<String, dynamic>>[],
+      criteriaExplanation: criteriaRows
+          .whereType<Map<String, dynamic>>()
+          .map(CriteriaExplanation.fromJson)
+          .where((item) => item.code != 'C5')
+          .toList(),
       applicabilityStatus: _stringValue(
         (json['applicability_result'] as Map<String, dynamic>?)?['status'],
         fallback: 'unknown',
@@ -741,6 +756,10 @@ class TrainRecommendation {
               ?.whereType<Map<String, dynamic>>()
               .toList() ??
           <Map<String, dynamic>>[],
+      trainPathway: pathwayRows
+          .whereType<Map<String, dynamic>>()
+          .map(TrainPathwayStep.fromJson)
+          .toList(),
       nbsComponents: (json['nbs_components'] as List?)
               ?.whereType<Map<String, dynamic>>()
               .toList() ??
@@ -765,6 +784,92 @@ class TrainRecommendation {
 
   String get matchPercent => _percent(matchScore);
   String get confidencePercent => _percent(confidenceScore);
+}
+
+class CriteriaExplanation {
+  CriteriaExplanation({
+    required this.code,
+    required this.name,
+    required this.score,
+    required this.weight,
+    required this.weightedContribution,
+    required this.benefitOrCost,
+    required this.status,
+    required this.note,
+  });
+
+  final String code;
+  final String name;
+  final double? score;
+  final double? weight;
+  final double? weightedContribution;
+  final String? benefitOrCost;
+  final String? status;
+  final String? note;
+
+  factory CriteriaExplanation.fromJson(Map<String, dynamic> json) {
+    return CriteriaExplanation(
+      code: _stringValue(
+        json['criterion_code'],
+        fallback: _stringValue(json['code']),
+      ),
+      name: _stringValue(
+        json['criterion_name'],
+        fallback: _stringValue(json['name'], fallback: 'criterion'),
+      ),
+      score: _nullableDouble(json['score']) ??
+          _nullableDouble(json['normalized_value']),
+      weight: _nullableDouble(json['weight']),
+      weightedContribution: _nullableDouble(json['weighted_contribution']) ??
+          _nullableDouble(json['weighted_value']),
+      benefitOrCost: _nullableString(json['benefit_or_cost']),
+      status: _nullableString(json['status']) ??
+          _nullableString(json['data_status']),
+      note: _nullableString(json['note']),
+    );
+  }
+
+  String get label {
+    final mapped = _criterionDisplayName(code, name);
+    return mapped.isEmpty ? code : mapped;
+  }
+
+  String get scoreLabel => _decimalLabel(score);
+  String get weightLabel => _decimalLabel(weight);
+  String get weightedContributionLabel => _decimalLabel(weightedContribution);
+}
+
+class TrainPathwayStep {
+  TrainPathwayStep({
+    required this.stepOrder,
+    required this.componentName,
+    required this.componentRole,
+    required this.implementationRole,
+    required this.nbsId,
+  });
+
+  final int? stepOrder;
+  final String componentName;
+  final String? componentRole;
+  final String? implementationRole;
+  final int? nbsId;
+
+  factory TrainPathwayStep.fromJson(Map<String, dynamic> json) {
+    return TrainPathwayStep(
+      stepOrder: _nullableInt(json['step_order']),
+      componentName: _stringValue(
+        json['component_name'],
+        fallback: _stringValue(
+          json['step_label'],
+          fallback: _stringValue(json['nbs_name'], fallback: 'Treatment step'),
+        ),
+      ),
+      componentRole: _nullableString(json['component_role']) ??
+          _nullableString(json['role']),
+      implementationRole: _nullableString(json['implementation_role']),
+      nbsId: _nullableInt(json['nbs_id']),
+    );
+  }
 }
 
 class Exceedance {
@@ -1034,19 +1139,7 @@ class CriterionBreakdown {
   }
 
   String get label {
-    final normalized = criterionName.trim().toLowerCase();
-    if (normalized == 'om' ||
-        normalized == 'o_m' ||
-        normalized == 'om_simplicity' ||
-        normalized.contains('o&m') ||
-        (normalized.contains('operation') &&
-            normalized.contains('maintenance'))) {
-      return 'O&M practicality';
-    }
-    final readable = criterionName.replaceAll('_', ' ');
-    return readable.isEmpty
-        ? criterionName
-        : '${readable[0].toUpperCase()}${readable.substring(1)}';
+    return _criterionDisplayName('', criterionName);
   }
 
   String get normalizedPercent => _percent(normalizedValue);
@@ -1110,4 +1203,40 @@ List<int> _intList(Object? value) {
     return const [];
   }
   return value.map(_nullableInt).whereType<int>().toList();
+}
+
+String _decimalLabel(double? value) {
+  if (value == null) {
+    return 'Not available';
+  }
+  return value.toStringAsFixed(3);
+}
+
+String _criterionDisplayName(String code, String name) {
+  final byCode = switch (code) {
+    'C1' => 'Treatment fit',
+    'C2' => 'Standard fit',
+    'C3' => 'Site fit',
+    'C4' => 'Source fit',
+    'C6' => 'Hydrologic fit',
+    'C7' => 'Footprint requirement',
+    'C8' => 'O&M practicality',
+    _ => '',
+  };
+  if (byCode.isNotEmpty) {
+    return byCode;
+  }
+  final normalized = name.trim().toLowerCase();
+  if (normalized == 'om' ||
+      normalized == 'o_m' ||
+      normalized == 'om_simplicity' ||
+      normalized.contains('o&m') ||
+      (normalized.contains('operation') &&
+          normalized.contains('maintenance'))) {
+    return 'O&M practicality';
+  }
+  final readable = name.replaceAll('_', ' ');
+  return readable.isEmpty
+      ? name
+      : '${readable[0].toUpperCase()}${readable.substring(1)}';
 }

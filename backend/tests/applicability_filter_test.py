@@ -133,3 +133,46 @@ def test_industrial_source_adds_pretreatment_caveat() -> None:
     assert applicability.results[0].confidence_modifier_total == -0.1
     assert filtered.results[0].eligibility_status == ELIGIBLE
     assert "pretreatment" in filtered.results[0].caution_flags[0].lower()
+
+
+def test_low_infiltration_category_token_matches_simple_low_value() -> None:
+    """The canonical low-infiltration soil rule must match compact site values."""
+
+    candidate = CandidateFilterResult(
+        nbs_id=18,
+        nbs_name="Soak Pit / Leach Pit",
+        eligibility_status=ELIGIBLE,
+        nbs_family="Infiltration & Soil Systems",
+        nbs_family_id=4,
+    )
+    input_context = InputNormalizationEngine().normalize(
+        {
+            "use_case": "discharge_inland",
+            "context": {},
+        }
+    )
+    rules = [
+        {
+            "rule_id": "APP_RULE_023",
+            "target_level": "family",
+            "nbs_family": "Infiltration & Soil Systems",
+            "factor_name": "soil_infiltration",
+            "category_value": "low_infiltration_or_rocky_or_shallow_soil",
+            "rule_type": "hard_filter",
+            "severity": "critical",
+            "action": "remove_infiltration_system",
+            "user_message": "Soak/leach/infiltration systems are not suitable.",
+            "technical_reason": "These systems depend on adequate infiltration.",
+        }
+    ]
+
+    applicability, filtered = ApplicabilityFilterEngine().apply(
+        _bundle(candidate),
+        input_context=input_context,
+        site_context={"soil_infiltration": "low"},
+        rules=rules,
+    )
+
+    assert applicability.rejected_count == 1
+    assert applicability.results[0].triggered_rules[0].rule_id == "APP_RULE_023"
+    assert filtered.results[0].eligibility_status == INELIGIBLE
