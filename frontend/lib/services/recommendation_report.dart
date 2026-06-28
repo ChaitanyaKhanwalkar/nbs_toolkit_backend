@@ -290,7 +290,7 @@ String _coverageSummary(List<Map<String, dynamic>> rows) {
   const labels = {
     'used_in_scoring': 'used in scoring',
     'supporting_context': 'used as supporting context',
-    'read_not_assessed': 'read but not assessed yet',
+    'read_not_assessed': 'used as supporting context',
     'skipped': 'not recognized or skipped',
   };
   return counts.entries

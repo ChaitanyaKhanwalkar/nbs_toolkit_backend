@@ -124,9 +124,114 @@ def test_recognized_parameter_without_target_is_read_not_silently_ignored() -> N
     )
 
     row = result["ranked_trains"][0]["pollutant_gap_breakdown"][0]
-    assert row["coverage_category"] == "read_not_assessed"
-    assert row["coverage_label"] == "Read, but not scored yet."
+    assert row["coverage_category"] == "supporting_context"
+    assert row["coverage_label"] == "Used as supporting context."
     assert row["observed_value"] == 2.5
+
+
+def test_ph_is_scored_against_stored_discharge_range() -> None:
+    """pH should compare against stored range standards without unit conversion."""
+
+    client = TestClient(app)
+    acidic = client.post(
+        "/api/v1/recommend",
+        json={
+            "use_case": "discharge_inland",
+            "selected_parameters": ["ph"],
+            "measured_observations": [
+                {"parameter": "ph", "value": 3, "unit": "ph_units"},
+            ],
+            "context": {"workflow_mode": "manual_measured_water_quality"},
+        },
+    )
+    neutral = client.post(
+        "/api/v1/recommend",
+        json={
+            "use_case": "discharge_inland",
+            "selected_parameters": ["ph"],
+            "measured_observations": [
+                {"parameter": "ph", "value": 7, "unit": "ph_units"},
+            ],
+            "context": {"workflow_mode": "manual_measured_water_quality"},
+        },
+    )
+
+    assert acidic.status_code == 200, acidic.text
+    assert neutral.status_code == 200, neutral.text
+    acidic_payload = acidic.json()
+    neutral_payload = neutral.json()
+
+    acidic_gap = acidic_payload["contaminant_gaps"][0]
+    neutral_gap = neutral_payload["contaminant_gaps"][0]
+    assert acidic_gap["parameter"] == "ph"
+    assert acidic_gap["status"] == "outside_range"
+    assert acidic_gap["limit_low"] == 5.5
+    assert acidic_gap["limit_high"] == 9.0
+    assert neutral_gap["status"] == "within_standard"
+
+    acidic_coverage = acidic_payload["parameter_coverage"][0]
+    neutral_coverage = neutral_payload["parameter_coverage"][0]
+    assert acidic_coverage["target_available"] is True
+    assert acidic_coverage["target_status"] == "exceeds_selected_target"
+    assert acidic_coverage["scoring_role"] == "used_in_scoring"
+    assert neutral_coverage["target_status"] == "within_selected_target"
+    assert "pH adjustment or neutralization" in (
+        acidic_payload["ranked_trains"][0]["pollutant_gap_breakdown"][0]["severity"]
+    )
+
+
+def test_irrigation_ec_alias_uses_stored_conductivity_target() -> None:
+    """EC aliases should match the stored irrigation conductivity standard."""
+
+    response = TestClient(app).post(
+        "/api/v1/recommend",
+        json={
+            "use_case": "irrigation",
+            "selected_parameters": ["ec"],
+            "measured_observations": [
+                {"parameter": "ec", "value": 4200, "unit": "us_cm"},
+            ],
+            "context": {"workflow_mode": "manual_measured_water_quality"},
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    gap = payload["contaminant_gaps"][0]
+    assert gap["parameter"] == "ec"
+    assert gap["status"] == "exceeds_standard"
+    assert gap["limit_high"] == 2250.0
+    assert gap["standard_unit"] == "umho_cm"
+    coverage = payload["parameter_coverage"][0]
+    assert coverage["target_available"] is True
+    assert coverage["target_status"] == "exceeds_selected_target"
+    assert coverage["scoring_role"] == "used_in_scoring"
+
+
+def test_drinking_bod_missing_target_remains_supporting_context() -> None:
+    """Stored drinking standards do not contain a BOD target; do not invent one."""
+
+    response = TestClient(app).post(
+        "/api/v1/recommend",
+        json={
+            "use_case": "drinking",
+            "selected_parameters": ["bod"],
+            "measured_observations": [
+                {"parameter": "bod", "value": 8, "unit": "mg_l"},
+            ],
+            "context": {"workflow_mode": "manual_measured_water_quality"},
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    gap = payload["contaminant_gaps"][0]
+    assert gap["status"] == "standard_missing"
+    coverage = payload["parameter_coverage"][0]
+    assert coverage["target_available"] is False
+    assert coverage["target_status"] == "supporting_context_no_stored_target"
+    assert coverage["scoring_role"] == "supporting_context"
+    assert coverage["coverage_label"] == "Used as supporting context."
 
 
 def test_thin_input_confidence_is_capped_below_complete_panel() -> None:
@@ -634,6 +739,19 @@ def test_csv_upload_normalizes_common_parameter_aliases() -> None:
         "phosphate_p",
         "faecal_coliform",
     ]
+
+
+def test_csv_upload_normalizes_conductivity_aliases_and_units() -> None:
+    response = _upload_csv(
+        "parameter,value,unit\nEC,4200,uS/cm\n"
+        "Electrical conductivity,2100,micromho/cm\n"
+        "specific conductance,1800,umho/cm\n"
+    )
+
+    assert response.status_code == 200, response.text
+    rows = response.json()["observations_used"]
+    assert [row["parameter"] for row in rows] == ["ec", "ec", "ec"]
+    assert {row["unit"] for row in rows} == {"umho_cm"}
 
 
 def test_csv_upload_normalizes_common_phosphorus_aliases() -> None:

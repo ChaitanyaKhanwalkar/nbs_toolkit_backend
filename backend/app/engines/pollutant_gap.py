@@ -14,6 +14,57 @@ from app.engines.input_normalization import normalize_match_key, normalize_text
 from app.engines.water_input_assembly import WaterInputBundle
 
 
+PARAMETER_STANDARD_ALIASES = {
+    "ec": "conductivity",
+    "ec_fld": "conductivity",
+    "ec_gen": "conductivity",
+    "electrical_conductivity": "conductivity",
+    "specific_conductance": "conductivity",
+    "conductance": "conductivity",
+    "ph_fld": "ph",
+    "ph_gen": "ph",
+    "po4": "total_phosphorus",
+    "po4_p": "total_phosphorus",
+    "o_po4_p": "total_phosphorus",
+    "phosphate": "total_phosphorus",
+    "phosphate_p": "total_phosphorus",
+    "phosphate_phosphorus": "total_phosphorus",
+    "orthophosphate": "total_phosphorus",
+    "ortho_phosphate": "total_phosphorus",
+    "p_tot": "total_phosphorus",
+    "tp": "total_phosphorus",
+    "p_total": "total_phosphorus",
+}
+
+UNIT_ALIASES = {
+    "mg/l": "mg_l",
+    "mgl": "mg_l",
+    "mg_l": "mg_l",
+    "ph": "ph_units",
+    "ph_unit": "ph_units",
+    "ph_units": "ph_units",
+    "phunits": "ph_units",
+    "us/cm": "umho_cm",
+    "uS/cm": "umho_cm",
+    "us_cm": "umho_cm",
+    "µs/cm": "umho_cm",
+    "μs/cm": "umho_cm",
+    "micros/cm": "umho_cm",
+    "microsiemens/cm": "umho_cm",
+    "microsiemens_per_cm": "umho_cm",
+    "micromho/cm": "umho_cm",
+    "micromhos/cm": "umho_cm",
+    "umho/cm": "umho_cm",
+    "umhos/cm": "umho_cm",
+    "umho_cm": "umho_cm",
+    "mpn/100ml": "mpn_100ml",
+    "mpn_100ml": "mpn_100ml",
+    "per100ml": "per_100ml",
+    "per_100ml": "per_100ml",
+    "ntu": "ntu",
+}
+
+
 @dataclass(slots=True)
 class ParameterGapResult:
     """Gap calculation for one observed parameter."""
@@ -127,7 +178,7 @@ class PollutantGapEngine:
             self._calculate_one(
                 observation=observation,
                 standard=standards_by_parameter.get(
-                    normalize_match_key(observation.get("parameter"))
+                    _canonical_parameter_key(observation.get("parameter"))
                 ),
                 source_type=water_bundle.selected_source_type,
                 bundle_source_ids=water_bundle.source_ids,
@@ -498,10 +549,19 @@ def _standards_by_parameter(standards: Sequence[dict[str, Any]]) -> dict[str, di
 
     mapped = {}
     for standard in standards:
-        parameter_key = normalize_match_key(standard.get("parameter"))
+        parameter_key = _canonical_parameter_key(standard.get("parameter"))
         if parameter_key and parameter_key not in mapped:
             mapped[parameter_key] = standard
     return mapped
+
+
+def _canonical_parameter_key(value: Any) -> str | None:
+    """Return a standards-matching key using only controlled aliases."""
+
+    key = normalize_match_key(value)
+    if key is None:
+        return None
+    return PARAMETER_STANDARD_ALIASES.get(key, key)
 
 
 def _comparison_type(
@@ -552,7 +612,14 @@ def _unit_mismatch(observed_unit: str | None, standard_unit: str | None) -> bool
 
     if not observed_unit or not standard_unit:
         return False
-    return observed_unit.strip().lower() != standard_unit.strip().lower()
+    return _unit_key(observed_unit) != _unit_key(standard_unit)
+
+
+def _unit_key(value: str) -> str:
+    """Normalize unit spellings that are equivalent without conversion."""
+
+    text = value.strip().lower().replace(" ", "").replace("-", "_")
+    return UNIT_ALIASES.get(text, text)
 
 
 def _observation_source_ids(

@@ -3182,7 +3182,7 @@ class _PollutantGapPanel extends StatelessWidget {
                                   : NbsColors.wetlandGreen,
                             ),
                             StatusPill(
-                              label: 'Target limit for selected use case',
+                              label: 'Target limit',
                               value: _targetThresholdLabel(
                                 row['target_threshold'],
                                 parameter: row['parameter']?.toString(),
@@ -3195,7 +3195,7 @@ class _PollutantGapPanel extends StatelessWidget {
                               ),
                             ),
                             StatusPill(
-                              label: 'Parameter coverage',
+                              label: 'Scoring role',
                               value: _coverageLabel(
                                 row['coverage_category']?.toString(),
                               ),
@@ -3205,10 +3205,10 @@ class _PollutantGapPanel extends StatelessWidget {
                                       : NbsColors.warningAmber,
                             ),
                             StatusPill(
-                              label: 'Performance evidence',
+                              label: 'Treatment evidence',
                               value: row['train_addresses_parameter'] == true
                                   ? 'Evidence supports treatment'
-                                  : 'Treatment evidence is not yet sufficient',
+                                  : 'Limited treatment evidence',
                               color: row['train_addresses_parameter'] == true
                                   ? NbsColors.wetlandGreen
                                   : NbsColors.warningAmber,
@@ -3217,14 +3217,12 @@ class _PollutantGapPanel extends StatelessWidget {
                         ),
                         const SizedBox(height: 6),
                         if (row['train_addresses_parameter'] != true) ...[
-                          Text(_targetGapMessage(row)),
+                          const Text(
+                            'Current evidence is limited for this parameter.',
+                          ),
                           const SizedBox(height: 6),
                         ],
-                        Text(
-                          row['severity']?.toString() ??
-                              'Read, but not scored yet.',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
+                        Text(_targetGapMessage(row, fallback: row['severity'])),
                       ],
                     ),
                   ),
@@ -8335,7 +8333,7 @@ String _gapStatusLabel(String? status) {
     'below_target' => 'Within selected target',
     'near_target' => 'Near target',
     'exceeds_target' => 'Exceeds selected target',
-    _ => 'Read, but not scored against a stored target',
+    _ => 'Used as supporting context',
   };
 }
 
@@ -8354,18 +8352,22 @@ String _missingTargetLabel(String? parameter) {
   if (_isPhosphorusParameter(parameter)) {
     return 'No stored target limit for phosphate/TP under the selected use case.';
   }
-  return 'not available for this parameter/use case';
+  return 'Not stored for this use case';
 }
 
-String _targetGapMessage(Map<String, dynamic> row) {
+String _targetGapMessage(Map<String, dynamic> row, {dynamic fallback}) {
   if (row['gap_status'] == 'not_assessed') {
     final parameter = row['parameter']?.toString();
     if (_isPhosphorusParameter(parameter)) {
       return 'No stored target limit for phosphate/TP under the selected use case.';
     }
-    return 'Status: read, but not scored against a stored target.';
+    return 'No stored target limit is available for this parameter under the selected use case.';
   }
-  return 'Treatment evidence is not yet sufficient for this parameter.';
+  final text = fallback?.toString().trim();
+  if (text != null && text.isNotEmpty) return text;
+  return row['gap_status'] == 'below_target'
+      ? 'Target is met.'
+      : 'Target is not met; treatment or adjustment is required.';
 }
 
 bool _isPhosphorusParameter(String? parameter) {
@@ -8506,7 +8508,7 @@ String _readinessStatusLabel(String status) => switch (status) {
 String _coverageLabel(String? category) => switch (category) {
       'used_in_scoring' => 'Used in scoring',
       'supporting_context' => 'Used as supporting context',
-      'read_not_assessed' => 'Read, but not scored yet',
+      'read_not_assessed' => 'Used as supporting context',
       'skipped' => 'Not recognized / skipped',
       _ => 'Coverage not available',
     };
@@ -8534,7 +8536,7 @@ String _displayParameter(String? value, {String? fallback}) {
 String _displayUnit(dynamic value) {
   return switch (value?.toString().toLowerCase()) {
     'mg_l' || 'mg/l' => 'mg/L',
-    'us_cm' || 'us/cm' => 'µS/cm',
+    'us_cm' || 'us/cm' || 'umho_cm' || 'umho/cm' => 'µS/cm',
     'mpn_100ml' || 'mpn/100ml' => 'MPN/100 mL',
     'ntu' => 'NTU',
     'ph' || 'ph_units' => 'pH',

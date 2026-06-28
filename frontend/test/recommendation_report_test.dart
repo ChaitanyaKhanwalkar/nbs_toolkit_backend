@@ -151,6 +151,8 @@ void main() {
         'target_limit': {'limit_high': 30, 'unit': 'mg_l'},
         'target_status': 'exceeds_selected_target',
         'target_available': true,
+        'scoring_role': 'used_in_scoring',
+        'treatment_evidence_status': 'evidence_supports_treatment',
         'coverage_category': 'used_in_scoring',
         'coverage_label': 'Used in scoring.',
       },
@@ -212,6 +214,8 @@ void main() {
     expect(report.csv, contains('"recommended_treatment_train"'));
     expect(report.csv, contains('"selected_target_use_case"'));
     expect(report.csv, contains('"target_status"'));
+    expect(report.csv, contains('"scoring_role"'));
+    expect(report.csv, contains('"treatment_evidence_status"'));
     expect(report.csv, contains('"design_readiness"'));
     expect(report.csv, contains('"location_context"'));
     expect(report.csv, contains('"sizing_and_land"'));

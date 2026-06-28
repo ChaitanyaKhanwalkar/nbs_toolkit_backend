@@ -457,20 +457,25 @@ def _parameter_coverage(
         category = gap.get("coverage_category") or "read_not_assessed"
         target_threshold = gap.get("target_threshold") or {}
         target_available = _target_available(target_threshold)
+        scoring_role = _scoring_role(category)
         rows.append(
             {
                 **observation,
                 "selected_use_case": selected_use_case,
                 "target_limit": target_threshold if target_available else None,
                 "target_available": target_available,
-                "target_status": _target_status(gap.get("gap_status")),
+                "target_status": _target_status(
+                    gap.get("gap_status"),
+                    target_available=target_available,
+                ),
+                "scoring_role": scoring_role,
                 "coverage_category": category,
                 "coverage_label": gap.get("coverage_label")
-                or "Read, but not scored yet.",
+                or _scoring_role_label(scoring_role),
                 "treatment_evidence_status": (
-                    "available"
+                    "evidence_supports_treatment"
                     if gap.get("train_addresses_parameter") is True
-                    else "insufficient"
+                    else "limited_treatment_evidence"
                 ),
             }
         )
@@ -491,6 +496,7 @@ def _parameter_coverage(
                         "target_limit": None,
                         "target_available": False,
                         "target_status": "not_applicable",
+                        "scoring_role": "not_applicable",
                         "coverage_category": "skipped",
                         "coverage_label": "Not recognized or skipped.",
                         "treatment_evidence_status": "not_applicable",
@@ -507,14 +513,36 @@ def _target_available(target_threshold: dict[str, Any]) -> bool:
     )
 
 
-def _target_status(gap_status: Any) -> str:
+def _target_status(gap_status: Any, *, target_available: bool) -> str:
     """Translate engine gap status into export-stable target status wording."""
 
     if gap_status == "below_target":
         return "within_selected_target"
     if gap_status == "exceeds_target":
         return "exceeds_selected_target"
-    return "read_not_scored_against_stored_target"
+    if target_available:
+        return "supporting_context_not_comparable"
+    return "supporting_context_no_stored_target"
+
+
+def _scoring_role(category: str) -> str:
+    """Return export-stable scoring role text for one parameter."""
+
+    if category == "used_in_scoring":
+        return "used_in_scoring"
+    if category in {"supporting_context", "read_not_assessed"}:
+        return "supporting_context"
+    return "not_applicable"
+
+
+def _scoring_role_label(scoring_role: str) -> str:
+    """Return practitioner-facing scoring role wording."""
+
+    return {
+        "used_in_scoring": "Used in scoring.",
+        "supporting_context": "Used as supporting context.",
+        "not_applicable": "Not applicable.",
+    }.get(scoring_role, "Used as supporting context.")
 
 
 def _contaminant_gaps(payload: dict[str, Any]) -> list[dict[str, Any]]:

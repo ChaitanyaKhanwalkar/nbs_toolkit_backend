@@ -822,13 +822,21 @@ def _pollutant_gap_breakdown(
         status = normalize_match_key(gap.get("status"))
         if status == "within_standard":
             gap_status = "below_target"
-            severity = "Within selected target."
+            severity = "Target is met."
         elif status in {"exceeds_standard", "below_minimum", "outside_range"}:
             gap_status = "exceeds_target"
-            severity = "Target is not met; treatment or adjustment is required."
+            parameter_key = normalize_match_key(gap.get("parameter"))
+            severity = (
+                "pH adjustment or neutralization is required."
+                if parameter_key == "ph"
+                else "Target is not met; treatment or adjustment is required."
+            )
         else:
             gap_status = "not_assessed"
-            severity = "Read, but not scored yet because a comparable target or unit is unavailable."
+            severity = (
+                "No stored target limit is available for this parameter under "
+                "the selected use case."
+            )
         parameter = normalize_match_key(gap.get("parameter"))
         coverage_category = _coverage_category(
             parameter=parameter,
@@ -860,9 +868,7 @@ def _coverage_category(*, parameter: str | None, gap_status: str) -> str:
 
     if gap_status != "not_assessed":
         return "used_in_scoring"
-    if parameter in {"do", "ec", "tds", "turbidity", "ph"}:
-        return "supporting_context"
-    return "read_not_assessed"
+    return "supporting_context"
 
 
 def _coverage_label(category: str) -> str:
@@ -871,7 +877,7 @@ def _coverage_label(category: str) -> str:
     return {
         "used_in_scoring": "Used in scoring.",
         "supporting_context": "Used as supporting context.",
-        "read_not_assessed": "Read, but not scored yet.",
+        "read_not_assessed": "Used as supporting context.",
     }[category]
 
 
