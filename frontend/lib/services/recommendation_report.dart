@@ -108,6 +108,7 @@ class RecommendationReport {
         'observation_count': input.observationCount,
         'selected_parameters': input.selectedParameters,
         'water_quality_values_used': input.dataUsed,
+        'data_quality_notes': input.dataQualityNotes,
         'parameter_coverage': response.parameterCoverage,
         'site_and_source_context': input.context,
       },

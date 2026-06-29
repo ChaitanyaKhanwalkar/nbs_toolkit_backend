@@ -8,6 +8,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from app.engines.train_recommendation import TrainRecommendationEngine
+from app.engines.water_input_assembly import (
+    MUNICIPAL_FALLBACK_NOTE,
+    MUNICIPAL_PROFILE_NAME,
+)
 from app.api.routes.recommendation import _workflow_status
 from app.main import app
 from app.repositories import EngineDataRepository
@@ -63,7 +67,7 @@ def test_configured_canonical_database_has_expected_review_counts() -> None:
         "nbs_options": 28,
         "treatment_train": 8,
         "removal_efficiency": 167,
-        "sources": 104,
+        "sources": 109,
         "nbs_footprint": 19,
         "plant_solution_map": 118,
         "site_attributes": 52,
@@ -430,20 +434,26 @@ def test_top_train_changes_with_source_chemistry_and_high_order_context() -> Non
             "intervention_position": "standalone_primary_treatment",
         },
     )
-    high_order = _rank(
-        contaminant_gaps=[],
+    agricultural = _rank(
+        contaminant_gaps=[
+            {
+                "parameter": "total_phosphorus",
+                "direction": "reduce",
+                "required_removal_percent": 80,
+                "observed_value": 20,
+            }
+        ],
         context={
-            "workflow_mode": "site_context_only",
-            "intervention_position": "in_channel",
+            "pollution_source_type": "high_agriculture_only_no_water_data",
+            "intervention_position": "off_channel_or_stp_polishing",
         },
-        input_source_type="missing",
     )
 
     domestic_top = domestic["ranked_trains"][0]["name"]
     industrial_top = industrial["ranked_trains"][0]["name"]
-    high_order_top = high_order["ranked_trains"][0]["name"]
-    assert len({domestic_top, industrial_top, high_order_top}) >= 2
-    assert high_order_top != "VF nitrifying hybrid"
+    agricultural_top = agricultural["ranked_trains"][0]["name"]
+    assert len({domestic_top, industrial_top, agricultural_top}) >= 2
+    assert agricultural_top != "VF nitrifying hybrid"
 
 
 def test_mandleshwar_industrial_acidic_mainstem_requires_expert_review() -> None:
@@ -604,6 +614,37 @@ def test_irrigation_ec_exceedance_returns_salinity_warning() -> None:
         payload["validation_notes"]["salinity"]["warning"]
     )
     assert any("salinity" in warning.lower() for warning in payload["warnings"])
+
+
+def test_domestic_endpoint_uses_municipal_profile_fallback() -> None:
+    """Recommendation route should use municipal profile when domestic data is absent."""
+
+    response = TestClient(app).post(
+        "/api/v1/recommend",
+        json={
+            "use_case": "irrigation",
+            "selected_parameters": ["ammonia_n", "total_phosphorus"],
+            "context": {
+                "workflow_mode": "pollution_source_screening",
+                "pollution_source_type": "domestic_sewage",
+            },
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    summary = payload["input_summary"]
+    assert summary["selected_source_type"] == "water_type_profile"
+    assert MUNICIPAL_FALLBACK_NOTE in summary["data_quality_notes"]
+    assert MUNICIPAL_FALLBACK_NOTE in payload["warnings"]
+    rows = {row["parameter"]: row for row in summary["data_used"]}
+    assert rows["ammonia_n"]["water_type"] == MUNICIPAL_PROFILE_NAME
+    assert rows["ammonia_n"]["value_low"] == 25
+    assert rows["ammonia_n"]["value_high"] == 50
+    assert rows["total_phosphorus"]["value_low"] == 5
+    assert rows["total_phosphorus"]["value_high"] == 15
+    assert "Blackwater" not in rows["ammonia_n"]["water_type"]
+    assert payload["ranked_trains"]
 
 
 def test_irrigation_missing_standards_are_aggregated_supporting_context() -> None:

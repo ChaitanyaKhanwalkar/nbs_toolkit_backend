@@ -10,6 +10,11 @@ need production data, and do not calculate exceedance or recommendations.
 """
 
 from app.engines import InputNormalizationEngine, WaterInputAssemblyEngine
+from app.engines.water_input_assembly import (
+    BLACKWATER_PROFILE_NAME,
+    MUNICIPAL_FALLBACK_NOTE,
+    MUNICIPAL_PROFILE_NAME,
+)
 
 
 class FakeWaterDataService:
@@ -19,9 +24,11 @@ class FakeWaterDataService:
         self,
         station_rows: dict[str, list[dict[str, object]]] | None = None,
         basin_rows: dict[int, list[dict[str, object]]] | None = None,
+        profile_rows: dict[str, list[dict[str, object]]] | None = None,
     ) -> None:
         self.station_rows = station_rows or {}
         self.basin_rows = basin_rows or {}
+        self.profile_rows = profile_rows or {}
 
     def get_observations_by_station(self, station: str) -> list[dict[str, object]]:
         """Return fake station observations."""
@@ -47,6 +54,11 @@ class FakeWaterDataService:
             ]
             for parameter in parameters
         }
+
+    def get_water_type_profile(self, water_type: str) -> list[dict[str, object]]:
+        """Return fake profile rows for one exact water type."""
+
+        return list(self.profile_rows.get(water_type, []))
 
 
 def make_context(**fields: object):
@@ -124,7 +136,7 @@ def assert_missing_returned_safely() -> None:
     assert bundle.selected_source_type == "missing"
     assert bundle.observation_count == 0
     assert "water_observations" in bundle.missing_inputs
-    assert any("water_type_profiles fallback" in note for note in bundle.data_quality_notes)
+    assert any("water_type profile fallback" in note for note in bundle.data_quality_notes)
 
 
 def assert_selected_parameters_filtering() -> None:
@@ -190,6 +202,157 @@ def assert_no_future_scoring_fields() -> None:
 
     found = forbidden_fields.intersection(payload)
     assert not found, f"Step B leaked future scoring fields: {sorted(found)}"
+
+
+def _profile_rows(water_type: str) -> list[dict[str, object]]:
+    """Return compact fake municipal/blackwater profile rows."""
+
+    if water_type == MUNICIPAL_PROFILE_NAME:
+        return [
+            {
+                "id": 1,
+                "water_type": water_type,
+                "parameter": "ammonia_n",
+                "value_low": 25,
+                "value_high": 50,
+                "unit": "mg_l",
+                "source_id": 109,
+            },
+            {
+                "id": 2,
+                "water_type": water_type,
+                "parameter": "total_phosphorus",
+                "value_low": 5,
+                "value_high": 15,
+                "unit": "mg_l",
+                "source_id": 109,
+            },
+        ]
+    return [
+        {
+            "id": 3,
+            "water_type": water_type,
+            "parameter": "ammonia_n",
+            "value_low": 100,
+            "value_high": 300,
+            "unit": "mg_l",
+            "source_id": 9,
+        },
+        {
+            "id": 4,
+            "water_type": water_type,
+            "parameter": "total_phosphorus",
+            "value_low": 20,
+            "value_high": 60,
+            "unit": "mg_l",
+            "source_id": 9,
+        },
+    ]
+
+
+def _profile_service() -> FakeWaterDataService:
+    """Return fake service with exact municipal and blackwater profiles."""
+
+    return FakeWaterDataService(
+        profile_rows={
+            MUNICIPAL_PROFILE_NAME: _profile_rows(MUNICIPAL_PROFILE_NAME),
+            BLACKWATER_PROFILE_NAME: _profile_rows(BLACKWATER_PROFILE_NAME),
+        },
+    )
+
+
+def test_domestic_sewage_selects_combined_municipal_profile() -> None:
+    """Domestic sewage fallback must use the municipal profile, not blackwater."""
+
+    context = make_context(context={"pollution_source_type": "domestic_sewage"})
+
+    bundle = WaterInputAssemblyEngine(_profile_service()).assemble(context)
+
+    assert bundle.selected_source_type == "water_type_profile"
+    assert {row["water_type"] for row in bundle.observations} == {
+        MUNICIPAL_PROFILE_NAME
+    }
+    assert MUNICIPAL_FALLBACK_NOTE in bundle.warnings
+
+
+def test_municipal_sewage_selects_combined_municipal_profile() -> None:
+    """Municipal wording should map to the combined municipal profile."""
+
+    context = make_context(context={"pollution_source_type": "municipal_sewage"})
+
+    bundle = WaterInputAssemblyEngine(_profile_service()).assemble(context)
+
+    assert bundle.selected_source_type == "water_type_profile"
+    assert {row["water_type"] for row in bundle.observations} == {
+        MUNICIPAL_PROFILE_NAME
+    }
+
+
+def test_explicit_blackwater_selects_concentrated_blackwater_profile() -> None:
+    """Blackwater must be used only when blackwater is explicit."""
+
+    context = make_context(context={"water_type": "toilet blackwater"})
+
+    bundle = WaterInputAssemblyEngine(_profile_service()).assemble(context)
+
+    assert bundle.selected_source_type == "water_type_profile"
+    assert {row["water_type"] for row in bundle.observations} == {
+        BLACKWATER_PROFILE_NAME
+    }
+    assert MUNICIPAL_FALLBACK_NOTE not in bundle.warnings
+
+
+def test_domestic_sewage_does_not_match_blackwater_by_substring() -> None:
+    """Ordinary domestic context must not select the concentrated profile."""
+
+    context = make_context(context={"influent_basis": "domestic sewage default"})
+
+    bundle = WaterInputAssemblyEngine(_profile_service()).assemble(context)
+
+    assert all(
+        row["water_type"] != BLACKWATER_PROFILE_NAME for row in bundle.observations
+    )
+
+
+def test_municipal_profile_keeps_ammonia_and_phosphorus_ranges() -> None:
+    """Fallback observations should preserve profile ranges for review."""
+
+    context = make_context(context={"source_type": "municipal wastewater"})
+
+    bundle = WaterInputAssemblyEngine(_profile_service()).assemble(context)
+    rows = {row["parameter"]: row for row in bundle.observations}
+
+    assert rows["ammonia_n"]["value_low"] == 25
+    assert rows["ammonia_n"]["value_high"] == 50
+    assert rows["ammonia_n"]["value"] == 37.5
+    assert rows["total_phosphorus"]["value_low"] == 5
+    assert rows["total_phosphorus"]["value_high"] == 15
+    assert rows["total_phosphorus"]["value"] == 10
+
+
+def test_user_measured_parameters_override_profile_fallback() -> None:
+    """User measured observations remain higher priority than profiles."""
+
+    context = make_context(
+        context={"pollution_source_type": "domestic_sewage"},
+        measured_observations=[
+            {"parameter": "ammonia_n", "value": 8, "unit": "mg_l"},
+        ],
+    )
+
+    bundle = WaterInputAssemblyEngine(_profile_service()).assemble(context)
+
+    assert bundle.selected_source_type == "user_measured"
+    assert bundle.observations == [
+        {
+            "parameter": "ammonia_n",
+            "parameter_match_key": "ammonia_n",
+            "value": 8.0,
+            "unit": "mg_l",
+            "source": "user_measured",
+            "original": {"parameter": "ammonia_n", "value": 8, "unit": "mg_l"},
+        }
+    ]
 
 
 def main() -> None:

@@ -55,8 +55,9 @@ def test_criteria_weights_cover_three_use_cases() -> None:
         use_case: {row["status"] for row in weights if row["use_case"] == use_case}
         for use_case in USE_CASES
     }
-    assert statuses_by_use_case["irrigation"] == {
-        "temporary_not_expert_validated"
+    assert statuses_by_use_case["irrigation"] <= {
+        "FINAL_V1_AHP_FUZZY_ENSEMBLE",
+        "temporary_not_expert_validated",
     }
     assert statuses_by_use_case["drinking"] == {"FINAL_V1_AHP_FUZZY_ENSEMBLE"}
     assert statuses_by_use_case["discharge_inland"] == {

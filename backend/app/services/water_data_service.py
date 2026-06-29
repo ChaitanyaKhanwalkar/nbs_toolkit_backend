@@ -59,6 +59,11 @@ class WaterDataService:
             for parameter in parameters
         }
 
+    def get_water_type_profile(self, water_type: str) -> list[dict[str, Any]]:
+        """Return active fallback profile rows for one exact water type."""
+
+        return _to_dicts(self.water.get_water_type_profile(water_type))
+
     def summarize_available_parameters(self) -> list[dict[str, Any]]:
         """Return parameter names and raw row counts only."""
 

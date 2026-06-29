@@ -804,12 +804,13 @@ def _input_summary(payload: dict[str, Any]) -> dict[str, Any]:
     input_context = payload.get("input_context") or {}
     normalized_input = input_context.get("normalized_input") or {}
     water_bundle = payload.get("water_input_bundle") or {}
-    observations = normalized_input.get("measured_observations") or []
+    observations = water_bundle.get("observations") or []
     return {
         "use_case": normalized_input.get("use_case"),
         "selected_source_type": water_bundle.get("selected_source_type"),
         "observation_count": water_bundle.get("observation_count", 0),
         "selected_parameters": normalized_input.get("selected_parameters") or [],
+        "data_quality_notes": water_bundle.get("data_quality_notes") or [],
         "data_used": [
             {
                 "parameter": row.get("parameter"),
@@ -817,12 +818,24 @@ def _input_summary(payload: dict[str, Any]) -> dict[str, Any]:
                     (row.get("original") or {}).get("display_name")
                     or row.get("parameter")
                 ),
-                "value": row.get("value"),
+                "value": (
+                    row.get("value")
+                    if row.get("value") is not None
+                    else row.get("value_mean")
+                ),
+                "value_low": row.get("value_low"),
+                "value_high": row.get("value_high"),
                 "unit": row.get("unit"),
                 "source": row.get("source") or "unknown",
+                "source_id": row.get("source_id"),
+                "water_type": row.get("water_type"),
             }
             for row in observations
-            if row.get("parameter") and row.get("value") is not None
+            if row.get("parameter")
+            and (
+                row.get("value") is not None
+                or row.get("value_mean") is not None
+            )
         ],
         "context": normalized_input.get("context") or {},
     }

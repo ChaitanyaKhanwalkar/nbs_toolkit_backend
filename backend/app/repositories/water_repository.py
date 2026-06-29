@@ -9,7 +9,7 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import WaterObservation
+from app.models import WaterObservation, WaterTypeProfile
 from app.repositories.base_repository import BaseRepository
 
 
@@ -193,3 +193,41 @@ class WaterRepository(BaseRepository):
             {"parameter": parameter, "count": count}
             for parameter, count in self.session.execute(statement).all()
         ]
+
+    def get_water_type_profile(
+        self,
+        water_type: str,
+    ) -> list[WaterTypeProfile] | list[dict[str, Any]]:
+        """Return active fallback profile rows for one exact water type."""
+
+        if not water_type:
+            return []
+        if self.relation_exists("water_type_profiles"):
+            return self.fetch_mappings(
+                """
+                SELECT
+                    id,
+                    water_type,
+                    parameter,
+                    value_low,
+                    value_high,
+                    unit,
+                    note,
+                    deprecated,
+                    source_id
+                FROM water_type_profiles
+                WHERE water_type = :water_type
+                  AND COALESCE(deprecated, 0) = 0
+                ORDER BY parameter, id
+                """,
+                {"water_type": water_type},
+            )
+        statement = (
+            select(WaterTypeProfile)
+            .where(
+                WaterTypeProfile.water_type == water_type,
+                WaterTypeProfile.deprecated != 1,
+            )
+            .order_by(WaterTypeProfile.parameter, WaterTypeProfile.id)
+        )
+        return list(self.session.scalars(statement).all())

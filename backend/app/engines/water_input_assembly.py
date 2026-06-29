@@ -17,8 +17,17 @@ SOURCE_PRIORITY = [
     "user_measured",
     "station_observations",
     "basin_observations",
+    "water_type_profile",
     "missing",
 ]
+
+MUNICIPAL_PROFILE_NAME = "Domestic sewage — combined municipal (medium-strong, India)"
+BLACKWATER_PROFILE_NAME = "Blackwater (concentrated, not town-scale)"
+MUNICIPAL_FALLBACK_NOTE = (
+    "Municipal influent fallback used: Domestic sewage — combined municipal "
+    "(medium-strong, India). Concentrated blackwater is not used as town-scale "
+    "municipal default."
+)
 
 
 @dataclass(slots=True)
@@ -62,6 +71,9 @@ class WaterObservationProvider(Protocol):
     ) -> dict[str, list[dict[str, Any]]]:
         """Return station observations grouped by selected parameters."""
 
+    def get_water_type_profile(self, water_type: str) -> list[dict[str, Any]]:
+        """Return fallback profile rows for one exact water type."""
+
 
 class WaterInputAssemblyEngine:
     """Select raw water observations using the approved source priority."""
@@ -86,6 +98,7 @@ class WaterInputAssemblyEngine:
         station = normalized.get("station")
         basin_id = normalized.get("basin_id")
         use_case = normalized.get("use_case")
+        context_values = _profile_context_values(normalized)
         warnings = list(context.warnings)
         missing_inputs = list(context.missing_inputs)
 
@@ -176,6 +189,46 @@ class WaterInputAssemblyEngine:
                 )
             warnings.append(f"No basin observations were found for basin_id {basin_id}.")
 
+        profile_name = _select_profile_name(context_values)
+        if profile_name and self.water_service is not None:
+            profile_rows = self.water_service.get_water_type_profile(profile_name)
+            profile_observations = _profile_rows_to_observations(profile_rows)
+            profile_observations = _filter_observations(
+                profile_observations,
+                selected_parameter_keys,
+            )
+            if profile_observations:
+                data_quality_notes = [
+                    "Using water_type_profiles fallback because no user measured, "
+                    "station, or basin observations were available."
+                ]
+                if profile_name == MUNICIPAL_PROFILE_NAME:
+                    data_quality_notes.append(MUNICIPAL_FALLBACK_NOTE)
+                    _append_once(warnings, MUNICIPAL_FALLBACK_NOTE)
+                else:
+                    data_quality_notes.append(
+                        "Explicit blackwater profile selected from request context; "
+                        "this profile is not used as the municipal default."
+                    )
+                return self._bundle(
+                    selected_source_type="water_type_profile",
+                    observations=profile_observations,
+                    selected_parameters=selected_parameters,
+                    missing_inputs=missing_inputs,
+                    warnings=warnings,
+                    data_quality_notes=data_quality_notes,
+                    provenance_notes=[
+                        "Fallback observations come from active water_type_profiles "
+                        f"rows for exact water_type '{profile_name}'."
+                    ],
+                    station=station,
+                    basin_id=basin_id,
+                    use_case=use_case,
+                )
+            warnings.append(
+                f"No active water_type_profiles rows were found for '{profile_name}'."
+            )
+
         if not station and basin_id is None:
             _append_once(missing_inputs, "station_or_basin_id")
         _append_once(missing_inputs, "water_observations")
@@ -187,8 +240,8 @@ class WaterInputAssemblyEngine:
             warnings=warnings,
             data_quality_notes=[
                 "No user measured, station, or basin observations were available.",
-                "water_type_profiles fallback is documented for a future step and "
-                "is not used in Step B.",
+                "No matching domestic/municipal or explicit blackwater "
+                "water_type profile fallback was selected.",
             ],
             provenance_notes=[
                 "No water observation provenance is available because no observations "
@@ -308,6 +361,111 @@ def _collect_source_ids(observations: Sequence[dict[str, Any]]) -> list[int]:
         if source_id_int not in source_ids:
             source_ids.append(source_id_int)
     return source_ids
+
+
+def _profile_context_values(normalized_input: dict[str, Any]) -> list[Any]:
+    """Return request context fields used only for exact profile choice."""
+
+    context = normalized_input.get("context") or {}
+    values: list[Any] = [
+        context.get("water_type"),
+        context.get("influent_basis"),
+        context.get("influent_profile"),
+        context.get("sanitation_stream"),
+        context.get("wastewater_stream"),
+        context.get("pollution_source_type"),
+        context.get("source_type"),
+        context.get("pollution_source_type_requested"),
+        context.get("workflow_mode"),
+        normalized_input.get("notes"),
+    ]
+    return [value for value in values if value not in (None, "")]
+
+
+def _select_profile_name(values: Sequence[Any]) -> str | None:
+    """Select the approved fallback profile without fuzzy database matching."""
+
+    keys = [normalize_match_key(value) or "" for value in values]
+    if any(_is_explicit_blackwater_key(key) for key in keys):
+        return BLACKWATER_PROFILE_NAME
+    if any(_is_municipal_domestic_key(key) for key in keys):
+        return MUNICIPAL_PROFILE_NAME
+    return None
+
+
+def _is_explicit_blackwater_key(key: str) -> bool:
+    """Return whether the user explicitly asked for blackwater context."""
+
+    return (
+        "blackwater" in key
+        or "black_water" in key
+        or "toilet_waste" in key
+        or "toilet_stream" in key
+        or "sanitation_stream" in key
+    )
+
+
+def _is_municipal_domestic_key(key: str) -> bool:
+    """Return whether ordinary domestic/municipal fallback is appropriate."""
+
+    municipal_tokens = (
+        "domestic",
+        "municipal",
+        "town_sewage",
+        "town_wastewater",
+        "combined_municipal",
+        "domestic_sewage",
+        "municipal_sewage",
+        "municipal_wastewater",
+    )
+    return any(token in key for token in municipal_tokens)
+
+
+def _profile_rows_to_observations(rows: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Convert water_type_profiles rows into observation-like dictionaries."""
+
+    observations = []
+    for row in rows:
+        low = _as_float(row.get("value_low"))
+        high = _as_float(row.get("value_high"))
+        value = _profile_midpoint(low, high)
+        if value is None:
+            continue
+        observations.append(
+            {
+                "parameter": row.get("parameter"),
+                "value": value,
+                "value_mean": value,
+                "value_low": low,
+                "value_high": high,
+                "unit": row.get("unit"),
+                "source": "water_type_profile",
+                "source_id": row.get("source_id"),
+                "water_type": row.get("water_type"),
+                "profile_note": row.get("note"),
+                "original": dict(row),
+            }
+        )
+    return observations
+
+
+def _profile_midpoint(low: float | None, high: float | None) -> float | None:
+    """Return a single fallback value for engines that expect observations."""
+
+    if low is not None and high is not None:
+        return (low + high) / 2.0
+    return low if low is not None else high
+
+
+def _as_float(value: Any) -> float | None:
+    """Convert a profile value to float without accepting booleans."""
+
+    if isinstance(value, bool):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def _append_once(values: list[str], value: str) -> None:
