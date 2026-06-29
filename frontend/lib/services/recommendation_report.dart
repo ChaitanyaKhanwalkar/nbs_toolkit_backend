@@ -49,10 +49,11 @@ class RecommendationReport {
     ];
     final pollutionSource = input.context['pollution_source_type']?.toString();
     final rankingDrivers = _rankingDrivers(train);
+    final sourceContext = input.context;
     final trainPayload = train == null
         ? null
         : {
-            'name': _expandAbbreviations(train.name),
+            'name': _expandedTrainName(train.name, context: sourceContext),
             'rank': train.rank,
             'technical_match': train.matchScore,
             'result_confidence': train.confidenceScore,
@@ -81,7 +82,10 @@ class RecommendationReport {
               for (final step in train.trainPathway)
                 {
                   'step_order': step.stepOrder,
-                  'component_name': _expandAbbreviations(step.componentName),
+                  'component_name': _reportPathwayComponentName(
+                    step.componentName,
+                    context: sourceContext,
+                  ),
                   'component_role': step.componentRole,
                   'nbs_id': step.nbsId,
                 },
@@ -180,7 +184,7 @@ class RecommendationReport {
           for (final option in response.scenarioComparison.options)
             {
               'train_id': option.trainId,
-              'name': _expandAbbreviations(option.name),
+              'name': _expandedTrainName(option.name, context: sourceContext),
               'rank': option.rank,
               'technical_match': option.technicalMatch,
               'result_confidence': option.resultConfidence,
@@ -223,11 +227,14 @@ class RecommendationReport {
       'cost_benefit_and_practicality': [
         for (final option in response.scenarioComparison.options.take(3))
           {
-            'train_name': _expandAbbreviations(option.name),
+            'train_name':
+                _expandedTrainName(option.name, context: sourceContext),
             'practical_cost_burden': _practicalCostBurden(option),
             'main_cost_drivers': _practicalCostDrivers(option),
             'main_benefits': _practicalBenefits(option),
             'key_tradeoff': _practicalTradeoff(option),
+            if (_isIndustrialContext(sourceContext))
+              'industrial_condition': _industrialPolishingNote,
             'monetary_cost_status':
                 'Not estimated; no rupee CAPEX/OPEX values are invented.',
           },
@@ -263,6 +270,7 @@ String _buildSummary(
   TrainRecommendation? train,
 ) {
   final rankingDrivers = _rankingDrivers(train);
+  final sourceContext = response.inputSummary.context;
   final lines = <String>[
     'NARMADA NBS PLANNING-LEVEL RECOMMENDATION',
     'Method: $_methodLabel',
@@ -289,7 +297,7 @@ String _buildSummary(
   } else {
     lines.addAll([
       '',
-      'Recommended treatment train: ${_expandAbbreviations(train.name)}',
+      'Recommended treatment train: ${_expandedTrainName(train.name, context: sourceContext)}',
       'Screening match: ${train.matchPercent}',
       'Result confidence: ${_confidenceLabel(train)}',
       if (train.implementationRole != null) 'Role: ${train.implementationRole}',
@@ -297,12 +305,13 @@ String _buildSummary(
       if (rankingDrivers.isNotEmpty)
         'Ranking drivers: ${rankingDrivers.join('; ')}',
       if (train.trainPathway.isNotEmpty)
-        'Treatment train pathway: ${_pathwaySummary(train)}',
+        'Treatment train pathway: ${_pathwaySummary(train, context: sourceContext)}',
       if (train.pretreatmentRequirements.isNotEmpty)
         'Pretreatment: ${train.pretreatmentRequirements.join('; ')}',
       if (train.useCaseVerdicts.isNotEmpty)
         'Use-case suitability: ${train.useCaseVerdicts.entries.map((item) => '${_title(item.key)}: ${_title(item.value)}').join('; ')}',
       if (train.dataGaps.isNotEmpty) 'Data gaps: ${train.dataGaps.join('; ')}',
+      if (_isIndustrialContext(sourceContext)) _industrialPolishingNote,
     ]);
   }
   if (response.sizingEstimates.isNotEmpty) {
@@ -509,6 +518,47 @@ String _workflowLabel(String? value) => switch (value) {
       _ => 'Available project inputs',
     };
 
+const _agriculturalHssfPolishingAlias =
+    'Runoff collection/settling + Horizontal Subsurface Flow (HSSF) wetland polishing';
+
+const _industrialPolishingNote =
+    'Screening match is for polishing/buffering after effective Effluent Treatment Plant (ETP) / Common Effluent Treatment Plant (CETP) pretreatment and required pH neutralization. Nature-based systems are not standalone industrial wastewater treatment.';
+
+String _expandedTrainName(
+  String value, {
+  Map<String, dynamic>? context,
+}) {
+  if (_isAgriculturalContext(context) &&
+      value.toLowerCase().contains('septic') &&
+      value.toLowerCase().contains('hssf')) {
+    return _agriculturalHssfPolishingAlias;
+  }
+  return _expandAbbreviations(value);
+}
+
+String _reportPathwayComponentName(
+  String value, {
+  Map<String, dynamic>? context,
+}) {
+  if (_isAgriculturalContext(context) &&
+      value.toLowerCase().contains('septic')) {
+    return 'Settling / first-flush control';
+  }
+  return _expandAbbreviations(value);
+}
+
+bool _isAgriculturalContext(Map<String, dynamic>? context) {
+  final source =
+      context?['pollution_source_type']?.toString().toLowerCase() ?? '';
+  return source.contains('agriculture') || source.contains('agricultural');
+}
+
+bool _isIndustrialContext(Map<String, dynamic>? context) {
+  final source =
+      context?['pollution_source_type']?.toString().toLowerCase() ?? '';
+  return source.contains('industrial');
+}
+
 String _expandAbbreviations(String value) {
   var text = value;
   if (text == 'DEWATS modular train') {
@@ -657,14 +707,26 @@ String _practicalTradeoff(ComparisonOption option) {
   return 'Still needs design-flow, land, and site verification before engineering design.';
 }
 
-String _pathwaySummary(TrainRecommendation train) {
+String _pathwaySummary(
+  TrainRecommendation train, {
+  Map<String, dynamic>? context,
+}) {
+  if (_isAgriculturalContext(context)) {
+    return [
+      'Field/edge-of-field runoff collection',
+      'Settling / first-flush control',
+      'Horizontal Subsurface Flow (HSSF) wetland',
+      'Maturation pond / polishing',
+      'Outlet / monitoring',
+    ].join(' -> ');
+  }
   if (train.trainPathway.isEmpty) {
     return 'Treatment sequence details are not available for this train.';
   }
   return [
     'Influent/source',
     ...train.trainPathway
-        .map((step) => _expandAbbreviations(step.componentName)),
+        .map((step) => _reportPathwayComponentName(step.componentName)),
     'Outlet / selected target screening',
   ].join(' -> ');
 }

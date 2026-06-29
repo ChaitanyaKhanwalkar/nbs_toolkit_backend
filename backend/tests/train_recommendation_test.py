@@ -648,6 +648,29 @@ def test_domestic_endpoint_uses_municipal_profile_fallback() -> None:
     assert payload["ranked_trains"]
 
 
+def test_manual_endpoint_source_label_remains_user_measured() -> None:
+    response = TestClient(app).post(
+        "/api/v1/recommend",
+        json={
+            "use_case": "discharge_inland",
+            "selected_parameters": ["bod"],
+            "measured_observations": [
+                {"parameter": "bod", "value": 80, "unit": "mg_l"},
+            ],
+            "context": {
+                "workflow_mode": "manual_measured_water_quality",
+                "pollution_source_type": "domestic_sewage",
+            },
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    summary = response.json()["input_summary"]
+    assert summary["selected_source_type"] == "user_measured"
+    assert summary["source_label"] == "User-measured observations"
+    assert summary["data_used"][0]["value"] == 80
+
+
 def test_irrigation_missing_standards_are_aggregated_supporting_context() -> None:
     """Missing selected-use-case standards should be grouped without failing."""
 
@@ -1295,6 +1318,11 @@ def test_agricultural_context_prioritizes_source_control_components() -> None:
         "not standalone treatment" in row["standalone_guidance"].lower()
         for row in top
     )
+    assert all("green roof" not in row["name"].lower() for row in top)
+    assert any(
+        "green roof" in str(row.get("name", "")).lower()
+        for row in payload["filtered_components"]
+    )
 
 
 def test_domestic_discharge_does_not_promote_green_roof_component() -> None:
@@ -1313,6 +1341,21 @@ def test_domestic_discharge_does_not_promote_green_roof_component() -> None:
     assert any(
         "green roof" in str(row.get("name", "")).lower()
         for row in payload["filtered_components"]
+    )
+
+
+def test_roof_runoff_context_can_keep_green_roof_component() -> None:
+    payload = _recommend_components(
+        context={
+            "workflow_mode": "pollution_source_screening",
+            "pollution_source_type": "urban_roof_runoff",
+            "intervention_position": "source_control",
+        },
+    )
+
+    assert any(
+        "green roof" in row["name"].lower()
+        for row in payload["component_recommendations"]
     )
 
 

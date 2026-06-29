@@ -446,4 +446,105 @@ void main() {
     expect(report.summary, contains('Strict-use blockers detected: NH4-N'));
     expect(report.summary, contains('High EC/salinity exceeds'));
   });
+
+  test('uses source-specific agricultural train alias in report output', () {
+    final agriculturalResponse = RecommendationResponse.fromJson({
+      'workflow_status': 'completed',
+      'use_case': 'discharge_inland',
+      'ranked_trains': [
+        {
+          'train_id': 4,
+          'name': 'Septic + HSSF + polishing',
+          'rank': 1,
+          'match_score': 0.68,
+          'train_pathway': [
+            {
+              'step_order': 1,
+              'component_name': 'Septic/Imhoff tank',
+              'component_role': 'primary',
+            },
+            {
+              'step_order': 2,
+              'component_name': 'HSSF Wetland',
+              'component_role': 'secondary',
+            },
+          ],
+        },
+      ],
+      'scenario_comparison': {
+        'options': [
+          {
+            'train_id': 4,
+            'name': 'Septic + HSSF + polishing',
+            'rank': 1,
+            'technical_match': 0.68,
+            'land_fit': 'borderline',
+            'om_intensity': 'Low',
+          },
+        ],
+      },
+      'input_summary': {
+        'observation_count': 0,
+        'context': {
+          'workflow_mode': 'pollution_source_screening',
+          'pollution_source_type': 'high_agriculture_only_no_water_data',
+        },
+      },
+    });
+
+    final report = RecommendationReport.fromResponse(agriculturalResponse);
+    final decoded = jsonDecode(report.json) as Map<String, dynamic>;
+
+    expect(
+      decoded['recommended_treatment_train']['name'],
+      'Runoff collection/settling + Horizontal Subsurface Flow (HSSF) wetland polishing',
+    );
+    expect(report.summary, isNot(contains('Septic + HSSF + polishing')));
+    expect(report.summary, contains('Field/edge-of-field runoff collection'));
+  });
+
+  test('exports industrial pretreatment and polishing-only warning', () {
+    final industrialResponse = RecommendationResponse.fromJson({
+      'workflow_status': 'completed',
+      'use_case': 'discharge_inland',
+      'ranked_trains': [
+        {
+          'train_id': 5,
+          'name': 'VF nitrifying hybrid',
+          'rank': 1,
+          'match_score': 0.72,
+        },
+      ],
+      'scenario_comparison': {
+        'options': [
+          {
+            'train_id': 5,
+            'name': 'VF nitrifying hybrid',
+            'rank': 1,
+            'technical_match': 0.72,
+            'land_fit': 'good',
+            'om_intensity': 'Moderate',
+          },
+        ],
+      },
+      'input_summary': {
+        'observation_count': 1,
+        'context': {
+          'workflow_mode': 'manual_measured_water_quality',
+          'pollution_source_type': 'industrial_or_mixed_industrial',
+        },
+      },
+    });
+
+    final report = RecommendationReport.fromResponse(industrialResponse);
+    final decoded = jsonDecode(report.json) as Map<String, dynamic>;
+
+    expect(report.summary, contains('Effluent Treatment Plant (ETP)'));
+    expect(report.summary, contains('pH neutralization'));
+    expect(report.summary, contains('not standalone industrial wastewater'));
+    expect(
+      decoded['cost_benefit_and_practicality'][0]['industrial_condition'],
+      contains('Common Effluent Treatment Plant (CETP)'),
+    );
+  });
 }

@@ -93,6 +93,91 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('municipal fallback pollutant card uses fallback source label', (
+    tester,
+  ) async {
+    await setViewport(tester, const Size(900, 900));
+    final response = RecommendationResponse.fromJson({
+      'workflow_status': 'completed',
+      'use_case': 'discharge_inland',
+      'ranked_trains': [
+        {
+          'train_id': 3,
+          'name': 'DEWATS modular train',
+          'rank': 1,
+          'match_score': 0.78,
+          'confidence_score': 0.52,
+          'all_use_case_verdicts': {
+            'discharge_inland': {'verdict': 'pass'},
+          },
+          'pollutant_gap_breakdown': [
+            {
+              'parameter': 'ammonia_n',
+              'observed_value': 40,
+              'unit': 'mg_l',
+              'source': 'canonical',
+              'target_threshold': {'limit_high': 50, 'unit': 'mg_l'},
+              'gap_status': 'below_target',
+              'coverage_category': 'used_in_scoring',
+              'train_addresses_parameter': true,
+            },
+          ],
+        },
+      ],
+      'input_summary': {
+        'observation_count': 1,
+        'selected_source_type': 'water_type_profile',
+        'source_label': 'Municipal influent fallback profile',
+        'data_quality_notes': [
+          'No measured influent was supplied; user-measured observations override this fallback. Concentrated blackwater is not used as town-scale municipal default.',
+        ],
+        'data_used': [
+          {
+            'parameter': 'ammonia_n',
+            'value': 40,
+            'unit': 'mg_l',
+            'source': 'water_type_profile',
+            'water_type':
+                'Domestic sewage — combined municipal (medium-strong, India)',
+          },
+        ],
+        'context': {
+          'workflow_mode': 'pollution_source_screening',
+          'pollution_source_type': 'domestic_sewage',
+        },
+      },
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: NbsTheme.light(),
+        home: ResultsScreen(
+          response: response,
+          onViewDetail: (_) {},
+          onNewRun: () {},
+          onHome: () {},
+          onAbout: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Why this result'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Municipal influent fallback profile'), findsWidgets);
+    expect(find.text('Station and site context'), findsNothing);
+
+    await tester.ensureVisible(find.text('Show technical details'));
+    await tester.tap(find.text('Show technical details'));
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining(
+        'Domestic sewage — combined municipal (medium-strong, India)',
+      ),
+      findsWidgets,
+    );
+  });
+
   testWidgets('results component workspace fits at 390x844', (tester) async {
     await setViewport(tester, const Size(390, 844));
     final response = RecommendationResponse.fromJson({

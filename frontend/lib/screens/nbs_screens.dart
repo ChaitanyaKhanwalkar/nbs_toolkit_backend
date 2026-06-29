@@ -1556,7 +1556,7 @@ class ResultsScreen extends StatelessWidget {
                       child: Text(
                         topTrain == null
                             ? practicalRecommendation
-                            : 'We recommend ${topTrain.name} for this screening case. $practicalRecommendation',
+                            : 'We recommend ${_expandedTrainName(topTrain.name, context: response.inputSummary.context)} for this screening case. $practicalRecommendation',
                         style:
                             Theme.of(context).textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.w800,
@@ -2006,11 +2006,15 @@ class _WhyResultWorkspace extends StatelessWidget {
           const SizedBox(height: 14),
           _DecisionXrayCard(train: topTrain, allTrains: trains),
           const SizedBox(height: 14),
-          _TreatmentTrainPathwayCard(train: topTrain),
+          _TreatmentTrainPathwayCard(
+            train: topTrain,
+            sourceContext: response.inputSummary.context,
+          ),
           const SizedBox(height: 14),
           _ValidationNotesPanel(response: response),
           const SizedBox(height: 14),
           _PollutantGapPanel(
+            response: response,
             train: topTrain,
             selectedUseCase: response.useCase,
           ),
@@ -2018,7 +2022,10 @@ class _WhyResultWorkspace extends StatelessWidget {
             const SizedBox(height: 14),
             _DetailSection(
               title: 'How it compares with alternatives',
-              child: _TopTrainComparison(trains: trains.take(3).toList()),
+              child: _TopTrainComparison(
+                trains: trains.take(3).toList(),
+                sourceContext: response.inputSummary.context,
+              ),
             ),
           ],
           const SizedBox(height: 14),
@@ -2027,6 +2034,7 @@ class _WhyResultWorkspace extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 10),
               child: TrainRecommendationCard(
                 train: train,
+                response: response,
                 contextOnly: contextOnly,
                 hasMeasuredData: hasMeasuredData,
                 citationsById: response.citationsById,
@@ -2288,7 +2296,10 @@ class _ComparisonWorkspace extends StatelessWidget {
                 for (final option in comparison.options.take(3))
                   Padding(
                     padding: const EdgeInsets.only(bottom: 10),
-                    child: _PracticalitySummaryCard(option: option),
+                    child: _PracticalitySummaryCard(
+                      option: option,
+                      sourceContext: response.inputSummary.context,
+                    ),
                   ),
               ],
             ),
@@ -2411,9 +2422,13 @@ class _ComparisonWorkspace extends StatelessWidget {
 }
 
 class _PracticalitySummaryCard extends StatelessWidget {
-  const _PracticalitySummaryCard({required this.option});
+  const _PracticalitySummaryCard({
+    required this.option,
+    required this.sourceContext,
+  });
 
   final ComparisonOption option;
+  final Map<String, dynamic> sourceContext;
 
   @override
   Widget build(BuildContext context) {
@@ -2432,7 +2447,7 @@ class _PracticalitySummaryCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            _expandedTrainName(option.name),
+            _expandedTrainName(option.name, context: sourceContext),
             style: const TextStyle(fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 8),
@@ -2460,6 +2475,7 @@ class _PracticalitySummaryCard extends StatelessWidget {
               'Main cost drivers: ${drivers.join(', ')}.',
               'Main benefits: ${benefits.join(', ')}.',
               'Key trade-off: ${_practicalTradeoff(option)}',
+              if (_isIndustrialContext(sourceContext)) _industrialPolishingNote,
             ],
           ),
         ],
@@ -2485,7 +2501,10 @@ class _ComparisonOptionCard extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    _expandedTrainName(option.name),
+                    _expandedTrainName(
+                      option.name,
+                      context: response.inputSummary.context,
+                    ),
                     style: Theme.of(
                       context,
                     )
@@ -2523,6 +2542,12 @@ class _ComparisonOptionCard extends StatelessWidget {
                   value: option.omIntensity,
                   color: NbsColors.riverTeal,
                 ),
+                if (_isIndustrialContext(response.inputSummary.context))
+                  const _MetricChip(
+                    label: 'Pretreatment required',
+                    value: 'Polishing after ETP/CETP only',
+                    color: NbsColors.warningAmber,
+                  ),
               ],
             ),
             const SizedBox(height: 9),
@@ -2547,6 +2572,13 @@ class _ComparisonOptionCard extends StatelessWidget {
             const Text(
               'Confirm water-quality, flow, land, and site inputs before design.',
             ),
+            if (_isIndustrialContext(response.inputSummary.context)) ...[
+              const SizedBox(height: 8),
+              const Text(
+                _industrialPolishingNote,
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ],
             if (option.warnings.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
@@ -3228,10 +3260,12 @@ class _DataUsedPanel extends StatelessWidget {
 
 class _PollutantGapPanel extends StatelessWidget {
   const _PollutantGapPanel({
+    required this.response,
     required this.train,
     required this.selectedUseCase,
   });
 
+  final RecommendationResponse response;
   final TrainRecommendation? train;
   final String? selectedUseCase;
 
@@ -3292,8 +3326,9 @@ class _PollutantGapPanel extends StatelessWidget {
                             ),
                             StatusPill(
                               label: 'Input source',
-                              value: _displayInputSource(
-                                row['source']?.toString(),
+                              value: _pollutantInputSourceLabel(
+                                response.inputSummary,
+                                row,
                               ),
                             ),
                             StatusPill(
@@ -4052,7 +4087,10 @@ class _ReportPreview extends StatelessWidget {
           values: train == null
               ? const ['No ranked treatment train is available.']
               : [
-                  _expandedTrainName(train.name),
+                  _expandedTrainName(
+                    train.name,
+                    context: response.inputSummary.context,
+                  ),
                   'Screening match: ${train.matchPercent}',
                   'Result confidence: ${_trainConfidenceDisplay(train)}',
                   if (train.implementationRole != null)
@@ -4066,7 +4104,12 @@ class _ReportPreview extends StatelessWidget {
           values: train == null
               ? const []
               : [
-                  _expandAbbreviations(_pathwayPreviewSummary(train)),
+                  _expandAbbreviations(
+                    _pathwayPreviewSummary(
+                      train,
+                      context: response.inputSummary.context,
+                    ),
+                  ),
                 ],
           emptyText:
               'Treatment sequence details are not available for this train.',
@@ -4380,13 +4423,18 @@ class _ValidationNotesPanel extends StatelessWidget {
 }
 
 class _TreatmentTrainPathwayCard extends StatelessWidget {
-  const _TreatmentTrainPathwayCard({required this.train});
+  const _TreatmentTrainPathwayCard({
+    required this.train,
+    this.sourceContext = const <String, dynamic>{},
+  });
 
   final TrainRecommendation? train;
+  final Map<String, dynamic> sourceContext;
 
   @override
   Widget build(BuildContext context) {
     final steps = train?.trainPathway ?? const <TrainPathwayStep>[];
+    final agricultural = _isAgriculturalContext(sourceContext);
     return _DetailSection(
       title: 'Treatment train pathway',
       child: Column(
@@ -4404,19 +4452,24 @@ class _TreatmentTrainPathwayCard extends StatelessWidget {
             LayoutBuilder(
               builder: (context, constraints) {
                 final items = [
-                  const _PathwayNode(
-                    label: 'Influent/source',
+                  _PathwayNode(
+                    label: agricultural
+                        ? 'Field/edge-of-field runoff collection'
+                        : 'Influent/source',
                     role: 'Input',
                     order: null,
                   ),
-                  for (final step in steps)
-                    _PathwayNode(
-                      label: _expandedComponentName(step.componentName),
-                      role: step.componentRole,
-                      order: step.stepOrder,
-                    ),
+                  if (agricultural)
+                    ..._agriculturalPathwayNodes()
+                  else
+                    for (final step in steps)
+                      _PathwayNode(
+                        label: _expandedComponentName(step.componentName),
+                        role: step.componentRole,
+                        order: step.stepOrder,
+                      ),
                   const _PathwayNode(
-                    label: 'Outlet / selected target screening',
+                    label: 'Outlet / monitoring',
                     role: 'Screening endpoint',
                     order: null,
                   ),
@@ -4564,6 +4617,7 @@ class TrainRecommendationCard extends StatelessWidget {
   const TrainRecommendationCard({
     super.key,
     required this.train,
+    required this.response,
     required this.contextOnly,
     required this.hasMeasuredData,
     required this.citationsById,
@@ -4571,6 +4625,7 @@ class TrainRecommendationCard extends StatelessWidget {
   });
 
   final TrainRecommendation train;
+  final RecommendationResponse response;
   final bool contextOnly;
   final bool hasMeasuredData;
   final Map<int, Citation> citationsById;
@@ -4612,7 +4667,10 @@ class TrainRecommendationCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              _expandedTrainName(train.name),
+              _expandedTrainName(
+                train.name,
+                context: response.inputSummary.context,
+              ),
               style: const TextStyle(fontWeight: FontWeight.w900),
             ),
             if (train.implementationRole != null) ...[
@@ -4703,7 +4761,10 @@ class TrainRecommendationCard extends StatelessWidget {
             emptyText: 'No additional train-specific condition is recorded.',
           ),
           const SizedBox(height: 12),
-          _TreatmentTrainPathwayCard(train: train),
+          _TreatmentTrainPathwayCard(
+            train: train,
+            sourceContext: response.inputSummary.context,
+          ),
           const SizedBox(height: 12),
           _TextBlockList(
             title: 'Other use-case notes',
@@ -4712,6 +4773,7 @@ class TrainRecommendationCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           _PollutantGapPanel(
+            response: response,
             train: train,
             selectedUseCase: selectedUseCase,
           ),
@@ -4805,9 +4867,13 @@ class _DataConfidenceGuide extends StatelessWidget {
 }
 
 class _TopTrainComparison extends StatelessWidget {
-  const _TopTrainComparison({required this.trains});
+  const _TopTrainComparison({
+    required this.trains,
+    required this.sourceContext,
+  });
 
   final List<TrainRecommendation> trains;
+  final Map<String, dynamic> sourceContext;
 
   @override
   Widget build(BuildContext context) {
@@ -4841,7 +4907,7 @@ class _TopTrainComparison extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '#${train.rank}  ${_expandedTrainName(train.name)}',
+                      '#${train.rank}  ${_expandedTrainName(train.name, context: sourceContext)}',
                       style: const TextStyle(fontWeight: FontWeight.w900),
                     ),
                     const SizedBox(height: 8),
@@ -6934,7 +7000,7 @@ class _ResultsHero extends StatelessWidget {
                     Text(
                       topRecommendation == null
                           ? 'No ranked recommendation is available for this run.'
-                          : 'Top treatment train: ${topRecommendation!.name}',
+                          : 'Top treatment train: ${_expandedTrainName(topRecommendation!.name, context: response.inputSummary.context)}',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: NbsColors.mutedGrey,
                             height: 1.35,
@@ -8325,14 +8391,10 @@ String _practicalRecommendation(
   final highOrder = context['intervention_position'] == 'in_channel' ||
       ((context['stream_order'] as num?)?.toDouble() ?? 0) >= 5;
   if (source.contains('industrial')) {
-    return _expandAbbreviations(
-      'Use ${train.name} only after ETP/CETP treatment and required pH neutralization. Use NbS as controlled polishing or buffering, not standalone industrial treatment.',
-    );
+    return _industrialPolishingNote;
   }
   if (source.contains('agriculture')) {
-    return _expandAbbreviations(
-      'Start with field and edge-of-field source control. Use ${train.name} only for collected runoff that needs off-channel polishing.',
-    );
+    return 'Start with field and edge-of-field source control. Use ${_expandedTrainName(train.name, context: context)} only for collected runoff that needs off-channel polishing.';
   }
   if (highOrder) {
     return _expandAbbreviations(
@@ -8362,7 +8424,7 @@ String _keyCaution(
   final source =
       response.inputSummary.context['pollution_source_type']?.toString() ?? '';
   if (source.contains('industrial')) {
-    return 'Standalone wetland or pond treatment is not appropriate for industrial wastewater; pretreatment and compliance verification are mandatory.';
+    return _industrialPolishingNote;
   }
   if (source.contains('agriculture')) {
     return 'The ranked train is not a complete farm-level design and applies only after runoff is collected or intercepted.';
@@ -8383,7 +8445,7 @@ String? _majorSummaryWarning(
   final context = response.inputSummary.context;
   final source = context['pollution_source_type']?.toString() ?? '';
   if (source.contains('industrial')) {
-    return 'Industrial or mixed wastewater needs ETP/CETP pretreatment. Confirm neutralization when pH is outside the treatment range.';
+    return _industrialPolishingNote;
   }
   if (response.locationContext.contextFlags['off_channel_required'] == true) {
     return 'Treatment must stay off-channel. Do not place treatment cells inside the main river channel.';
@@ -8821,9 +8883,7 @@ List<String> _implementationSteps(
   return [
     'Step 1: Confirm source, location, flow, seasonal context, and measured water quality.',
     step2,
-    _expandAbbreviations(
-      'Step 3: Implement ${train.name} as ${train.implementationRole?.toLowerCase() ?? 'the selected treatment role'}.',
-    ),
+    'Step 3: Implement ${_expandedTrainName(train.name, context: context)} as ${train.implementationRole?.toLowerCase() ?? 'the selected treatment role'}.',
     'Step 4: Validate media, hydraulic design, non-invasive planting, land, and maintenance access locally.',
     'Step 5: Monitor influent, intermediate stages, effluent, hydraulic condition, and maintenance performance.',
   ];
@@ -8844,7 +8904,14 @@ List<String> _treatmentSequenceLabels(
       labels.add('pH neutralization');
     }
   } else if (source.contains('agriculture')) {
-    labels.addAll(['Source control', 'Collected runoff']);
+    labels.addAll([
+      'Field/edge-of-field runoff collection',
+      'Settling / first-flush control',
+      'Horizontal Subsurface Flow (HSSF) wetland',
+      'Maturation pond / polishing',
+      'Outlet / monitoring',
+    ]);
+    return _uniqueStrings(labels);
   } else if (context['intervention_position'] == 'in_channel' ||
       ((context['stream_order'] as num?)?.toDouble() ?? 0) >= 5) {
     labels.addAll(['Drain / tributary interception', 'Off-channel inlet']);
@@ -8873,9 +8940,57 @@ String _displayStatus(String? value) {
   };
 }
 
-String _expandedTrainName(String value) => _expandAbbreviations(value);
+const _agriculturalHssfPolishingAlias =
+    'Runoff collection/settling + Horizontal Subsurface Flow (HSSF) wetland polishing';
+
+const _industrialPolishingNote =
+    'Screening match is for polishing/buffering after effective Effluent Treatment Plant (ETP) / Common Effluent Treatment Plant (CETP) pretreatment and required pH neutralization. Nature-based systems are not standalone industrial wastewater treatment.';
+
+String _expandedTrainName(
+  String value, {
+  Map<String, dynamic>? context,
+}) {
+  if (_isAgriculturalContext(context) &&
+      value.toLowerCase().contains('septic') &&
+      value.toLowerCase().contains('hssf')) {
+    return _agriculturalHssfPolishingAlias;
+  }
+  return _expandAbbreviations(value);
+}
 
 String _expandedComponentName(String value) => _expandAbbreviations(value);
+
+bool _isAgriculturalContext(Map<String, dynamic>? context) {
+  final source =
+      context?['pollution_source_type']?.toString().toLowerCase() ?? '';
+  return source.contains('agriculture') || source.contains('agricultural');
+}
+
+bool _isIndustrialContext(Map<String, dynamic>? context) {
+  final source =
+      context?['pollution_source_type']?.toString().toLowerCase() ?? '';
+  return source.contains('industrial');
+}
+
+List<_PathwayNode> _agriculturalPathwayNodes() {
+  return const [
+    _PathwayNode(
+      label: 'Settling / first-flush control',
+      role: 'Pretreatment',
+      order: 1,
+    ),
+    _PathwayNode(
+      label: 'Horizontal Subsurface Flow (HSSF) wetland',
+      role: 'Polishing',
+      order: 2,
+    ),
+    _PathwayNode(
+      label: 'Maturation pond / polishing',
+      role: 'Polishing',
+      order: 3,
+    ),
+  ];
+}
 
 String _expandAbbreviations(String value) {
   var text = value;
@@ -9236,7 +9351,19 @@ String? _criterionDifferentiationNote(
   return 'Differentiated candidates in this run.';
 }
 
-String _pathwayPreviewSummary(TrainRecommendation train) {
+String _pathwayPreviewSummary(
+  TrainRecommendation train, {
+  Map<String, dynamic>? context,
+}) {
+  if (_isAgriculturalContext(context)) {
+    return [
+      'Field/edge-of-field runoff collection',
+      'Settling / first-flush control',
+      'Horizontal Subsurface Flow (HSSF) wetland',
+      'Maturation pond / polishing',
+      'Outlet / monitoring',
+    ].join(' -> ');
+  }
   if (train.trainPathway.isEmpty) {
     return 'Treatment sequence details are not available for this train.';
   }
@@ -9366,6 +9493,32 @@ String _displayInputSource(String? value) {
     null || '' || 'unknown' => 'Unknown',
     _ => _titleFromSnake(value),
   };
+}
+
+String _pollutantInputSourceLabel(
+  RecommendationInputSummary inputSummary,
+  Map<String, dynamic> row,
+) {
+  final source = row['source']?.toString();
+  if (source == 'manual' || source == 'user_measured') {
+    return 'Manual measurement';
+  }
+  if (source == 'user_csv') return 'Uploaded file';
+  final parameter = row['parameter']?.toString();
+  final matchedInput = inputSummary.dataUsed.firstWhere(
+    (item) => item['parameter']?.toString() == parameter,
+    orElse: () => const <String, dynamic>{},
+  );
+  if (inputSummary.selectedSourceType == 'water_type_profile' ||
+      matchedInput['source'] == 'water_type_profile' ||
+      matchedInput['water_type'] != null) {
+    return inputSummary.sourceLabel ?? 'Municipal influent fallback profile';
+  }
+  if (inputSummary.selectedSourceType == 'station_observations' ||
+      source == 'station_observations') {
+    return 'Station/site context';
+  }
+  return _displayInputSource(source);
 }
 
 String _trainConfidenceDisplay(TrainRecommendation? train) {

@@ -21,6 +21,42 @@ SOURCE_CONTROL_TOKENS = {
     "filter_strip",
     "vegetated_buffer",
 }
+AGRICULTURAL_PRIORITY_TOKENS = {
+    "vegetated_buffer",
+    "filter_strip",
+    "bioswale",
+    "vegetated_swale",
+    "bioretention",
+    "free_water_surface",
+    "surface_flow",
+    "horizontal_subsurface_flow",
+    "hssf",
+    "pond",
+    "sedimentation",
+    "polishing_pond",
+}
+AGRICULTURAL_SOURCE_CONTROL_FIRST_TOKENS = {
+    "vegetated_buffer",
+    "filter_strip",
+    "bioswale",
+    "vegetated_swale",
+    "bioretention",
+    "rain_garden",
+}
+AGRICULTURAL_WETLAND_TOKENS = {
+    "free_water_surface",
+    "surface_flow",
+    "horizontal_subsurface_flow",
+    "hssf",
+    "wetland",
+}
+AGRICULTURAL_POND_TOKENS = {
+    "pond",
+    "sedimentation",
+    "polishing_pond",
+    "waste_stabilization",
+}
+ROOF_RUNOFF_TOKENS = {"green_roof", "green_wall", "roof"}
 HIGH_RISK_CONTEXT_EXCLUSION_TOKENS = {
     "bioretention",
     "rain_garden",
@@ -383,7 +419,18 @@ def _context_sort_key(row: dict[str, Any], context: dict[str, Any]) -> tuple[int
     text = normalize_match_key(row.get("nbs_name")) or ""
     source = normalize_match_key(context.get("pollution_source_type")) or ""
     if "agriculture" in source:
-        priority = 0 if _contains(text, SOURCE_CONTROL_TOKENS) else 1
+        if _contains(text, ROOF_RUNOFF_TOKENS):
+            priority = 5
+        elif _contains(text, AGRICULTURAL_SOURCE_CONTROL_FIRST_TOKENS):
+            priority = 0
+        elif _contains(text, AGRICULTURAL_WETLAND_TOKENS):
+            priority = 1
+        elif _contains(text, AGRICULTURAL_POND_TOKENS):
+            priority = 2
+        elif _contains(text, SOURCE_CONTROL_TOKENS | AGRICULTURAL_PRIORITY_TOKENS):
+            priority = 3
+        else:
+            priority = 4
     elif "industrial" in source:
         priority = 1
     else:
@@ -414,10 +461,25 @@ def _excluded_non_stormwater_component(
     if normalize_match_key(context.get("use_case")) == "drinking":
         return False
     source = normalize_match_key(context.get("pollution_source_type")) or ""
-    if "stormwater" in source or "runoff" in source or "agriculture" in source:
+    if _is_urban_stormwater_or_roof_runoff(source):
         return False
+    if "agriculture" in source:
+        text = normalize_match_key(f"{name} {family or ''}") or ""
+        return _contains(text, ROOF_RUNOFF_TOKENS)
+    if "runoff" in source:
+        text = normalize_match_key(f"{name} {family or ''}") or ""
+        return _contains(text, ROOF_RUNOFF_TOKENS)
     text = normalize_match_key(f"{name} {family or ''}") or ""
     return _contains(text, STORMWATER_ONLY_TOKENS)
+
+
+def _is_urban_stormwater_or_roof_runoff(source: str) -> bool:
+    return (
+        "stormwater" in source
+        or "roof_runoff" in source
+        or ("roof" in source and "runoff" in source)
+        or "urban_runoff" in source
+    )
 
 
 def _is_high_risk_exclusion_context(context: dict[str, Any]) -> bool:
