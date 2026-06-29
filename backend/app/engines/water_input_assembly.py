@@ -28,6 +28,10 @@ MUNICIPAL_FALLBACK_NOTE = (
     "(medium-strong, India). Concentrated blackwater is not used as town-scale "
     "municipal default."
 )
+MUNICIPAL_FALLBACK_OVERRIDE_NOTE = (
+    "No measured influent was supplied; user-measured observations override this "
+    "fallback. Concentrated blackwater is not used as town-scale municipal default."
+)
 
 
 @dataclass(slots=True)
@@ -204,6 +208,7 @@ class WaterInputAssemblyEngine:
                 ]
                 if profile_name == MUNICIPAL_PROFILE_NAME:
                     data_quality_notes.append(MUNICIPAL_FALLBACK_NOTE)
+                    data_quality_notes.append(MUNICIPAL_FALLBACK_OVERRIDE_NOTE)
                     _append_once(warnings, MUNICIPAL_FALLBACK_NOTE)
                 else:
                     data_quality_notes.append(

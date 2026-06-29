@@ -619,6 +619,8 @@ class IndividualNbsRecommendation {
 
 class RecommendationInputSummary {
   RecommendationInputSummary({
+    required this.selectedSourceType,
+    required this.sourceLabel,
     required this.observationCount,
     required this.selectedParameters,
     required this.dataUsed,
@@ -626,6 +628,8 @@ class RecommendationInputSummary {
     required this.context,
   });
 
+  final String? selectedSourceType;
+  final String? sourceLabel;
   final int observationCount;
   final List<String> selectedParameters;
   final List<Map<String, dynamic>> dataUsed;
@@ -640,6 +644,8 @@ class RecommendationInputSummary {
 
   factory RecommendationInputSummary.fromJson(Map<String, dynamic> json) {
     return RecommendationInputSummary(
+      selectedSourceType: _nullableString(json['selected_source_type']),
+      sourceLabel: _nullableString(json['source_label']),
       observationCount: _intValue(json['observation_count']),
       selectedParameters: _stringList(json['selected_parameters']),
       dataUsed: (json['data_used'] as List?)

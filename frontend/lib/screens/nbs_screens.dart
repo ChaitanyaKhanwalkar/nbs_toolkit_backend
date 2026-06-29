@@ -2274,6 +2274,26 @@ class _ComparisonWorkspace extends StatelessWidget {
             'Compare the current treatment trains without changing their scientific rank. Run another case to compare different water-quality, site, or land inputs.',
           ),
         ),
+        if (comparison.options.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          _DetailSection(
+            title: 'Cost-benefit and practicality',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'This is a non-monetary practicality screen. It does not estimate rupee CAPEX or OPEX.',
+                ),
+                const SizedBox(height: 10),
+                for (final option in comparison.options.take(3))
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _PracticalitySummaryCard(option: option),
+                  ),
+              ],
+            ),
+          ),
+        ],
         if (comparison.takeaways.isNotEmpty) ...[
           const SizedBox(height: 14),
           Wrap(
@@ -2355,7 +2375,7 @@ class _ComparisonWorkspace extends StatelessWidget {
                       color: NbsColors.wetlandGreen,
                     ),
                     title: Text(
-                      component.name,
+                      _expandedComponentName(component.name),
                       style: const TextStyle(fontWeight: FontWeight.w800),
                     ),
                     subtitle: Text(
@@ -2390,6 +2410,64 @@ class _ComparisonWorkspace extends StatelessWidget {
   }
 }
 
+class _PracticalitySummaryCard extends StatelessWidget {
+  const _PracticalitySummaryCard({required this.option});
+
+  final ComparisonOption option;
+
+  @override
+  Widget build(BuildContext context) {
+    final burden = _practicalCostBurden(option);
+    final drivers = _practicalCostDrivers(option);
+    final benefits = _practicalBenefits(option);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: NbsColors.researchBlue.withValues(alpha: 0.035),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: NbsColors.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _expandedTrainName(option.name),
+            style: const TextStyle(fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              StatusPill(label: 'Practical cost burden', value: burden),
+              StatusPill(
+                  label: 'Land burden', value: _titleFromSnake(option.landFit)),
+              StatusPill(
+                  label: 'O&M',
+                  value: _expandAbbreviations(option.omIntensity)),
+              StatusPill(
+                label: 'Confidence',
+                value: option.confidenceLabel == null
+                    ? 'Data-limited'
+                    : _titleFromSnake(option.confidenceLabel!),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _ReadableBulletList(
+            values: [
+              'Main cost drivers: ${drivers.join(', ')}.',
+              'Main benefits: ${benefits.join(', ')}.',
+              'Key trade-off: ${_practicalTradeoff(option)}',
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ComparisonOptionCard extends StatelessWidget {
   const _ComparisonOptionCard({required this.response, required this.option});
 
@@ -2407,7 +2485,7 @@ class _ComparisonOptionCard extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    option.name,
+                    _expandedTrainName(option.name),
                     style: Theme.of(
                       context,
                     )
@@ -3058,13 +3136,14 @@ class _DataUsedPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final inputSummary = response.inputSummary;
     final rows = response.parameterCoverage;
-    final sourceLabel = switch (inputSummary.workflowMode) {
-      'uploaded_water_quality' => 'Uploaded file',
-      'manual_measured_water_quality' => 'Manual user input',
-      'site_context_only' => 'Station and site context',
-      'pollution_source_screening' => 'Pollution-source and site context',
-      _ => 'Available recommendation input',
-    };
+    final sourceLabel = inputSummary.sourceLabel ??
+        switch (inputSummary.workflowMode) {
+          'uploaded_water_quality' => 'Uploaded file',
+          'manual_measured_water_quality' => 'Manual user input',
+          'site_context_only' => 'Station and site context',
+          'pollution_source_screening' => 'Pollution-source and site context',
+          _ => 'Available recommendation input',
+        };
     return _DetailSection(
       title:
           rows.isEmpty ? 'Data used in screening' : 'Water-quality values used',
@@ -3075,6 +3154,18 @@ class _DataUsedPanel extends StatelessWidget {
             'Source: $sourceLabel',
             style: const TextStyle(fontWeight: FontWeight.w800),
           ),
+          if (inputSummary.selectedSourceType == 'water_type_profile') ...[
+            const SizedBox(height: 6),
+            _ReadableBulletList(
+              values: [
+                for (final waterType in _waterTypesUsed(inputSummary.dataUsed))
+                  'Profile: $waterType',
+                ...inputSummary.dataQualityNotes,
+              ],
+              emptyText:
+                  'Fallback profile details are not available for this run.',
+            ),
+          ],
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -3196,6 +3287,7 @@ class _PollutantGapPanel extends StatelessWidget {
                               value: _targetThresholdLabel(
                                 row['target_threshold'],
                                 parameter: row['parameter']?.toString(),
+                                selectedUseCase: selectedUseCase,
                               ),
                             ),
                             StatusPill(
@@ -3232,7 +3324,13 @@ class _PollutantGapPanel extends StatelessWidget {
                           ),
                           const SizedBox(height: 6),
                         ],
-                        Text(_targetGapMessage(row, fallback: row['severity'])),
+                        Text(
+                          _targetGapMessage(
+                            row,
+                            fallback: row['severity'],
+                            selectedUseCase: selectedUseCase,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -3337,21 +3435,21 @@ class _ComponentSummary extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Primary treatment train: ${train?.name ?? 'Not available'}',
+            'Primary treatment train: ${train == null ? 'Not available' : _expandedTrainName(train!.name)}',
             style: const TextStyle(fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 8),
           _ReadableBulletList(
             values: [
               for (final item in supporting)
-                '${item.name} - ${_titleFromSnake(item.role)}',
+                '${_expandedComponentName(item.name)} - ${_titleFromSnake(item.role)}',
             ],
             emptyText: 'No supporting component screen is available.',
           ),
           if (limited.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
-              'Not suitable alone: ${limited.map((item) => item.name).join(', ')}.',
+              'Not suitable alone: ${limited.map((item) => _expandedComponentName(item.name)).join(', ')}.',
               style: Theme.of(
                 context,
               ).textTheme.bodySmall?.copyWith(color: NbsColors.mutedGrey),
@@ -3384,7 +3482,7 @@ class _NbsComponentsWorkspace extends StatelessWidget {
         _DetailSection(
           title: 'How to read this section',
           child: Text(
-            'The primary recommendation is the treatment train ${train?.name ?? ''}. Individual NbS options below are supporting components and do not replace that train.',
+            'The primary recommendation is the treatment train ${train == null ? '' : _expandedTrainName(train!.name)}. Individual NbS options below are supporting components and do not replace that train.',
           ),
         ),
         const SizedBox(height: 14),
@@ -3449,7 +3547,7 @@ class _IndividualNbsCard extends StatelessWidget {
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         expandedCrossAxisAlignment: CrossAxisAlignment.start,
         title: Text(
-          component.name,
+          _expandedComponentName(component.name),
           style: const TextStyle(fontWeight: FontWeight.w900),
         ),
         subtitle: Padding(
@@ -3954,7 +4052,7 @@ class _ReportPreview extends StatelessWidget {
           values: train == null
               ? const ['No ranked treatment train is available.']
               : [
-                  train.name,
+                  _expandedTrainName(train.name),
                   'Screening match: ${train.matchPercent}',
                   'Result confidence: ${_trainConfidenceDisplay(train)}',
                   if (train.implementationRole != null)
@@ -3968,7 +4066,7 @@ class _ReportPreview extends StatelessWidget {
           values: train == null
               ? const []
               : [
-                  _pathwayPreviewSummary(train),
+                  _expandAbbreviations(_pathwayPreviewSummary(train)),
                 ],
           emptyText:
               'Treatment sequence details are not available for this train.',
@@ -4035,7 +4133,7 @@ class _ReportPreview extends StatelessWidget {
           title: 'Individual NbS components',
           values: [
             for (final item in response.componentRecommendations)
-              '${item.name} - ${_titleFromSnake(item.role)}',
+              '${_expandedComponentName(item.name)} - ${_titleFromSnake(item.role)}',
           ],
           emptyText: 'No supporting component passed the current screen.',
         ),
@@ -4313,7 +4411,7 @@ class _TreatmentTrainPathwayCard extends StatelessWidget {
                   ),
                   for (final step in steps)
                     _PathwayNode(
-                      label: step.componentName,
+                      label: _expandedComponentName(step.componentName),
                       role: step.componentRole,
                       order: step.stepOrder,
                     ),
@@ -4514,7 +4612,7 @@ class TrainRecommendationCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              train.name,
+              _expandedTrainName(train.name),
               style: const TextStyle(fontWeight: FontWeight.w900),
             ),
             if (train.implementationRole != null) ...[
@@ -4592,7 +4690,7 @@ class TrainRecommendationCard extends StatelessWidget {
           const SizedBox(height: 12),
           _TextBlockList(
             title: 'Why recommended',
-            values: [_trainStrength(train)],
+            values: [_expandAbbreviations(_trainStrength(train))],
             emptyText: 'No additional explanation is recorded.',
           ),
           const SizedBox(height: 12),
@@ -4743,7 +4841,7 @@ class _TopTrainComparison extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '#${train.rank}  ${train.name}',
+                      '#${train.rank}  ${_expandedTrainName(train.name)}',
                       style: const TextStyle(fontWeight: FontWeight.w900),
                     ),
                     const SizedBox(height: 8),
@@ -4778,7 +4876,7 @@ class _TopTrainComparison extends StatelessWidget {
                             fontWeight: FontWeight.w800,
                           ),
                     ),
-                    Text(_trainStrength(train)),
+                    Text(_expandAbbreviations(_trainStrength(train))),
                     const SizedBox(height: 8),
                     Text(
                       'Main limitation',
@@ -4786,7 +4884,7 @@ class _TopTrainComparison extends StatelessWidget {
                             fontWeight: FontWeight.w800,
                           ),
                     ),
-                    Text(_trainLimitation(train)),
+                    Text(_expandAbbreviations(_trainLimitation(train))),
                     if (train.allUseCasesUnknown) ...[
                       const SizedBox(height: 8),
                       const Text(
@@ -5377,7 +5475,7 @@ class RecommendationCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      item.nbsName,
+                      _expandedComponentName(item.nbsName),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -7064,7 +7162,7 @@ class _ReportHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item.nbsName,
+                  _expandedComponentName(item.nbsName),
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         color: NbsColors.deepNavy,
                         fontWeight: FontWeight.w900,
@@ -8227,21 +8325,33 @@ String _practicalRecommendation(
   final highOrder = context['intervention_position'] == 'in_channel' ||
       ((context['stream_order'] as num?)?.toDouble() ?? 0) >= 5;
   if (source.contains('industrial')) {
-    return 'Use ${train.name} only after ETP/CETP treatment and required pH neutralization. Use NbS as controlled polishing or buffering, not standalone industrial treatment.';
+    return _expandAbbreviations(
+      'Use ${train.name} only after ETP/CETP treatment and required pH neutralization. Use NbS as controlled polishing or buffering, not standalone industrial treatment.',
+    );
   }
   if (source.contains('agriculture')) {
-    return 'Start with field and edge-of-field source control. Use ${train.name} only for collected runoff that needs off-channel polishing.';
+    return _expandAbbreviations(
+      'Start with field and edge-of-field source control. Use ${train.name} only for collected runoff that needs off-channel polishing.',
+    );
   }
   if (highOrder) {
-    return 'Use ${train.name} only through drain interception or off-channel treatment. Do not build treatment cells inside the main river channel.';
+    return _expandAbbreviations(
+      'Use ${train.name} only through drain interception or off-channel treatment. Do not build treatment cells inside the main river channel.',
+    );
   }
   if (context['intervention_position'] == 'off_channel_or_stp_polishing') {
     if (train.name.toLowerCase().contains('dewats')) {
-      return 'Use a DEWATS modular train as an off-channel treatment system. Use it for decentralized sewage treatment or STP polishing. Do not use it as an in-channel river intervention.';
+      return _expandAbbreviations(
+        'Use a DEWATS modular train as an off-channel treatment system. Use it for decentralized sewage treatment or STP polishing. Do not use it as an in-channel river intervention.',
+      );
     }
-    return 'Use a ${train.name} as an off-channel treatment train. Apply it after primary treatment such as screening and settling. Do not place it directly inside the river channel.';
+    return _expandAbbreviations(
+      'Use a ${train.name} as an off-channel treatment train. Apply it after primary treatment such as screening and settling. Do not place it directly inside the river channel.',
+    );
   }
-  return 'Use ${train.name} as ${train.implementationRole?.toLowerCase() ?? 'the selected treatment train'}, following its primary treatment, polishing, and monitoring requirements.';
+  return _expandAbbreviations(
+    'Use ${train.name} as ${train.implementationRole?.toLowerCase() ?? 'the selected treatment train'}, following its primary treatment, polishing, and monitoring requirements.',
+  );
 }
 
 String _keyCaution(
@@ -8540,6 +8650,78 @@ String _trainLimitation(TrainRecommendation train) {
   return 'Site-specific design and monitoring validation remain required.';
 }
 
+String _practicalCostBurden(ComparisonOption option) {
+  final land = option.landFit.toLowerCase();
+  final om = option.omIntensity.toLowerCase();
+  if (land.contains('insufficient') || land.contains('unknown')) {
+    return 'Data-limited';
+  }
+  if (land.contains('poor') ||
+      land.contains('not') ||
+      om.contains('high') ||
+      om.contains('power')) {
+    return 'High';
+  }
+  if (land.contains('borderline') ||
+      land.contains('moderate') ||
+      om.contains('moderate')) {
+    return 'Moderate';
+  }
+  return 'Low';
+}
+
+List<String> _practicalCostDrivers(ComparisonOption option) {
+  final values = <String>[];
+  final land = option.landFit.toLowerCase();
+  final om = option.omIntensity.toLowerCase();
+  if (land.contains('insufficient') || land.contains('unknown')) {
+    values.add('missing sizing data');
+  } else if (!land.contains('good')) {
+    values.add('land');
+  }
+  if (om.contains('high') || om.contains('moderate')) {
+    values.add('O&M');
+  }
+  if (om.contains('power') || om.contains('energy')) {
+    values.add('energy');
+  }
+  if (option.warnings.isNotEmpty) {
+    values.add('monitoring');
+  }
+  return _uniqueStrings(values.isEmpty ? ['site verification'] : values);
+}
+
+List<String> _practicalBenefits(ComparisonOption option) {
+  final values = <String>[];
+  if ((option.technicalMatch ?? 0) >= 0.7) {
+    values.add('treatment coverage');
+  }
+  if ((option.resultConfidence ?? 0) >= 0.5) {
+    values.add('confidence');
+  }
+  if (option.omIntensity.toLowerCase().contains('low') ||
+      option.omIntensity.toLowerCase().contains('gravity')) {
+    values.add('low O&M');
+  }
+  if (option.applicabilityStatus != 'rejected') {
+    values.add('off-channel suitability where site checks pass');
+  }
+  if (option.keyStrength != null) {
+    values.add('train completeness');
+  }
+  return _uniqueStrings(values.isEmpty ? ['transparent screening'] : values);
+}
+
+String _practicalTradeoff(ComparisonOption option) {
+  if (option.keyLimitation != null && option.keyLimitation!.isNotEmpty) {
+    return _expandAbbreviations(option.keyLimitation!);
+  }
+  if (option.warnings.isNotEmpty) {
+    return _expandAbbreviations(option.warnings.first);
+  }
+  return 'Still needs design-flow, land, and site verification before engineering design.';
+}
+
 // Retained for compatibility with older detail layouts.
 // ignore: unused_element
 List<String> _nextDataToCollect(
@@ -8639,7 +8821,9 @@ List<String> _implementationSteps(
   return [
     'Step 1: Confirm source, location, flow, seasonal context, and measured water quality.',
     step2,
-    'Step 3: Implement ${train.name} as ${train.implementationRole?.toLowerCase() ?? 'the selected treatment role'}.',
+    _expandAbbreviations(
+      'Step 3: Implement ${train.name} as ${train.implementationRole?.toLowerCase() ?? 'the selected treatment role'}.',
+    ),
     'Step 4: Validate media, hydraulic design, non-invasive planting, land, and maintenance access locally.',
     'Step 5: Monitor influent, intermediate stages, effluent, hydraulic condition, and maintenance performance.',
   ];
@@ -8687,6 +8871,77 @@ String _displayStatus(String? value) {
     null || '' => 'Unknown',
     _ => _titleFromSnake(value),
   };
+}
+
+String _expandedTrainName(String value) => _expandAbbreviations(value);
+
+String _expandedComponentName(String value) => _expandAbbreviations(value);
+
+String _expandAbbreviations(String value) {
+  var text = value;
+  if (text == 'DEWATS modular train') {
+    return 'DEWATS modular train — Decentralized Wastewater Treatment System';
+  }
+  if (text == 'DEWATS Train') {
+    return 'DEWATS Train — Decentralized Wastewater Treatment System';
+  }
+  if (!text.contains('Decentralized Wastewater Treatment System')) {
+    text = text.replaceAll(
+      'DEWATS modular train',
+      'DEWATS modular train — Decentralized Wastewater Treatment System',
+    );
+    text = text.replaceAll(
+      'DEWATS Train',
+      'DEWATS Train — Decentralized Wastewater Treatment System',
+    );
+  }
+  if (text == 'French VF (no primary)') {
+    return 'French Vertical Flow (VF) (no primary)';
+  }
+  const replacements = <(String, String)>[
+    ('HSSF', 'Horizontal Subsurface Flow (HSSF)'),
+    ('WSP', 'Waste Stabilization Pond (WSP)'),
+    ('UASB', 'Upflow Anaerobic Sludge Blanket (UASB)'),
+    ('STP', 'Sewage Treatment Plant (STP)'),
+    ('ABR', 'Anaerobic Baffled Reactor (ABR)'),
+    ('ETP', 'Effluent Treatment Plant (ETP)'),
+    ('CETP', 'Common Effluent Treatment Plant (CETP)'),
+    ('O&M', 'Operation and Maintenance (O&M)'),
+    ('BOD', 'Biochemical Oxygen Demand (BOD)'),
+    ('COD', 'Chemical Oxygen Demand (COD)'),
+    ('TSS', 'Total Suspended Solids (TSS)'),
+    ('TDS', 'Total Dissolved Solids (TDS)'),
+    ('EC', 'Electrical Conductivity (EC)'),
+    ('SAR', 'Sodium Adsorption Ratio (SAR)'),
+    ('TP', 'Total Phosphorus (TP)'),
+    ('NH4-N', 'Ammonium nitrogen / ammoniacal nitrogen (NH4-N)'),
+    ('DO', 'Dissolved Oxygen (DO)'),
+  ];
+  if (!text.contains('Vertical Flow (VF)')) {
+    text = text.replaceAll(
+      RegExp(r'\bVF\b'),
+      'Vertical Flow (VF)',
+    );
+  }
+  for (final (abbr, full) in replacements) {
+    if (!text.contains(full)) {
+      text = abbr == 'O&M'
+          ? text.replaceAll(abbr, full)
+          : text.replaceAll(RegExp('\\b${RegExp.escape(abbr)}\\b'), full);
+    }
+  }
+  return text;
+}
+
+List<String> _waterTypesUsed(List<Map<String, dynamic>> dataUsed) {
+  final values = <String>[];
+  for (final row in dataUsed) {
+    final value = row['water_type']?.toString();
+    if (value != null && value.isNotEmpty && !values.contains(value)) {
+      values.add(value);
+    }
+  }
+  return values;
 }
 
 String _displayMethod(String? value) {
@@ -8763,31 +9018,41 @@ String _gapStatusLabel(String? status) {
   };
 }
 
-String _targetThresholdLabel(dynamic value, {String? parameter}) {
-  if (value is! Map) return _missingTargetLabel(parameter);
+String _targetThresholdLabel(
+  dynamic value, {
+  String? parameter,
+  String? selectedUseCase,
+}) {
+  if (value is! Map) {
+    return _missingTargetLabel(parameter, selectedUseCase: selectedUseCase);
+  }
   final low = value['limit_low'];
   final high = value['limit_high'];
   final unit = _displayUnit(value['unit']);
   if (low != null && high != null) return '$low-$high $unit'.trim();
   if (high != null) return '<= $high $unit'.trim();
   if (low != null) return '>= $low $unit'.trim();
-  return _missingTargetLabel(parameter);
+  return _missingTargetLabel(parameter, selectedUseCase: selectedUseCase);
 }
 
-String _missingTargetLabel(String? parameter) {
-  if (_isPhosphorusParameter(parameter)) {
-    return 'No stored target limit for phosphate/TP under the selected use case.';
+String _missingTargetLabel(String? parameter, {String? selectedUseCase}) {
+  if (_hasGuidanceContext(parameter, selectedUseCase)) {
+    return 'Guidance available, not used as regulatory pass/fail target.';
   }
-  return 'Not stored for this use case';
+  return 'No stored source-backed target/evidence found.';
 }
 
-String _targetGapMessage(Map<String, dynamic> row, {dynamic fallback}) {
+String _targetGapMessage(
+  Map<String, dynamic> row, {
+  dynamic fallback,
+  String? selectedUseCase,
+}) {
   if (row['gap_status'] == 'not_assessed') {
     final parameter = row['parameter']?.toString();
-    if (_isPhosphorusParameter(parameter)) {
-      return 'No stored target limit for phosphate/TP under the selected use case.';
+    if (_hasGuidanceContext(parameter, selectedUseCase)) {
+      return 'Guidance available, not used as regulatory pass/fail target.';
     }
-    return 'No stored target limit is available for this parameter under the selected use case.';
+    return 'No stored source-backed target/evidence found.';
   }
   final text = fallback?.toString().trim();
   if (text != null && text.isNotEmpty) return text;
@@ -8796,9 +9061,16 @@ String _targetGapMessage(Map<String, dynamic> row, {dynamic fallback}) {
       : 'Target is not met; treatment or adjustment is required.';
 }
 
-bool _isPhosphorusParameter(String? parameter) {
+bool _hasGuidanceContext(String? parameter, String? selectedUseCase) {
+  if (selectedUseCase != 'irrigation') return false;
   final value = parameter?.toLowerCase();
-  return value == 'phosphate_p' ||
+  return value == 'ec' ||
+      value == 'tds' ||
+      value == 'sar' ||
+      value == 'cod' ||
+      value == 'ammonia_n' ||
+      value == 'nh4_n' ||
+      value == 'phosphate_p' ||
       value == 'total_p' ||
       value == 'total_phosphorus' ||
       value == 'tp';
@@ -9050,17 +9322,18 @@ String _coverageLabel(String? category) => switch (category) {
 
 String _displayParameter(String? value, {String? fallback}) {
   return switch (value?.toLowerCase()) {
-    'bod' => 'BOD',
-    'cod' => 'COD',
-    'tss' => 'TSS',
+    'bod' => 'Biochemical Oxygen Demand (BOD)',
+    'cod' => 'Chemical Oxygen Demand (COD)',
+    'tss' => 'Total Suspended Solids (TSS)',
     'ph' => 'pH',
-    'do' => 'DO',
-    'tds' => 'TDS',
-    'ec' => 'EC',
-    'ammonia_n' || 'nh4_n' => 'NH4-N',
+    'do' => 'Dissolved Oxygen (DO)',
+    'tds' => 'Total Dissolved Solids (TDS)',
+    'ec' => 'Electrical Conductivity (EC)',
+    'sar' => 'Sodium Adsorption Ratio (SAR)',
+    'ammonia_n' || 'nh4_n' => 'Ammonium nitrogen / ammoniacal nitrogen (NH4-N)',
     'nitrate_n' || 'no3_n' => 'NO3-N',
-    'phosphate_p' => 'PO4-P / TP',
-    'total_p' || 'total_phosphorus' => 'TP',
+    'phosphate_p' => 'PO4-P / Total Phosphorus (TP)',
+    'total_p' || 'total_phosphorus' => 'Total Phosphorus (TP)',
     'faecal_coliform' || 'fecal_coliform' => 'Faecal coliform',
     'turbidity' => 'Turbidity',
     null || '' => fallback ?? 'Parameter',

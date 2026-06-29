@@ -34,6 +34,16 @@ HIGH_RISK_CONTEXT_EXCLUSION_TOKENS = {
     "roof",
     "stormwater",
 }
+STORMWATER_ONLY_TOKENS = {
+    "green_roof",
+    "green_wall",
+    "roof",
+    "rain_garden",
+    "bioswale",
+    "filter_strip",
+    "vegetated_buffer",
+    "buffer_strip",
+}
 PRIMARY_PROCESS_TOKENS = {
     "anaerobic_baffled_reactor",
     "dewats",
@@ -140,6 +150,10 @@ class IndividualNbsRecommendationEngine:
                 continue
             identity = self._component_identity(int(nbs_id), row)
             if _excluded_in_high_risk_context(
+                identity["name"],
+                identity.get("family"),
+                context,
+            ) or _excluded_non_stormwater_component(
                 identity["name"],
                 identity.get("family"),
                 context,
@@ -388,6 +402,22 @@ def _excluded_in_high_risk_context(
         return False
     text = normalize_match_key(f"{name} {family or ''}") or ""
     return _contains(text, HIGH_RISK_CONTEXT_EXCLUSION_TOKENS)
+
+
+def _excluded_non_stormwater_component(
+    name: str,
+    family: Any,
+    context: dict[str, Any],
+) -> bool:
+    """Hide stormwater-only components unless the source is runoff/stormwater."""
+
+    if normalize_match_key(context.get("use_case")) == "drinking":
+        return False
+    source = normalize_match_key(context.get("pollution_source_type")) or ""
+    if "stormwater" in source or "runoff" in source or "agriculture" in source:
+        return False
+    text = normalize_match_key(f"{name} {family or ''}") or ""
+    return _contains(text, STORMWATER_ONLY_TOKENS)
 
 
 def _is_high_risk_exclusion_context(context: dict[str, Any]) -> bool:

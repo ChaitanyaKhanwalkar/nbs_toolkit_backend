@@ -13,6 +13,7 @@ from app.engines import InputNormalizationEngine, WaterInputAssemblyEngine
 from app.engines.water_input_assembly import (
     BLACKWATER_PROFILE_NAME,
     MUNICIPAL_FALLBACK_NOTE,
+    MUNICIPAL_FALLBACK_OVERRIDE_NOTE,
     MUNICIPAL_PROFILE_NAME,
 )
 
@@ -213,8 +214,8 @@ def _profile_rows(water_type: str) -> list[dict[str, object]]:
                 "id": 1,
                 "water_type": water_type,
                 "parameter": "ammonia_n",
-                "value_low": 25,
-                "value_high": 50,
+                "value_low": 40,
+                "value_high": 40,
                 "unit": "mg_l",
                 "source_id": 109,
             },
@@ -222,8 +223,8 @@ def _profile_rows(water_type: str) -> list[dict[str, object]]:
                 "id": 2,
                 "water_type": water_type,
                 "parameter": "total_phosphorus",
-                "value_low": 5,
-                "value_high": 15,
+                "value_low": 12,
+                "value_high": 12,
                 "unit": "mg_l",
                 "source_id": 109,
             },
@@ -273,6 +274,7 @@ def test_domestic_sewage_selects_combined_municipal_profile() -> None:
         MUNICIPAL_PROFILE_NAME
     }
     assert MUNICIPAL_FALLBACK_NOTE in bundle.warnings
+    assert MUNICIPAL_FALLBACK_OVERRIDE_NOTE in bundle.data_quality_notes
 
 
 def test_municipal_sewage_selects_combined_municipal_profile() -> None:
@@ -314,20 +316,20 @@ def test_domestic_sewage_does_not_match_blackwater_by_substring() -> None:
     )
 
 
-def test_municipal_profile_keeps_ammonia_and_phosphorus_ranges() -> None:
-    """Fallback observations should preserve profile ranges for review."""
+def test_municipal_profile_uses_representative_ammonia_and_phosphorus_values() -> None:
+    """Fallback observations should use representative central display values."""
 
     context = make_context(context={"source_type": "municipal wastewater"})
 
     bundle = WaterInputAssemblyEngine(_profile_service()).assemble(context)
     rows = {row["parameter"]: row for row in bundle.observations}
 
-    assert rows["ammonia_n"]["value_low"] == 25
-    assert rows["ammonia_n"]["value_high"] == 50
-    assert rows["ammonia_n"]["value"] == 37.5
-    assert rows["total_phosphorus"]["value_low"] == 5
-    assert rows["total_phosphorus"]["value_high"] == 15
-    assert rows["total_phosphorus"]["value"] == 10
+    assert rows["ammonia_n"]["value_low"] == 40
+    assert rows["ammonia_n"]["value_high"] == 40
+    assert rows["ammonia_n"]["value"] == 40
+    assert rows["total_phosphorus"]["value_low"] == 12
+    assert rows["total_phosphorus"]["value_high"] == 12
+    assert rows["total_phosphorus"]["value"] == 12
 
 
 def test_user_measured_parameters_override_profile_fallback() -> None:

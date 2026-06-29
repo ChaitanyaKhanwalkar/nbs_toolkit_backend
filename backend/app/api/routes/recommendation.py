@@ -26,6 +26,7 @@ from app.engines.input_normalization import (
 from app.engines.target_validation import TargetUseCaseValidator
 from app.engines.train_recommendation import TrainRecommendationEngine
 from app.engines.treatment_need import TreatmentNeedBundle
+from app.engines.water_input_assembly import MUNICIPAL_PROFILE_NAME
 from app.repositories import EngineDataRepository
 from app.schemas import RecommendationRequest, RecommendationResponse
 from app.services import (
@@ -218,7 +219,7 @@ def run_local_recommendation_workflow(
         assembly_bundle=assembly_bundle,
         candidate_bundle=candidate_bundle,
         applicability_bundle=applicability_bundle,
-        context=request.context,
+        context={**request.context, "use_case": selected_use_case},
         contaminant_gaps=contaminant_gaps,
     )
     input_summary = _input_summary(payload)
@@ -808,6 +809,7 @@ def _input_summary(payload: dict[str, Any]) -> dict[str, Any]:
     return {
         "use_case": normalized_input.get("use_case"),
         "selected_source_type": water_bundle.get("selected_source_type"),
+        "source_label": _water_source_label(water_bundle, observations),
         "observation_count": water_bundle.get("observation_count", 0),
         "selected_parameters": normalized_input.get("selected_parameters") or [],
         "data_quality_notes": water_bundle.get("data_quality_notes") or [],
@@ -839,6 +841,25 @@ def _input_summary(payload: dict[str, Any]) -> dict[str, Any]:
         ],
         "context": normalized_input.get("context") or {},
     }
+
+
+def _water_source_label(
+    water_bundle: dict[str, Any],
+    observations: list[dict[str, Any]],
+) -> str:
+    """Return a practitioner-facing label for the selected water source."""
+
+    source_type = str(water_bundle.get("selected_source_type") or "")
+    water_types = {row.get("water_type") for row in observations}
+    if source_type == "water_type_profile" and MUNICIPAL_PROFILE_NAME in water_types:
+        return "Municipal influent fallback profile"
+    return {
+        "user_measured": "User-measured observations",
+        "station_observations": "Station and site context",
+        "basin_observations": "Basin context",
+        "water_type_profile": "Fallback water-type profile",
+        "missing": "No water-quality source selected",
+    }.get(source_type, "Available recommendation input")
 
 
 def _parameter_coverage(

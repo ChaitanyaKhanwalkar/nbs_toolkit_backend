@@ -52,7 +52,7 @@ class RecommendationReport {
     final trainPayload = train == null
         ? null
         : {
-            'name': train.name,
+            'name': _expandAbbreviations(train.name),
             'rank': train.rank,
             'technical_match': train.matchScore,
             'result_confidence': train.confidenceScore,
@@ -81,7 +81,7 @@ class RecommendationReport {
               for (final step in train.trainPathway)
                 {
                   'step_order': step.stepOrder,
-                  'component_name': step.componentName,
+                  'component_name': _expandAbbreviations(step.componentName),
                   'component_role': step.componentRole,
                   'nbs_id': step.nbsId,
                 },
@@ -100,6 +100,7 @@ class RecommendationReport {
       'pollution_source': pollutionSource,
       'project_input_summary': {
         'workflow_mode': input.workflowMode,
+        'source_label': input.sourceLabel,
         'selected_target_use_case': response.useCase,
         'selected_target_use_case_label': _targetUseCaseLabel(response.useCase),
         'pollution_source': pollutionSource,
@@ -179,7 +180,7 @@ class RecommendationReport {
           for (final option in response.scenarioComparison.options)
             {
               'train_id': option.trainId,
-              'name': option.name,
+              'name': _expandAbbreviations(option.name),
               'rank': option.rank,
               'technical_match': option.technicalMatch,
               'result_confidence': option.resultConfidence,
@@ -200,7 +201,7 @@ class RecommendationReport {
           for (final component in response.scenarioComparison.componentOptions)
             {
               'nbs_id': component.nbsId,
-              'name': component.name,
+              'name': _expandAbbreviations(component.name),
               'role': component.role,
               'suitability_score': component.suitabilityScore,
               'standalone_suitability': component.standaloneSuitability,
@@ -219,10 +220,22 @@ class RecommendationReport {
         ],
         'limitations': response.scenarioComparison.limitations,
       },
+      'cost_benefit_and_practicality': [
+        for (final option in response.scenarioComparison.options.take(3))
+          {
+            'train_name': _expandAbbreviations(option.name),
+            'practical_cost_burden': _practicalCostBurden(option),
+            'main_cost_drivers': _practicalCostDrivers(option),
+            'main_benefits': _practicalBenefits(option),
+            'key_tradeoff': _practicalTradeoff(option),
+            'monetary_cost_status':
+                'Not estimated; no rupee CAPEX/OPEX values are invented.',
+          },
+      ],
       'individual_nbs_components': [
         for (final component in response.componentRecommendations)
           {
-            'name': component.name,
+            'name': _expandAbbreviations(component.name),
             'role': component.role,
             'suitability_score': component.suitabilityScore,
             'standalone_suitability': component.standaloneSuitability,
@@ -276,7 +289,7 @@ String _buildSummary(
   } else {
     lines.addAll([
       '',
-      'Recommended treatment train: ${train.name}',
+      'Recommended treatment train: ${_expandAbbreviations(train.name)}',
       'Screening match: ${train.matchPercent}',
       'Result confidence: ${_confidenceLabel(train)}',
       if (train.implementationRole != null) 'Role: ${train.implementationRole}',
@@ -392,6 +405,19 @@ String _buildCsv(Map<String, dynamic> payload) {
   for (final entry in comparison.entries) {
     addValue('scenario_comparison', 'current_run', entry.key, entry.value);
   }
+  final practicality =
+      payload['cost_benefit_and_practicality'] as List<dynamic>;
+  for (var index = 0; index < practicality.length; index++) {
+    final row = practicality[index] as Map<String, dynamic>;
+    for (final entry in row.entries) {
+      addValue(
+        'cost_benefit_and_practicality',
+        'option_${index + 1}',
+        entry.key,
+        entry.value,
+      );
+    }
+  }
   final components = payload['individual_nbs_components'] as List<dynamic>;
   for (var index = 0; index < components.length; index++) {
     final component = components[index] as Map<String, dynamic>;
@@ -483,6 +509,59 @@ String _workflowLabel(String? value) => switch (value) {
       _ => 'Available project inputs',
     };
 
+String _expandAbbreviations(String value) {
+  var text = value;
+  if (text == 'DEWATS modular train') {
+    return 'DEWATS modular train — Decentralized Wastewater Treatment System';
+  }
+  if (text == 'DEWATS Train') {
+    return 'DEWATS Train — Decentralized Wastewater Treatment System';
+  }
+  if (!text.contains('Decentralized Wastewater Treatment System')) {
+    text = text.replaceAll(
+      'DEWATS modular train',
+      'DEWATS modular train — Decentralized Wastewater Treatment System',
+    );
+    text = text.replaceAll(
+      'DEWATS Train',
+      'DEWATS Train — Decentralized Wastewater Treatment System',
+    );
+  }
+  if (text == 'French VF (no primary)') {
+    return 'French Vertical Flow (VF) (no primary)';
+  }
+  const replacements = <(String, String)>[
+    ('HSSF', 'Horizontal Subsurface Flow (HSSF)'),
+    ('WSP', 'Waste Stabilization Pond (WSP)'),
+    ('UASB', 'Upflow Anaerobic Sludge Blanket (UASB)'),
+    ('STP', 'Sewage Treatment Plant (STP)'),
+    ('ABR', 'Anaerobic Baffled Reactor (ABR)'),
+    ('ETP', 'Effluent Treatment Plant (ETP)'),
+    ('CETP', 'Common Effluent Treatment Plant (CETP)'),
+    ('O&M', 'Operation and Maintenance (O&M)'),
+    ('BOD', 'Biochemical Oxygen Demand (BOD)'),
+    ('COD', 'Chemical Oxygen Demand (COD)'),
+    ('TSS', 'Total Suspended Solids (TSS)'),
+    ('TDS', 'Total Dissolved Solids (TDS)'),
+    ('EC', 'Electrical Conductivity (EC)'),
+    ('SAR', 'Sodium Adsorption Ratio (SAR)'),
+    ('TP', 'Total Phosphorus (TP)'),
+    ('NH4-N', 'Ammonium nitrogen / ammoniacal nitrogen (NH4-N)'),
+    ('DO', 'Dissolved Oxygen (DO)'),
+  ];
+  if (!text.contains('Vertical Flow (VF)')) {
+    text = text.replaceAll(RegExp(r'\bVF\b'), 'Vertical Flow (VF)');
+  }
+  for (final (abbr, full) in replacements) {
+    if (!text.contains(full)) {
+      text = abbr == 'O&M'
+          ? text.replaceAll(abbr, full)
+          : text.replaceAll(RegExp('\\b${RegExp.escape(abbr)}\\b'), full);
+    }
+  }
+  return text;
+}
+
 String _targetUseCaseLabel(String? value) => switch (value) {
       'discharge_inland' => 'Discharge to inland surface water',
       'irrigation' => 'Irrigation reuse',
@@ -518,13 +597,74 @@ List<String> _rankingDrivers(TrainRecommendation? train) {
   ];
 }
 
+String _practicalCostBurden(ComparisonOption option) {
+  final land = option.landFit.toLowerCase();
+  final om = option.omIntensity.toLowerCase();
+  if (land.contains('insufficient') || land.contains('unknown')) {
+    return 'Data-limited';
+  }
+  if (land.contains('poor') ||
+      land.contains('not') ||
+      om.contains('high') ||
+      om.contains('power')) {
+    return 'High';
+  }
+  if (land.contains('borderline') ||
+      land.contains('moderate') ||
+      om.contains('moderate')) {
+    return 'Moderate';
+  }
+  return 'Low';
+}
+
+List<String> _practicalCostDrivers(ComparisonOption option) {
+  final values = <String>[];
+  final land = option.landFit.toLowerCase();
+  final om = option.omIntensity.toLowerCase();
+  if (land.contains('insufficient') || land.contains('unknown')) {
+    values.add('missing sizing data');
+  } else if (!land.contains('good')) {
+    values.add('land');
+  }
+  if (om.contains('high') || om.contains('moderate')) values.add('O&M');
+  if (om.contains('power') || om.contains('energy')) values.add('energy');
+  if (option.warnings.isNotEmpty) values.add('monitoring');
+  return _uniqueStrings(values.isEmpty ? ['site verification'] : values);
+}
+
+List<String> _practicalBenefits(ComparisonOption option) {
+  final values = <String>[];
+  if ((option.technicalMatch ?? 0) >= 0.7) values.add('treatment coverage');
+  if ((option.resultConfidence ?? 0) >= 0.5) values.add('confidence');
+  if (option.omIntensity.toLowerCase().contains('low') ||
+      option.omIntensity.toLowerCase().contains('gravity')) {
+    values.add('low O&M');
+  }
+  if (option.applicabilityStatus != 'rejected') {
+    values.add('off-channel suitability where site checks pass');
+  }
+  if (option.keyStrength != null) values.add('train completeness');
+  return _uniqueStrings(values.isEmpty ? ['transparent screening'] : values);
+}
+
+String _practicalTradeoff(ComparisonOption option) {
+  if (option.keyLimitation != null && option.keyLimitation!.isNotEmpty) {
+    return _expandAbbreviations(option.keyLimitation!);
+  }
+  if (option.warnings.isNotEmpty) {
+    return _expandAbbreviations(option.warnings.first);
+  }
+  return 'Still needs design-flow, land, and site verification before engineering design.';
+}
+
 String _pathwaySummary(TrainRecommendation train) {
   if (train.trainPathway.isEmpty) {
     return 'Treatment sequence details are not available for this train.';
   }
   return [
     'Influent/source',
-    ...train.trainPathway.map((step) => step.componentName),
+    ...train.trainPathway
+        .map((step) => _expandAbbreviations(step.componentName)),
     'Outlet / selected target screening',
   ].join(' -> ');
 }
@@ -557,6 +697,16 @@ Map<String, dynamic> _validationMap(Object? value) {
 List<String> _stringListFromDynamic(Object? value) {
   if (value is! List) return const [];
   return value.map((item) => item.toString()).toList();
+}
+
+List<String> _uniqueStrings(List<String> values) {
+  final result = <String>[];
+  for (final value in values) {
+    if (value.trim().isNotEmpty && !result.contains(value)) {
+      result.add(value);
+    }
+  }
+  return result;
 }
 
 String _mapStatus(LocationContext location) {

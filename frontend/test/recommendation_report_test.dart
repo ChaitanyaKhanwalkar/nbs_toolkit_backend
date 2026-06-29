@@ -179,6 +179,9 @@ void main() {
       'data_used': [
         {'parameter': 'bod', 'value': 80, 'unit': 'mg_l'},
       ],
+      'data_quality_notes': [],
+      'selected_source_type': 'user_measured',
+      'source_label': 'User-measured observations',
       'context': {
         'workflow_mode': 'uploaded_water_quality',
         'pollution_source_type': 'domestic_sewage',
@@ -241,6 +244,10 @@ void main() {
     );
     expect(decoded['project_input_summary']['pollution_source'],
         'domestic_sewage');
+    expect(
+      decoded['project_input_summary']['source_label'],
+      'User-measured observations',
+    );
     expect(decoded['project_input_summary']['parameter_coverage'], isNotEmpty);
     expect(
       decoded['project_input_summary']['parameter_coverage'][0]
@@ -260,7 +267,12 @@ void main() {
     );
     expect(
       decoded['recommended_treatment_train']['name'],
-      'DEWATS modular train',
+      'DEWATS modular train — Decentralized Wastewater Treatment System',
+    );
+    expect(decoded['cost_benefit_and_practicality'], isNotEmpty);
+    expect(
+      decoded['cost_benefit_and_practicality'][0]['monetary_cost_status'],
+      contains('no rupee CAPEX/OPEX values are invented'),
     );
     expect(
       decoded['recommended_treatment_train']['ranking_drivers'],
@@ -311,7 +323,11 @@ void main() {
     expect(report.csv, contains('"sizing_and_land"'));
     expect(report.csv, contains('"scenario_comparison"'));
     expect(report.csv, contains('"evidence_records"'));
-    expect(report.summary, contains('DEWATS modular train'));
+    expect(
+      report.summary,
+      contains(
+          'DEWATS modular train — Decentralized Wastewater Treatment System'),
+    );
     expect(
       report.summary,
       contains('Selected target use case: Discharge to inland surface water'),
@@ -321,7 +337,9 @@ void main() {
     expect(report.summary, contains('Ranking drivers: C1 Treatment fit'));
     expect(
       report.summary,
-      contains('Treatment train pathway: Influent/source -> Settler -> ABR'),
+      contains(
+        'Treatment train pathway: Influent/source -> Settler -> Anaerobic Baffled Reactor (ABR)',
+      ),
     );
     expect(report.summary, contains('Design readiness: Ready for planning'));
     expect(

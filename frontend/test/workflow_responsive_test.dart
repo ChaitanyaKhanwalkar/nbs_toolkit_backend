@@ -401,6 +401,9 @@ void main() {
     await tester.ensureVisible(find.text('Compare options'));
     await tester.tap(find.text('Compare options'));
     await tester.pumpAndSettle();
+    expect(find.text('Cost-benefit and practicality'), findsOneWidget);
+    expect(find.textContaining('does not estimate rupee CAPEX or OPEX'),
+        findsOneWidget);
     expect(find.text('Best overall fit'), findsOneWidget);
     expect(find.text('Supporting component comparison'), findsOneWidget);
     await tester.ensureVisible(find.text('Why this result'));
@@ -420,7 +423,8 @@ void main() {
     expect(find.textContaining('Standards coverage note'), findsWidgets);
     expect(find.textContaining('Screening match ranks'), findsWidgets);
     expect(find.textContaining('Step 1: Settler'), findsOneWidget);
-    expect(find.textContaining('Step 2: ABR'), findsOneWidget);
+    expect(find.textContaining('Step 2: Anaerobic Baffled Reactor (ABR)'),
+        findsOneWidget);
     expect(find.text('Show technical details'), findsOneWidget);
     expect(find.textContaining('A0 applicability screening'), findsNothing);
     await tester.ensureVisible(find.text('Show technical details'));

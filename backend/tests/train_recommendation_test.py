@@ -635,14 +635,15 @@ def test_domestic_endpoint_uses_municipal_profile_fallback() -> None:
     payload = response.json()
     summary = payload["input_summary"]
     assert summary["selected_source_type"] == "water_type_profile"
+    assert summary["source_label"] == "Municipal influent fallback profile"
     assert MUNICIPAL_FALLBACK_NOTE in summary["data_quality_notes"]
     assert MUNICIPAL_FALLBACK_NOTE in payload["warnings"]
     rows = {row["parameter"]: row for row in summary["data_used"]}
     assert rows["ammonia_n"]["water_type"] == MUNICIPAL_PROFILE_NAME
-    assert rows["ammonia_n"]["value_low"] == 25
-    assert rows["ammonia_n"]["value_high"] == 50
-    assert rows["total_phosphorus"]["value_low"] == 5
-    assert rows["total_phosphorus"]["value_high"] == 15
+    assert rows["ammonia_n"]["value_low"] == 40
+    assert rows["ammonia_n"]["value_high"] == 40
+    assert rows["total_phosphorus"]["value_low"] == 12
+    assert rows["total_phosphorus"]["value_high"] == 12
     assert "Blackwater" not in rows["ammonia_n"]["water_type"]
     assert payload["ranked_trains"]
 
@@ -1293,6 +1294,25 @@ def test_agricultural_context_prioritizes_source_control_components() -> None:
     assert all(
         "not standalone treatment" in row["standalone_guidance"].lower()
         for row in top
+    )
+
+
+def test_domestic_discharge_does_not_promote_green_roof_component() -> None:
+    payload = _recommend_components(
+        context={
+            "workflow_mode": "pollution_source_screening",
+            "pollution_source_type": "domestic_sewage",
+            "intervention_position": "off_channel_or_stp_polishing",
+        },
+    )
+
+    promoted_names = [
+        row["name"].lower() for row in payload["component_recommendations"][:5]
+    ]
+    assert all("green roof" not in name for name in promoted_names)
+    assert any(
+        "green roof" in str(row.get("name", "")).lower()
+        for row in payload["filtered_components"]
     )
 
 
