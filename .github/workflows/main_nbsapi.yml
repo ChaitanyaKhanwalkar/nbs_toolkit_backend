@@ -28,9 +28,29 @@ jobs:
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
 
-      # 4) Run backend tests before any deployment package is created.
+      # 4a) Diagnostic: prove the canonical CI test DB and env are wired up.
+      #     The SQLite canonical DB is tracked in git, so it is present in the
+      #     CI checkout; backend/.env is gitignored, so CI must supply env here.
+      #     (DATABASE_URL value is a non-secret local SQLite path; we print only
+      #     a boolean for it, never the value.)
+      - name: Verify CI test environment
+        working-directory: backend
+        env:
+          APP_ENV: ci
+          DATABASE_URL: "sqlite:///../canonical db/narmada_nbs_canonical.db"
+          CORS_ALLOW_ORIGINS: "*"
+        run: |
+          python -c "from pathlib import Path; p=Path('../canonical db/narmada_nbs_canonical.db'); print('canonical db exists:', p.exists(), p.resolve()); assert p.exists()"
+          python -c "import os; print('APP_ENV=', os.getenv('APP_ENV')); print('DATABASE_URL set=', bool(os.getenv('DATABASE_URL')))"
+
+      # 4b) Run backend tests before any deployment package is created.
+      #     CI has no backend/.env, so the canonical test DB must be wired via env.
       - name: Run backend tests
         working-directory: backend
+        env:
+          APP_ENV: ci
+          DATABASE_URL: "sqlite:///../canonical db/narmada_nbs_canonical.db"
+          CORS_ALLOW_ORIGINS: "*"
         run: python -m pytest -q
 
       # 5) Zip only backend/ so Azure receives app/ at package root.
