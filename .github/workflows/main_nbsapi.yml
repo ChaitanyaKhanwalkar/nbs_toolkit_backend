@@ -26,7 +26,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt
 
-      # 4) Zip only backend/ so Azure receives app/ at package root.
+      # 4) Run backend tests before any deployment package is created.
+      - name: Run backend tests
+        working-directory: backend
+        run: python -m pytest -q
+
+      # 5) Zip only backend/ so Azure receives app/ at package root.
       - name: Zip application
         run: |
           cd backend
@@ -42,11 +47,11 @@ jobs:
             -x "tests/*"
           cd ..
 
-      # 5) Print zip contents so app/main.py and requirements.txt are visible.
+      # 6) Print zip contents so app/main.py and requirements.txt are visible.
       - name: Verify deployment package
         run: unzip -l app.zip | head -120
 
-      # 6) Deploy using the existing publish profile.
+      # 7) Deploy using the existing publish profile.
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
         with:
