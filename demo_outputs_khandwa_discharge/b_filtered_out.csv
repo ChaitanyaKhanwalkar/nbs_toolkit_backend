@@ -1,0 +1,2 @@
+train_id,train_name,outcome,rule_or_reason
+(none),(none),No train was hard-filtered/removed before ranking.,All 8 trains survived to ranking. On-site disposal (train 7) was NOT hard-filtered.

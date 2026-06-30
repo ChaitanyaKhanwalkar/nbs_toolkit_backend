@@ -86,6 +86,26 @@ void main() {
         'pretreatment_requirements': ['Screening and settling required.'],
         'data_gaps': ['Confirm hydraulic loading.'],
         'caveats': ['Keep the train off-channel.'],
+        'cost_benefit': {
+          'screening_cbr': 1.733,
+          'display_cbr': '1.73',
+          'label': 'Favourable',
+          'benefit_score': 0.78,
+          'cost_burden_score': 0.45,
+          'benefit_drivers': ['C1 treatment fit: 0.82'],
+          'cost_drivers': ['C7 footprint burden: 0.30'],
+          'caveats': [
+            'Screening-level non-monetary ratio. Does not estimate rupee CAPEX/OPEX.',
+            'Compare within the same scenario/use-case only.',
+          ],
+          'is_monetary': false,
+          'method': 'screening_non_monetary_v1',
+          'method_name': 'Cost-Benefit Ratio Analysis - Screening Level',
+          'method_disclaimer':
+              'Screening-level non-monetary ratio. Does not estimate rupee CAPEX/OPEX.',
+          'denominator_floor_used': false,
+          'official_ranking_unchanged': true,
+        },
         'all_use_case_verdicts': {
           'drinking': {'verdict': 'unknown'},
           'irrigation': {'verdict': 'marginal'},
@@ -272,7 +292,20 @@ void main() {
     expect(decoded['cost_benefit_and_practicality'], isNotEmpty);
     expect(
       decoded['cost_benefit_and_practicality'][0]['monetary_cost_status'],
-      contains('no rupee CAPEX/OPEX values are invented'),
+      contains('Not a rupee CAPEX/OPEX estimate'),
+    );
+    expect(
+      decoded['recommended_treatment_train']['cost_benefit_ratio_analysis']
+          ['display_cbr'],
+      '1.73',
+    );
+    expect(
+      decoded['cost_benefit_and_practicality'][0]['method'],
+      'screening_non_monetary_v1',
+    );
+    expect(
+      decoded['cost_benefit_and_practicality'][0]['is_monetary'],
+      isFalse,
     );
     expect(
       decoded['recommended_treatment_train']['ranking_drivers'],
@@ -334,6 +367,12 @@ void main() {
     );
     expect(report.summary, contains('Pollution source: Domestic sewage'));
     expect(report.summary, contains('Screening match: 78.0%'));
+    expect(
+      report.summary,
+      contains('Cost-Benefit Ratio Analysis - Screening Level: 1.73'),
+    );
+    expect(report.summary, contains('not a rupee CAPEX/OPEX estimate'));
+    expect(report.summary, isNot(contains('ROI')));
     expect(report.summary, contains('Ranking drivers: C1 Treatment fit'));
     expect(
       report.summary,
@@ -357,6 +396,42 @@ void main() {
     expect(report.summary, contains('requires confirmed soil/infiltration'));
     expect(report.summary, contains('Best overall fit'));
     expect(report.summary, contains(planningLevelDisclaimer));
+  });
+
+  test('parses cost-benefit object and missing cost-benefit safely', () {
+    final full = RecommendationResponse.fromJson({
+      'workflow_status': 'completed',
+      'ranked_trains': [
+        {
+          'train_id': 1,
+          'name': 'CBR train',
+          'rank': 1,
+          'cost_benefit': {
+            'display_cbr': '1.73',
+            'label': 'Favourable',
+            'benefit_score': 0.78,
+            'cost_burden_score': 0.45,
+            'benefit_drivers': ['C1 treatment fit: 0.82'],
+            'cost_drivers': ['C7 footprint burden: 0.30'],
+            'is_monetary': false,
+            'method': 'screening_non_monetary_v1',
+            'official_ranking_unchanged': true,
+          },
+        },
+        {
+          'train_id': 2,
+          'name': 'Legacy train',
+          'rank': 2,
+          'cost_benefit': null,
+        },
+      ],
+    });
+
+    expect(full.rankedTrains.first.costBenefit?.displayCbr, '1.73');
+    expect(full.rankedTrains.first.costBenefit?.benefitScoreLabel, '0.78');
+    expect(full.rankedTrains.first.costBenefit?.costBurdenScoreLabel, '0.45');
+    expect(full.rankedTrains.first.costBenefit?.isMonetary, isFalse);
+    expect(full.rankedTrains.last.costBenefit, isNull);
   });
 
   test('handles missing pathway data without inventing steps', () {

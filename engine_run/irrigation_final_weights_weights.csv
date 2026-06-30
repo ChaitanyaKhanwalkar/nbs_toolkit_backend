@@ -1,0 +1,8 @@
+criterion,criterion_name,weight,direction
+C1,treatment_fit,0.228136,benefit
+C2,standard_fit,0.228136,benefit
+C3,site_fit,0.09533,benefit
+C4,source_fit,0.117709,benefit
+C6,hydrologic_fit,0.057781,benefit
+C7,footprint_land,0.117709,cost
+C8,om_energy_difficulty,0.1552,cost

@@ -1,0 +1,46 @@
+DEMONSTRATION CASE SUMMARY — Khandwa district, discharge to river (discharge_inland)
+====================================================================================
+Database: canonical db/narmada_nbs_canonical.db (signature verified: 28 NbS options,
+167 removal rows, 104 sources, 8 treatment trains).
+Site row: Indirasagar Dam (regions.id=27) — Clay soil, HSG D, infiltration_class 'low',
+slope 5.49, Strahler stream order 7. (Mortakka region 39 was rejected for an anomalous
+Strahler=1 / 0.427 cms vs 67,184 km2 drainage; recorded in run_inputs.json.)
+Influent: representative "Domestic sewage (blackwater mix)" profile (provisional, NOT
+measured): BOD 250, COD 500, TSS 275, NH4-N 200, TP 40 mg/L, pH 7.4.
+Weights: INTERIM/PROVISIONAL final v1 AHP-Fuzzy ensemble — weights_status =
+temporary_not_expert_validated, expert_validated = False (this is the AHP discharge set,
+NOT equal weighting). Workflow completed to Step L.
+
+PLAIN-ENGLISH RESULT
+--------------------
+Against a strong domestic-sewage influent discharged to the Narmada at Khandwa, the
+engine ranked all eight trains (none were hard-filtered out). The VF nitrifying hybrid
+(train 5) ranked #1 (Ci 0.832, high confidence) because it scores well on treatment-fit
+and standard-fit for the high BOD/ammonia/phosphorus load and nitrifies. DEWATS modular
+(train 3, Ci 0.693) and the WSP pond series (train 1, Ci 0.607) followed, then Septic+HSSF
+polishing (train 4, 0.605), French VF (train 6, 0.583), UASB-based STP (train 2, 0.496),
+and Pond + sewage-fed aquaculture (train 8, 0.452). On-site disposal (train 7) sorted
+last despite a raw Ci of 0.691, because its discharge use-case suitability is unknown
+(no canonical evidence) and three of its criteria were median-imputed; its confidence is
+correctly low (0.45).
+
+Nothing was removed before ranking: zero trains rejected, zero components filtered. Most
+notably, on-site disposal / soak-pit was NOT hard-filtered on soil even though the site is
+low-infiltration clay and a matching hard rule (APP_RULE_023) exists — the soil_infiltration
+factor is not wired into train ranking and the value 'low' is never mapped to the rule's
+category token, so the filter cannot fire. That is a disclosed gap, not a soil-validated
+pass. Missing train-criterion and removal values are treated as disclosed unknowns
+(median-imputed for geometry only, flagged, and they lower confidence) — never as 0% removal.
+
+FILES
+-----
+a_ranked_results.csv  — every train, closeness coefficient (Ci), rank, confidence, verdict
+b_filtered_out.csv    — filtered/removed trains and reasons (none; on-site disposal NOT filtered)
+c_decision_matrix.csv — each train x active criterion (C1,C2,C3,C6,C7,C8): raw, normalized,
+                        weight, weighted value, data_status (C4 inactive, C5 reserved)
+d_weights_used.json   — applied weight vector + confirmation it is the AHP discharge set
+e_confidence.csv      — confidence label/score/cap per train and how it is computed
+f_engine_flags.json   — warnings, weights_status, missing-data handling, on-site-disposal check
+run_inputs.json       — DB signature, site row choice, Mortakka anomaly note, influent
+sanity_checks.md      — flagged anomalies (imputation, ammonia, ponds, confidence vs suitability)
+raw_response.json     — full engine response

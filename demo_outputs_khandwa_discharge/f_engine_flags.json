@@ -1,0 +1,93 @@
+{
+  "workflow_status": "completed",
+  "step_completed": "L",
+  "weights_status": "temporary_not_expert_validated",
+  "expert_validated": false,
+  "provisional_note": "Treatment-train ranking uses final v1 AHP-Fuzzy AHP ensemble weights with TOPSIS. C5 health-risk and field validation remain future work.",
+  "errors": [],
+  "missing_data_messages": [],
+  "warnings": [
+    "Criterion 'evidence_strength' has no variation and was not normalized.",
+    "Criterion 'removal_evidence_coverage' has no variation and was not normalized.",
+    "Loaded final v1 AHP-Fuzzy AHP ensemble criteria_weights for TOPSIS.",
+    "Loaded INTERIM/PROVISIONAL final v1 AHP-Fuzzy AHP ensemble weights for TOPSIS (temporary_not_expert_validated, not yet expert/field validated). C5 health-risk integration remains reserved for future expert data.",
+    "Some normalized MCDA criteria do not have supplied weights: removal_evidence, footprint, climate_site_suitability, maintenance_indicator, implementation_complexity, catalogue_criteria, site_suitability_breakdown, hydrological_suitability_breakdown, pollution_source_fit_breakdown, footprint_requirement_breakdown, om_simplicity_breakdown, evidence_strength, evidence_strength_breakdown.",
+    "Supplied weights are marked temporary_not_expert_validated. Do not treat them as final AHP/expert weights.",
+    "TOPSIS ranking uses temporary_not_expert_validated weights and must be treated as provisional.",
+    "Confidence scoring detected temporary_not_expert_validated weights; the TOPSIS ranking remains provisional.",
+    "No explicit plant mappings were found for nbs_id 24.",
+    "No explicit plant mappings were found for nbs_id 18.",
+    "No explicit plant mappings were found for nbs_id 14.",
+    "No explicit plant mappings were found for nbs_id 26.",
+    "No explicit plant mappings were found for nbs_id 19.",
+    "No explicit plant mappings were found for nbs_id 13.",
+    "No explicit plant mappings were found for nbs_id 28.",
+    "No explicit plant mappings were found for nbs_id 25.",
+    "No explicit plant mappings were found for nbs_id 27.",
+    "No explicit plant mappings were found for nbs_id 10.",
+    "Assembled recommendations use temporary_not_expert_validated weights and remain provisional.",
+    "Warning: TOPSIS ranking is provisional because weights are temporary and not expert validated.",
+    "Warning: 1 caution flag(s) reduce confidence but do not remove the candidate.",
+    "Treatment-train ranking uses final v1 AHP-Fuzzy AHP ensemble weights with TOPSIS; C5 health-risk remains reserved for future integration.",
+    "Method: A0 safety/applicability screening -> final v1 AHP-Fuzzy AHP ensemble weighting -> TOPSIS treatment-train ranking -> confidence and design-readiness checks."
+  ],
+  "missing_removal_handling": {
+    "policy": "Missing per-criterion train values are kept as NULL/unknown, MEDIAN-IMPUTED ONLY for TOPSIS geometry, flagged with data_status='unknown_median_imputed', and they REDUCE confidence. They are NOT treated as 0% removal.",
+    "evidence": "See c_decision_matrix.csv data_status column; train 7 (On-site disposal) C1/C2/C7 are unknown_median_imputed, not zero.",
+    "contaminant_gaps_required_removal": [
+      {
+        "parameter": "bod",
+        "observed": 250.0,
+        "limit_high": 30.0,
+        "required_removal_percent": 88.0,
+        "status": "exceeds_standard"
+      },
+      {
+        "parameter": "cod",
+        "observed": 500.0,
+        "limit_high": 250.0,
+        "required_removal_percent": 50.0,
+        "status": "exceeds_standard"
+      },
+      {
+        "parameter": "tss",
+        "observed": 275.0,
+        "limit_high": 100.0,
+        "required_removal_percent": 63.63636363636363,
+        "status": "exceeds_standard"
+      },
+      {
+        "parameter": "ammonia_n",
+        "observed": 200.0,
+        "limit_high": 50.0,
+        "required_removal_percent": 75.0,
+        "status": "exceeds_standard"
+      },
+      {
+        "parameter": "total_phosphorus",
+        "observed": 40.0,
+        "limit_high": 5.0,
+        "required_removal_percent": 87.5,
+        "status": "exceeds_standard"
+      },
+      {
+        "parameter": "ph",
+        "observed": 7.4,
+        "limit_high": 9.0,
+        "required_removal_percent": null,
+        "status": "within_standard"
+      }
+    ]
+  },
+  "onsite_disposal_hard_filter_check": {
+    "question": "Was on-site disposal hard-filtered, and on what (soil/infiltration)?",
+    "answer": "NO. Train 7 (On-site disposal = Septic + Soak Pit/Soakaway; component nbs_id 20, family 'Infiltration & Soil Systems') was NOT hard-filtered. It survived to ranking and placed last only because its discharge_inland use-case verdict is 'unknown' (no canonical performance evidence), with low confidence (0.45).",
+    "why_not_filtered_even_though_a_rule_exists": [
+      "A relevant HARD rule exists: APP_RULE_023 (rule_type=hard_filter, family 'Infiltration & Soil Systems', factor soil_infiltration = 'low_infiltration_or_rocky_or_shallow_soil', action remove_infiltration_system).",
+      "The site IS low-infiltration: Indirasagar region 27 infiltration_class='low', HSG 'D', Clay soil.",
+      "Gap 1 (train path): train_recommendation._site_rule_context() passes only stream_order/slope/builtup_frac/agri_frac/dom_land_cover to the rule context \u2014 it does NOT pass soil_infiltration, so APP_RULE_023 can never fire during train ranking.",
+      "Gap 2 (option path): applicability _factor_matches compares normalize(infiltration_class)=='low' against the rule token 'low_infiltration_or_rocky_or_shallow_soil'; there is no value->category mapping, so the literal equality fails and the rule does not fire there either.",
+      "Net: on-site disposal/soak-pit is a DISCLOSED GAP here, not a soil-validated pass. On low-infiltration clay it should arguably be cautioned/removed."
+    ]
+  }
+}

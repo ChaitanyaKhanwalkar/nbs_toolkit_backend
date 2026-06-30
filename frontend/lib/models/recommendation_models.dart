@@ -691,6 +691,7 @@ class TrainRecommendation {
     required this.plantingGuidance,
     required this.allUseCasesUnknown,
     required this.useCaseAssessmentStatus,
+    required this.costBenefit,
   });
 
   final int trainId;
@@ -722,6 +723,7 @@ class TrainRecommendation {
   final String? plantingGuidance;
   final bool allUseCasesUnknown;
   final String? useCaseAssessmentStatus;
+  final CostBenefitAnalysis? costBenefit;
 
   factory TrainRecommendation.fromJson(Map<String, dynamic> json) {
     final verdictRows = json['all_use_case_verdicts'];
@@ -799,11 +801,126 @@ class TrainRecommendation {
       useCaseAssessmentStatus: _nullableString(
         json['use_case_assessment_status'],
       ),
+      costBenefit: json['cost_benefit'] is Map
+          ? CostBenefitAnalysis.fromJson(_dynamicMap(json['cost_benefit']))
+          : null,
     );
   }
 
   String get matchPercent => _percent(matchScore);
   String get confidencePercent => _percent(confidenceScore);
+}
+
+class CostBenefitAnalysis {
+  CostBenefitAnalysis({
+    required this.screeningCbr,
+    required this.displayCbr,
+    required this.label,
+    required this.benefitScore,
+    required this.costBurdenScore,
+    required this.benefitComponents,
+    required this.costComponents,
+    required this.benefitDrivers,
+    required this.costDrivers,
+    required this.caveats,
+    required this.isMonetary,
+    required this.method,
+    required this.methodName,
+    required this.methodDisclaimer,
+    required this.denominatorFloorUsed,
+    required this.officialRankingUnchanged,
+  });
+
+  final double? screeningCbr;
+  final String displayCbr;
+  final String label;
+  final double? benefitScore;
+  final double? costBurdenScore;
+  final List<CostBenefitComponent> benefitComponents;
+  final List<CostBenefitComponent> costComponents;
+  final List<String> benefitDrivers;
+  final List<String> costDrivers;
+  final List<String> caveats;
+  final bool isMonetary;
+  final String method;
+  final String methodName;
+  final String methodDisclaimer;
+  final bool denominatorFloorUsed;
+  final bool officialRankingUnchanged;
+
+  factory CostBenefitAnalysis.fromJson(Map<String, dynamic> json) {
+    return CostBenefitAnalysis(
+      screeningCbr: _nullableDouble(json['screening_cbr']),
+      displayCbr: _stringValue(json['display_cbr'], fallback: 'Not available'),
+      label: _stringValue(json['label'], fallback: 'Indicative only'),
+      benefitScore: _nullableDouble(json['benefit_score']),
+      costBurdenScore: _nullableDouble(json['cost_burden_score']),
+      benefitComponents: (json['benefit_components'] as List?)
+              ?.whereType<Map>()
+              .map((row) => CostBenefitComponent.fromJson(_dynamicMap(row)))
+              .toList() ??
+          <CostBenefitComponent>[],
+      costComponents: (json['cost_components'] as List?)
+              ?.whereType<Map>()
+              .map((row) => CostBenefitComponent.fromJson(_dynamicMap(row)))
+              .toList() ??
+          <CostBenefitComponent>[],
+      benefitDrivers: _stringList(json['benefit_drivers']),
+      costDrivers: _stringList(json['cost_drivers']),
+      caveats: _stringList(json['caveats']),
+      isMonetary: json['is_monetary'] == true,
+      method: _stringValue(
+        json['method'],
+        fallback: 'screening_non_monetary_v1',
+      ),
+      methodName: _stringValue(
+        json['method_name'],
+        fallback: 'Cost-Benefit Ratio Analysis - Screening Level',
+      ),
+      methodDisclaimer: _stringValue(
+        json['method_disclaimer'],
+        fallback:
+            'Screening-level non-monetary ratio. Does not estimate rupee CAPEX/OPEX.',
+      ),
+      denominatorFloorUsed: json['denominator_floor_used'] == true,
+      officialRankingUnchanged: json['official_ranking_unchanged'] != false,
+    );
+  }
+
+  String get benefitScoreLabel => _decimal2Label(benefitScore);
+  String get costBurdenScoreLabel => _decimal2Label(costBurdenScore);
+}
+
+class CostBenefitComponent {
+  CostBenefitComponent({
+    required this.key,
+    required this.label,
+    required this.value,
+    required this.weight,
+    required this.direction,
+    required this.status,
+    required this.explanation,
+  });
+
+  final String key;
+  final String label;
+  final double? value;
+  final double? weight;
+  final String direction;
+  final String status;
+  final String explanation;
+
+  factory CostBenefitComponent.fromJson(Map<String, dynamic> json) {
+    return CostBenefitComponent(
+      key: _stringValue(json['key']),
+      label: _stringValue(json['label'], fallback: 'Component'),
+      value: _nullableDouble(json['value']),
+      weight: _nullableDouble(json['weight']),
+      direction: _stringValue(json['direction']),
+      status: _stringValue(json['status'], fallback: 'missing'),
+      explanation: _stringValue(json['explanation']),
+    );
+  }
 }
 
 class CriteriaExplanation {
@@ -1225,11 +1342,25 @@ List<int> _intList(Object? value) {
   return value.map(_nullableInt).whereType<int>().toList();
 }
 
+Map<String, dynamic> _dynamicMap(Object? value) {
+  if (value is! Map) {
+    return <String, dynamic>{};
+  }
+  return value.map((key, mapValue) => MapEntry(key.toString(), mapValue));
+}
+
 String _decimalLabel(double? value) {
   if (value == null) {
     return 'Not available';
   }
   return value.toStringAsFixed(3);
+}
+
+String _decimal2Label(double? value) {
+  if (value == null) {
+    return 'Not available';
+  }
+  return value.toStringAsFixed(2);
 }
 
 String _criterionDisplayName(String code, String name) {

@@ -1,0 +1,9 @@
+rank,train_id,train_name,closeness_coefficient_Ci,confidence_label,confidence_score,applicability_status,use_case_verdict_discharge_inland,use_case_assessment_status,selected_use_case
+1,5,VF nitrifying hybrid,0.832143,high,0.8264,allowed,marginal,partially_or_fully_assessed,discharge_inland
+2,3,DEWATS modular train,0.693311,high,0.8601,allowed,fail,partially_or_fully_assessed,discharge_inland
+3,1,WSP Train (pond series),0.607294,medium,0.6981,allowed,marginal,partially_or_fully_assessed,discharge_inland
+4,4,Septic + HSSF + polishing,0.604718,high,0.8601,allowed,fail,partially_or_fully_assessed,discharge_inland
+5,6,French VF (no primary),0.582806,high,0.8601,allowed,fail,partially_or_fully_assessed,discharge_inland
+6,2,UASB-based STP,0.49608,medium,0.6981,allowed,fail,partially_or_fully_assessed,discharge_inland
+7,8,Pond + sewage-fed aquaculture,0.452239,high,0.7521,allowed,marginal,partially_or_fully_assessed,discharge_inland
+8,7,On-site disposal,0.691226,low,0.4503,allowed,unknown,needs_data_for_use_case_assessment,discharge_inland

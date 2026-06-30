@@ -1,0 +1,92 @@
+{
+  "label": "INTERIM / PROVISIONAL \u2014 final v1 AHP-Fuzzy AHP ensemble (temporary_not_expert_validated, NOT expert/field validated)",
+  "use_case": "discharge_inland",
+  "weights_status_reported_by_engine": "temporary_not_expert_validated",
+  "expert_validated": false,
+  "weights_source": "final_v1_ahp_fuzzy_ensemble (criteria_weights table, canonical DB)",
+  "confirmation": "This IS the AHP discharge set, NOT equal weighting (equal would be ~0.1429 for 7 criteria).",
+  "canonical_db_weight_vector_C1_to_C8": {
+    "C1": {
+      "name": "treatment_fit",
+      "weight": 0.258313,
+      "benefit_or_cost": "benefit"
+    },
+    "C2": {
+      "name": "standard_fit",
+      "weight": 0.258313,
+      "benefit_or_cost": "benefit"
+    },
+    "C3": {
+      "name": "site_fit",
+      "weight": 0.099705,
+      "benefit_or_cost": "benefit"
+    },
+    "C4": {
+      "name": "source_fit",
+      "weight": 0.113906,
+      "benefit_or_cost": "benefit"
+    },
+    "C6": {
+      "name": "hydrologic_fit",
+      "weight": 0.056103,
+      "benefit_or_cost": "benefit"
+    },
+    "C7": {
+      "name": "footprint",
+      "weight": 0.099755,
+      "benefit_or_cost": "cost"
+    },
+    "C8": {
+      "name": "om",
+      "weight": 0.113906,
+      "benefit_or_cost": "cost"
+    }
+  },
+  "criteria_status_in_db": "FINAL_V1_AHP_FUZZY_ENSEMBLE",
+  "derivation_note": "Final v1 AHP-Fuzzy AHP ensemble weights for demo ranking. C5 health-risk integration remains reserved for future expert data.",
+  "C5_note": "C5 (health-risk) intentionally absent \u2014 reserved for future expert data.",
+  "train_topsis_active_criteria": [
+    "C1",
+    "C2",
+    "C3",
+    "C6",
+    "C7",
+    "C8"
+  ],
+  "train_topsis_applied_weights_renormalized_over_active": {
+    "C1": {
+      "criterion_name": "treatment_fit",
+      "applied_weight_renormalized_over_active": 0.29151840378289007
+    },
+    "C2": {
+      "criterion_name": "standard_fit",
+      "applied_weight_renormalized_over_active": 0.29151840378289007
+    },
+    "C3": {
+      "criterion_name": "site_fit",
+      "applied_weight_renormalized_over_active": 0.11252179506712033
+    },
+    "C6": {
+      "criterion_name": "hydrologic_fit",
+      "applied_weight_renormalized_over_active": 0.06331488158718873
+    },
+    "C7": {
+      "criterion_name": "footprint",
+      "applied_weight_renormalized_over_active": 0.1125782224253607
+    },
+    "C8": {
+      "criterion_name": "om",
+      "applied_weight_renormalized_over_active": 0.12854829335455
+    }
+  },
+  "note_on_C4": "C4 source_fit is INACTIVE in this run (no pollution_source_type supplied), so weights were renormalized over the 6 active criteria C1,C2,C3,C6,C7,C8.",
+  "option_level_mcda_weight_vector_applied": {
+    "removal_evidence_score(C1)": 0.258313,
+    "removal_evidence_coverage(C2)": 0.258313,
+    "site_suitability(C3)": 0.099705,
+    "pollution_source_fit(C4)": 0.113906,
+    "hydrological_suitability(C6)": 0.056103,
+    "footprint_requirement(C7)": 0.099755,
+    "om_simplicity(C8)": 0.113906
+  }
+}

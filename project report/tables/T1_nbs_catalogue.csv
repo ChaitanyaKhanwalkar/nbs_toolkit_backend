@@ -1,0 +1,29 @@
+id,nbs_option,family,optimal_water_type,energy_class
+1,Free Water Surface Wetland (FWS),Constructed Wetlands,Domestic sewage;Stormwater,gravity
+2,Horizontal Subsurface Flow Wetland (HSSF),Constructed Wetlands,Domestic sewage;Greywater,gravity
+3,Vertical Flow Wetland (VF),Constructed Wetlands,Domestic sewage;Greywater,low-power
+4,French Vertical Flow Wetland,Constructed Wetlands,Blackwater;Domestic sewage,low-power
+5,Aerated Treatment Wetland,Constructed Wetlands,Domestic sewage,power-dependent
+6,Hybrid / Multi-stage Wetland,Constructed Wetlands,Domestic sewage,gravity
+7,Tidal / Reciprocating Flow Wetland,Constructed Wetlands,Domestic sewage,-
+8,Staircase / Terraced Wetland,Constructed Wetlands,Domestic sewage,-
+9,Floating Treatment Wetland,Constructed Wetlands,Domestic sewage;Stormwater,-
+10,Anaerobic Pond,Ponds & Lagoons,Domestic sewage,gravity
+11,Facultative Pond,Ponds & Lagoons,Domestic sewage,gravity
+12,Maturation Pond,Ponds & Lagoons,Domestic sewage,gravity
+13,Waste Stabilization Pond Train,Ponds & Lagoons,Domestic sewage,gravity
+14,Aerated Lagoon,Ponds & Lagoons,Domestic sewage,power-dependent
+15,Bioretention Cell / Rain Garden,Stormwater & Green Infrastructure,Stormwater,-
+16,Bioswale / Vegetated Swale,Stormwater & Green Infrastructure,Stormwater,-
+17,Filter Strip / Vegetated Buffer,Stormwater & Green Infrastructure,Stormwater,-
+18,Green Roof,Stormwater & Green Infrastructure,Greywater;Stormwater,-
+19,Green Wall / Living Wall,Stormwater & Green Infrastructure,Greywater,-
+20,Soak Pit / Soakaway,Infiltration & Soil Systems,Greywater;Blackwater,gravity
+21,Leach Field / Drain Field,Infiltration & Soil Systems,Blackwater,gravity
+22,Infiltration Trench,Infiltration & Soil Systems,Stormwater;Greywater,-
+23,Sewage-fed Aquaculture (East Kolkata model),Aquaculture & Resource Recovery,Domestic sewage,gravity
+24,Vermifiltration,Anaerobic & Intensified Decentralized,Domestic sewage;Greywater,low-power
+25,Anaerobic Baffled Reactor (ABR),Anaerobic & Intensified Decentralized,Domestic sewage,gravity
+26,DEWATS Train,Anaerobic & Intensified Decentralized,Domestic sewage,gravity
+27,UASB Reactor,Anaerobic & Intensified Decentralized,Domestic sewage,gravity
+28,Anaerobic Filter,Anaerobic & Intensified Decentralized,Domestic sewage,gravity

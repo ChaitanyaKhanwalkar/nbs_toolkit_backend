@@ -1,0 +1,38 @@
+{
+  "demonstration_case": "Khandwa district \u2014 discharge to river (discharge_inland) \u2014 full set of 8 treatment trains",
+  "database": "canonical db/narmada_nbs_canonical.db (DATABASE_URL sqlite:///../canonical db/narmada_nbs_canonical.db)",
+  "canonical_signature_verified": {
+    "nbs_options": 28,
+    "removal_efficiency_rows": 167,
+    "sources": 104,
+    "treatment_trains": 8
+  },
+  "site_row_used": {
+    "choice": "Indirasagar Dam (regions.id=27), Khandwa district, Narmada mainstem",
+    "soil_type": "Clay",
+    "hydrologic_soil_group": "D",
+    "infiltration_class": "low",
+    "slope_mean": 5.488030015,
+    "stream_order_strahler": 7,
+    "drainage_area_km2": 61642.0,
+    "rainfall_mm_yr": 1175.37,
+    "aridity_P_PET": 0.769,
+    "lat": 22.2822,
+    "lon": 76.4706
+  },
+  "site_row_selection_note": "User selected Indirasagar Dam (region 27) as the Khandwa site row (Strahler 7, representative of Narmada mainstem hydrology).",
+  "mortakka_anomaly_note": "The alternative Khandwa WQ station Mortakka (region 39) was NOT used: its stream_order_strahler=1 and nat_discharge_cms=0.427 are anomalous against its drainage_area_km2=67,184 (a likely HydroRIVERS snap error). Indirasagar (Strahler 7) avoids that anomaly.",
+  "influent_used": {
+    "choice": "Representative 'Domestic sewage (blackwater mix)' profile (water_type_profiles, source_id 9) \u2014 provisional/representative, NOT measured at site",
+    "values_mg_per_l": {
+      "bod": 250,
+      "cod": 500,
+      "tss": 275,
+      "ammonia_n": 200,
+      "total_phosphorus": 40,
+      "ph": 7.4
+    },
+    "rationale": "'Discharge to river' means treating collected domestic sewage before discharge; canonical sewage profile gives a meaningful treatment demand and activates C1 treatment_fit."
+  },
+  "weights": "INTERIM/PROVISIONAL final v1 AHP-Fuzzy ensemble (temporary_not_expert_validated)"
+}

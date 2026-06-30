@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 470" font-family="Georgia,'Times New Roman',serif">
+  <defs>
+    <marker id="a5" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L7,3 L0,6 z" fill="#33485f"/>
+    </marker>
+    <style>
+      .t{font-size:12.5px;fill:#13202e;font-weight:bold}
+      .s{font-size:10px;fill:#4a5a6a}
+      .h{font-size:14px;font-weight:bold;fill:#13202e}
+      .ln{stroke:#33485f;stroke-width:1.7;fill:none}
+      .gw{font-size:12.5px;font-weight:bold;fill:#ffffff}
+      .gs{font-size:9.5px;fill:#f1e6cf}
+      .red{font-size:9.5px;fill:#c0392b}
+    </style>
+  </defs>
+  <text x="20" y="28" class="h">Figure 5.  Two-level applicability screening — filters gate, criteria rank</text>
+
+  <!-- candidates -->
+  <rect x="30" y="70" width="150" height="80" rx="9" fill="#f4f6f8" stroke="#33485f"/>
+  <text x="105" y="98" text-anchor="middle" class="t">Candidate trains</text>
+  <text x="105" y="120" text-anchor="middle" class="s">8 treatment trains</text>
+  <text x="105" y="136" text-anchor="middle" class="s">enter screening</text>
+
+  <!-- stage 1 hard safety -->
+  <rect x="225" y="60" width="180" height="100" rx="9" fill="#f6e7e5" stroke="#c0392b"/>
+  <text x="315" y="84" text-anchor="middle" class="t">1 · Hard filters</text>
+  <text x="315" y="104" text-anchor="middle" class="s">safety + feasibility</text>
+  <text x="315" y="120" text-anchor="middle" class="s">soil · stream-order position</text>
+  <text x="315" y="134" text-anchor="middle" class="s">source type · land</text>
+  <text x="315" y="152" text-anchor="middle" class="red">unsuitable → REMOVED</text>
+
+  <!-- survivors -->
+  <rect x="450" y="70" width="150" height="80" rx="9" fill="#dff0ea" stroke="#2a9d8f"/>
+  <text x="525" y="98" text-anchor="middle" class="t">Survivors</text>
+  <text x="525" y="120" text-anchor="middle" class="s">feasible &amp; safe</text>
+  <text x="525" y="136" text-anchor="middle" class="s">trains only</text>
+
+  <!-- stage 2 modifiers + rank -->
+  <rect x="645" y="60" width="210" height="100" rx="9" fill="#1f3a5f" stroke="#1f3a5f"/>
+  <text x="750" y="84" text-anchor="middle" class="gw">2 · Weighted ranking</text>
+  <text x="750" y="104" text-anchor="middle" class="gs">7 criteria · AHP weights · TOPSIS</text>
+  <text x="750" y="122" text-anchor="middle" class="gs">+ scoring &amp; confidence modifiers</text>
+  <text x="750" y="142" text-anchor="middle" class="gs">→ ranked shortlist</text>
+
+  <!-- arrows -->
+  <path class="ln" d="M180,110 L221,110" marker-end="url(#a5)"/>
+  <path class="ln" d="M405,110 L446,110" marker-end="url(#a5)"/>
+  <path class="ln" d="M600,110 L641,110" marker-end="url(#a5)"/>
+
+  <!-- rule inventory -->
+  <rect x="30" y="220" width="825" height="150" rx="9" fill="#fafafa" stroke="#9aa3ab"/>
+  <text x="442" y="246" text-anchor="middle" class="t">Applicability rule inventory (46 active rules)</text>
+  <text x="60" y="276" class="s">• hard_safety_filter (5) — e.g. industrial/biomedical source requires pretreatment; unsafe placements blocked</text>
+  <text x="60" y="298" class="s">• hard_filter (8) — e.g. infiltration systems removed on low-infiltration soil; in-channel placement blocked at high stream order</text>
+  <text x="60" y="320" class="s">• conditional_filter (13) / conditional_allow (5) — context-dependent gating (e.g. allow off-channel with a land check)</text>
+  <text x="60" y="342" class="s">• scoring_modifier (11) — adjusts a surviving train's score (e.g. DEWATS +0.10 off-channel at high stream order)</text>
+  <text x="60" y="362" class="s">• confidence_modifier (3) — lowers confidence rather than score where evidence is weak (e.g. sewage inferred from land use)</text>
+
+  <text x="20" y="430" class="s">The same physical factor can act at both levels: as a hard filter it removes unsuitable options; as a scoring modifier it expresses</text>
+  <text x="20" y="446" class="s">a finer preference among survivors. Decisive constraints gate upstream; the weighted ranking then orders what remains.</text>
+</svg>

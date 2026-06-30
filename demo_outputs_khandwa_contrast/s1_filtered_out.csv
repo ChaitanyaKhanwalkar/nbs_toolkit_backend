@@ -1,0 +1,2 @@
+record_type,rank,train_id,train_name,status,rule_ids,reasons,technical_reasons
+ranked_train_applicability,8,7,On-site disposal,conditional,APP_RULE_023,Soak/leach/infiltration systems are not suitable in low-infiltration or rocky/shallow-soil conditions.,These systems depend on adequate infiltration and unsaturated soil treatment depth.

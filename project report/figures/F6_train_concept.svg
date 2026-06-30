@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 480" font-family="Georgia,'Times New Roman',serif">
+  <defs>
+    <marker id="a6" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L7,3 L0,6 z" fill="#33485f"/>
+    </marker>
+    <style>
+      .t{font-size:12px;fill:#13202e;font-weight:bold}
+      .s{font-size:10px;fill:#4a5a6a}
+      .h{font-size:14px;font-weight:bold;fill:#13202e}
+      .lab{font-size:11px;fill:#13202e;font-weight:bold}
+      .ln{stroke:#33485f;stroke-width:1.7;fill:none}
+    </style>
+  </defs>
+  <text x="20" y="28" class="h">Figure 6.  Why a train, not a single unit — staged removal of a mixed pollutant load</text>
+
+  <!-- legend of load -->
+  <text x="20" y="60" class="s">Bar height = remaining pollutant load (BOD, solids, nutrients, pathogens). Goal: reach the discharge standard (dashed line).</text>
+
+  <!-- SINGLE UNIT row -->
+  <text x="20" y="98" class="lab">Single NbS unit</text>
+  <rect x="150" y="78" width="110" height="56" rx="8" fill="#eef3f8" stroke="#1f3a5f"/>
+  <text x="205" y="100" text-anchor="middle" class="t">One wetland</text>
+  <text x="205" y="118" text-anchor="middle" class="s">targets specific pollutants</text>
+  <!-- influent bar -->
+  <rect x="300" y="74" width="26" height="64" fill="#c0392b"/>
+  <text x="313" y="152" text-anchor="middle" class="s">in</text>
+  <path class="ln" d="M332,106 L372,106" marker-end="url(#a6)"/>
+  <!-- effluent bar (partial) -->
+  <rect x="380" y="98" width="26" height="40" fill="#e67e22"/>
+  <text x="393" y="152" text-anchor="middle" class="s">out</text>
+  <line x1="300" y1="98" x2="470" y2="98" stroke="#2a9d8f" stroke-dasharray="5 4" stroke-width="1.5"/>
+  <text x="478" y="101" class="s">standard</text>
+  <text x="430" y="120" class="s" fill="#c0392b">still above standard —</text>
+  <text x="430" y="134" class="s" fill="#c0392b">partially treated</text>
+
+  <!-- divider -->
+  <line x1="20" y1="178" x2="860" y2="178" stroke="#dddddd"/>
+
+  <!-- TRAIN row -->
+  <text x="20" y="218" class="lab">Treatment train</text>
+  <!-- influent -->
+  <rect x="120" y="214" width="22" height="70" fill="#c0392b"/>
+  <text x="131" y="298" text-anchor="middle" class="s">influent</text>
+  <!-- stage 1 -->
+  <rect x="175" y="222" width="120" height="50" rx="8" fill="#f4f6f8" stroke="#33485f"/>
+  <text x="235" y="242" text-anchor="middle" class="t">Pretreatment</text>
+  <text x="235" y="260" text-anchor="middle" class="s">stabilise · remove solids</text>
+  <rect x="312" y="226" width="20" height="56" fill="#d35400"/>
+  <!-- stage 2 -->
+  <rect x="350" y="222" width="120" height="50" rx="8" fill="#e7f4f1" stroke="#2a9d8f"/>
+  <text x="410" y="242" text-anchor="middle" class="t">Secondary</text>
+  <text x="410" y="260" text-anchor="middle" class="s">remove organics · pathogens</text>
+  <rect x="487" y="240" width="20" height="42" fill="#e67e22"/>
+  <!-- stage 3 -->
+  <rect x="525" y="222" width="120" height="50" rx="8" fill="#dff0ea" stroke="#2a9d8f"/>
+  <text x="585" y="242" text-anchor="middle" class="t">Polishing</text>
+  <text x="585" y="260" text-anchor="middle" class="s">final nutrients · pathogens</text>
+  <rect x="662" y="258" width="20" height="24" fill="#27ae60"/>
+  <!-- effluent -->
+  <path class="ln" d="M700,250 L735,250" marker-end="url(#a6)"/>
+  <rect x="745" y="262" width="22" height="20" fill="#27ae60"/>
+  <text x="756" y="298" text-anchor="middle" class="s">effluent</text>
+  <!-- standard line -->
+  <line x1="120" y1="262" x2="790" y2="262" stroke="#2a9d8f" stroke-dasharray="5 4" stroke-width="1.5"/>
+  <text x="798" y="265" class="s">standard</text>
+  <!-- stage arrows -->
+  <path class="ln" d="M142,249 L173,249"/>
+  <path class="ln" d="M332,249 L348,249"/>
+  <path class="ln" d="M507,249 L523,249"/>
+  <text x="430" y="318" text-anchor="middle" class="s" fill="#27ae60">each stage removes what the previous left — load falls below the standard only after the full sequence</text>
+
+  <!-- caption -->
+  <rect x="20" y="350" width="840" height="104" rx="9" fill="#fafafa" stroke="#9aa3ab"/>
+  <text x="40" y="376" class="s">Real wastewater carries many contaminants at once, and most NbS units are treatment-specific — each addresses particular pollutants.</text>
+  <text x="40" y="396" class="s">A single unit therefore tends to reduce one or two contaminants rather than bring the whole effluent to standard. Chaining units into a</text>
+  <text x="40" y="416" class="s">train mirrors conventional treatment (pretreatment → secondary → polishing): each stage stabilises or removes what the previous stage</text>
+  <text x="40" y="436" class="s">could not, so the train aims to treat the water end-to-end. Removing any stage leaves the effluent short of fully treated.</text>
+</svg>

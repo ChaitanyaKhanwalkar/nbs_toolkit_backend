@@ -14,7 +14,8 @@ from typing import Any
 FINAL_V1_AHP_FUZZY_STATUS = "FINAL_V1_AHP_FUZZY_ENSEMBLE"
 FINAL_V1_AHP_FUZZY_SOURCE = "final_v1_ahp_fuzzy_ensemble"
 FINAL_V1_AHP_FUZZY_NOTE = (
-    "Final v1 AHP-Fuzzy AHP ensemble weights for demo ranking. "
+    "Final working weights used in this report; crisp + fuzzy AHP ensemble. "
+    "Not labelled expert-validated unless supervisor approval is documented. "
     "C5 health-risk integration remains reserved for future expert data."
 )
 
@@ -39,13 +40,13 @@ _FINAL_WEIGHTS: dict[str, list[dict[str, Any]]] = {
         ("C8", "om", "cost", 0.121700),
     ],
     "irrigation": [
-        ("C1", "treatment_fit", "benefit", 0.231600),
-        ("C2", "standard_fit", "benefit", 0.231600),
-        ("C3", "site_fit", "benefit", 0.095100),
-        ("C4", "source_fit", "benefit", 0.116000),
-        ("C6", "hydrologic_fit", "benefit", 0.054900),
-        ("C7", "footprint", "cost", 0.116000),
-        ("C8", "om", "cost", 0.154700),
+        ("C1", "treatment_fit", "benefit", 0.228136),
+        ("C2", "standard_fit", "benefit", 0.228136),
+        ("C3", "site_fit", "benefit", 0.095330),
+        ("C4", "source_fit", "benefit", 0.117709),
+        ("C6", "hydrologic_fit", "benefit", 0.057781),
+        ("C7", "footprint_land", "cost", 0.117709),
+        ("C8", "om_energy_difficulty", "cost", 0.155200),
     ],
 }
 

@@ -1,0 +1,9 @@
+train_id,train,target_use_case,composition (ordered steps)
+1,WSP Train (pond series),discharge/irrigation,pretreatment -> Anaerobic Pond -> Facultative Pond -> Maturation Pond
+2,UASB-based STP,discharge,pretreatment -> UASB Reactor -> Maturation Pond
+3,DEWATS modular train,discharge/reuse,primary -> Anaerobic Baffled Reactor (ABR) -> Anaerobic Filter -> Horizontal Subsurface Flow Wetland (HSSF)
+4,Septic + HSSF + polishing,discharge/irrigation,primary -> Horizontal Subsurface Flow Wetland (HSSF) -> Maturation Pond
+5,VF nitrifying hybrid,reuse (low N),primary -> Vertical Flow Wetland (VF) -> Horizontal Subsurface Flow Wetland (HSSF)
+6,French VF (no primary),discharge,pretreatment -> French Vertical Flow Wetland
+7,On-site disposal,on-site (household),primary -> Soak Pit / Soakaway
+8,Pond + sewage-fed aquaculture,reuse (resource recovery),Facultative Pond -> Sewage-fed Aquaculture (East Kolkata model)

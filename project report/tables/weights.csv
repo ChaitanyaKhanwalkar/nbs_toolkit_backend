@@ -1,0 +1,8 @@
+criterion,weight,direction
+C1_treatment_fit,0.258313,benefit
+C2_standard_fit,0.258313,benefit
+C3_site_fit,0.099705,benefit
+C4_source_fit,0.113906,benefit
+C6_hydro_fit,0.056103,benefit
+C7_footprint,0.099755,cost
+C8_om,0.113906,cost

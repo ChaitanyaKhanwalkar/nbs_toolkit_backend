@@ -1,0 +1,9 @@
+rank,train,Ci,use_case_verdict
+1,DEWATS modular train,0.8581026227074282,marginal
+2,VF nitrifying hybrid,0.8143914210863589,marginal
+3,Septic + HSSF + polishing,0.7295783555742734,fail
+4,French VF (no primary),0.6598962171725046,marginal
+5,UASB-based STP,0.6498433421053049,fail
+6,Pond + sewage-fed aquaculture,0.5707777237900532,unknown
+7,WSP Train (pond series),0.527597894287171,fail
+8,On-site disposal,0.6645956100744572,unknown

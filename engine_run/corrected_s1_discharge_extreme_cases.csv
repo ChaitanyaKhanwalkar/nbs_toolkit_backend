@@ -1,0 +1,9 @@
+case,new_top1,top3,spearman_vs_base
+equal_weights,DEWATS modular train,DEWATS modular train|Septic + HSSF + polishing|UASB-based STP,0.5952380952380952
+drop_C1,DEWATS modular train,DEWATS modular train|VF nitrifying hybrid|Septic + HSSF + polishing,0.9761904761904762
+drop_C2,UASB-based STP,UASB-based STP|DEWATS modular train|Septic + HSSF + polishing,0.4285714285714286
+drop_C3,DEWATS modular train,DEWATS modular train|VF nitrifying hybrid|On-site disposal,0.9761904761904762
+drop_C4,DEWATS modular train,DEWATS modular train|VF nitrifying hybrid|Septic + HSSF + polishing,1.0
+drop_C6,DEWATS modular train,DEWATS modular train|VF nitrifying hybrid|Septic + HSSF + polishing,1.0
+drop_C7,Pond + sewage-fed aquaculture,Pond + sewage-fed aquaculture|DEWATS modular train|VF nitrifying hybrid,0.5
+drop_C8,DEWATS modular train,DEWATS modular train|VF nitrifying hybrid|French VF (no primary),0.9285714285714286

@@ -1,0 +1,49 @@
+rank,train_id,train_name,criterion_code,criterion_name,raw_value,normalized_value,weight_applied,weighted_value,data_status
+1,5,VF nitrifying hybrid,C1,treatment_fit,0.9,0.36551,0.291518,0.106553,known
+1,5,VF nitrifying hybrid,C2,standard_fit,0.9,0.528777,0.291518,0.154148,known
+1,5,VF nitrifying hybrid,C3,site_fit,1.0,0.353553,0.112522,0.039782,known
+1,5,VF nitrifying hybrid,C6,hydrologic_fit,1.0,0.353553,0.063315,0.022385,known
+1,5,VF nitrifying hybrid,C7,footprint,14.0,0.765901,0.112578,0.086224,known
+1,5,VF nitrifying hybrid,C8,om,0.3333333333333333,0.623144,0.128548,0.080104,known
+2,3,DEWATS modular train,C1,treatment_fit,0.9341333333333333,0.379372,0.291518,0.110594,known
+2,3,DEWATS modular train,C2,standard_fit,0.6,0.352518,0.291518,0.102765,known
+2,3,DEWATS modular train,C3,site_fit,1.0,0.353553,0.112522,0.039782,known
+2,3,DEWATS modular train,C6,hydrologic_fit,1.0,0.353553,0.063315,0.022385,known
+2,3,DEWATS modular train,C7,footprint,10.3,0.82777,0.112578,0.093189,known
+2,3,DEWATS modular train,C8,om,0.19999999999999998,0.773887,0.128548,0.099482,known
+3,1,WSP Train (pond series),C1,treatment_fit,0.71,0.288347,0.291518,0.084058,known
+3,1,WSP Train (pond series),C2,standard_fit,0.5,0.293765,0.291518,0.085638,known
+3,1,WSP Train (pond series),C3,site_fit,1.0,0.353553,0.112522,0.039782,known
+3,1,WSP Train (pond series),C6,hydrologic_fit,1.0,0.353553,0.063315,0.022385,known
+3,1,WSP Train (pond series),C7,footprint,7.0,0.88295,0.112578,0.099401,known
+3,1,WSP Train (pond series),C8,om,0.19999999999999998,0.773887,0.128548,0.099482,known
+4,4,Septic + HSSF + polishing,C1,treatment_fit,0.923678787878788,0.375126,0.291518,0.109356,known
+4,4,Septic + HSSF + polishing,C2,standard_fit,0.5,0.293765,0.291518,0.085638,known
+4,4,Septic + HSSF + polishing,C3,site_fit,1.0,0.353553,0.112522,0.039782,known
+4,4,Septic + HSSF + polishing,C6,hydrologic_fit,1.0,0.353553,0.063315,0.022385,known
+4,4,Septic + HSSF + polishing,C7,footprint,13.0,0.782622,0.112578,0.088106,known
+4,4,Septic + HSSF + polishing,C8,om,0.2,0.773887,0.128548,0.099482,known
+5,6,French VF (no primary),C1,treatment_fit,0.8051428571428572,0.326986,0.291518,0.095323,known
+5,6,French VF (no primary),C2,standard_fit,0.6,0.352518,0.291518,0.102765,known
+5,6,French VF (no primary),C3,site_fit,1.0,0.353553,0.112522,0.039782,known
+5,6,French VF (no primary),C6,hydrologic_fit,1.0,0.353553,0.063315,0.022385,known
+5,6,French VF (no primary),C7,footprint,5.0,0.916393,0.112578,0.103166,known
+5,6,French VF (no primary),C8,om,0.6,0.32166,0.128548,0.041349,known
+6,2,UASB-based STP,C1,treatment_fit,0.9329545454545455,0.378893,0.291518,0.110454,known
+6,2,UASB-based STP,C2,standard_fit,0.25,0.146882,0.291518,0.042819,known
+6,2,UASB-based STP,C3,site_fit,1.0,0.353553,0.112522,0.039782,known
+6,2,UASB-based STP,C6,hydrologic_fit,1.0,0.353553,0.063315,0.022385,known
+6,2,UASB-based STP,C7,footprint,3.05,0.949,0.112578,0.106837,known
+6,2,UASB-based STP,C8,om,0.275,0.689094,0.128548,0.088582,known
+7,8,Pond + sewage-fed aquaculture,C1,treatment_fit,0.8333333333333334,0.338435,0.291518,0.09866,known
+7,8,Pond + sewage-fed aquaculture,C2,standard_fit,0.6666666666666666,0.391687,0.291518,0.114184,known
+7,8,Pond + sewage-fed aquaculture,C3,site_fit,1.0,0.353553,0.112522,0.039782,known
+7,8,Pond + sewage-fed aquaculture,C6,hydrologic_fit,1.0,0.353553,0.063315,0.022385,known
+7,8,Pond + sewage-fed aquaculture,C7,footprint,54.0,0.097046,0.112578,0.010925,known
+7,8,Pond + sewage-fed aquaculture,C8,om,0.275,0.689094,0.128548,0.088582,known
+8,7,On-site disposal,C1,treatment_fit,,0.36551,0.291518,0.106553,unknown_median_imputed
+8,7,On-site disposal,C2,standard_fit,,0.352518,0.291518,0.102765,unknown_median_imputed
+8,7,On-site disposal,C3,site_fit,1.0,0.353553,0.112522,0.039782,known
+8,7,On-site disposal,C6,hydrologic_fit,1.0,0.353553,0.063315,0.022385,known
+8,7,On-site disposal,C7,footprint,,0.82777,0.112578,0.093189,unknown_median_imputed
+8,7,On-site disposal,C8,om,0.2,0.773887,0.128548,0.099482,known

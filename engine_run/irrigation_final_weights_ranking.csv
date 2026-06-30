@@ -1,0 +1,9 @@
+rank,train,Ci,use_case_verdict,screening_cbr,cbr_label
+1,WSP Train (pond series),0.9416461085541156,unknown,1.32,Favourable
+2,UASB-based STP,0.9045817823311623,unknown,1.14,Balanced / site-dependent
+3,DEWATS modular train,0.8943112262589903,pass,1.41,Favourable
+4,Septic + HSSF + polishing,0.8566376219417056,pass,1.39,Favourable
+5,VF nitrifying hybrid,0.7643348836992809,pass,1.01,Balanced / site-dependent
+6,French VF (no primary),0.6046559699242168,pass,0.90,Balanced / site-dependent
+7,Pond + sewage-fed aquaculture,0.4232191400714118,pass,0.64,Cost-heavy / needs review
+8,On-site disposal,0.6912166696379368,unknown,0.67,Cost-heavy / needs review

@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 430" font-family="Georgia, 'Times New Roman', serif">
+  <defs>
+    <style>
+      .t{font-size:12.5px;fill:#1b2733}
+      .w{font-size:11px;fill:#2a9d8f;font-weight:bold}
+      .c{font-size:10.5px;fill:#7a5a12;font-weight:bold}
+      .sm{font-size:10px;fill:#4a5a6a}
+      .h{font-size:14px;font-weight:bold;fill:#13202e}
+      .ln{stroke:#9bb0c4;stroke-width:1.4;fill:none}
+      .gw{font-size:13px;font-weight:bold;fill:#ffffff}
+      .gs{font-size:10px;fill:#cfe0f0}
+    </style>
+  </defs>
+  <text x="20" y="28" class="h">Figure 4.  Criteria hierarchy for AHP–TOPSIS train selection (weights shown for the discharge-to-river use case)</text>
+
+  <!-- goal -->
+  <rect x="370" y="56" width="260" height="54" rx="8" fill="#1f3a5f"/>
+  <text x="500" y="80" text-anchor="middle" class="gw">Goal</text>
+  <text x="500" y="98" text-anchor="middle" class="gs">Select the best treatment train</text>
+
+  <!-- criteria boxes -->
+  <!-- positions -->
+  <!-- C1 -->
+  <g>
+    <rect x="20" y="190" width="128" height="92" rx="8" fill="#e7f4f1" stroke="#2a9d8f"/>
+    <text x="84" y="214" text-anchor="middle" class="t" font-weight="bold">C1</text>
+    <text x="84" y="232" text-anchor="middle" class="sm">Treatment fit</text>
+    <text x="84" y="247" text-anchor="middle" class="sm">(gap closure)</text>
+    <text x="84" y="267" text-anchor="middle" class="w">0.258 · benefit</text>
+  </g>
+  <!-- C2 -->
+  <g>
+    <rect x="160" y="190" width="128" height="92" rx="8" fill="#e7f4f1" stroke="#2a9d8f"/>
+    <text x="224" y="214" text-anchor="middle" class="t" font-weight="bold">C2</text>
+    <text x="224" y="232" text-anchor="middle" class="sm">Standard fit</text>
+    <text x="224" y="247" text-anchor="middle" class="sm">(use-case limit)</text>
+    <text x="224" y="267" text-anchor="middle" class="w">0.258 · benefit</text>
+  </g>
+  <!-- C3 -->
+  <g>
+    <rect x="300" y="190" width="120" height="92" rx="8" fill="#eef3f8" stroke="#1f3a5f"/>
+    <text x="360" y="214" text-anchor="middle" class="t" font-weight="bold">C3</text>
+    <text x="360" y="232" text-anchor="middle" class="sm">Site fit</text>
+    <text x="360" y="247" text-anchor="middle" class="sm">(slope/soil/land)</text>
+    <text x="360" y="267" text-anchor="middle" class="w">0.100 · benefit</text>
+  </g>
+  <!-- C4 -->
+  <g>
+    <rect x="432" y="190" width="120" height="92" rx="8" fill="#eef3f8" stroke="#1f3a5f"/>
+    <text x="492" y="214" text-anchor="middle" class="t" font-weight="bold">C4</text>
+    <text x="492" y="232" text-anchor="middle" class="sm">Source fit</text>
+    <text x="492" y="247" text-anchor="middle" class="sm">(pollution type)</text>
+    <text x="492" y="267" text-anchor="middle" class="w">0.114 · benefit</text>
+  </g>
+  <!-- C5 reserved -->
+  <g opacity="0.55">
+    <rect x="564" y="190" width="120" height="92" rx="8" fill="#f0f0f0" stroke="#9aa3ab" stroke-dasharray="4 3"/>
+    <text x="624" y="214" text-anchor="middle" class="t" font-weight="bold">C5</text>
+    <text x="624" y="232" text-anchor="middle" class="sm">Health risk</text>
+    <text x="624" y="255" text-anchor="middle" class="sm" font-style="italic">reserved —</text>
+    <text x="624" y="270" text-anchor="middle" class="sm" font-style="italic">no dataset</text>
+  </g>
+  <!-- C6 -->
+  <g>
+    <rect x="696" y="190" width="120" height="92" rx="8" fill="#eef3f8" stroke="#1f3a5f"/>
+    <text x="756" y="214" text-anchor="middle" class="t" font-weight="bold">C6</text>
+    <text x="756" y="232" text-anchor="middle" class="sm">Hydrologic fit</text>
+    <text x="756" y="247" text-anchor="middle" class="sm">(stream order)</text>
+    <text x="756" y="267" text-anchor="middle" class="w">0.056 · benefit</text>
+  </g>
+  <!-- C7 -->
+  <g>
+    <rect x="828" y="190" width="70" height="92" rx="8" fill="#fbf3e2" stroke="#d9a441"/>
+    <text x="863" y="214" text-anchor="middle" class="t" font-weight="bold">C7</text>
+    <text x="863" y="232" text-anchor="middle" class="sm">Footprint</text>
+    <text x="863" y="256" text-anchor="middle" class="c">0.100</text>
+    <text x="863" y="270" text-anchor="middle" class="c">cost</text>
+  </g>
+  <!-- C8 -->
+  <g>
+    <rect x="908" y="190" width="72" height="92" rx="8" fill="#fbf3e2" stroke="#d9a441"/>
+    <text x="944" y="214" text-anchor="middle" class="t" font-weight="bold">C8</text>
+    <text x="944" y="232" text-anchor="middle" class="sm">O&amp;M</text>
+    <text x="944" y="256" text-anchor="middle" class="c">0.114</text>
+    <text x="944" y="270" text-anchor="middle" class="c">cost</text>
+  </g>
+
+  <!-- connectors -->
+  <path class="ln" d="M500,110 L84,188"/>
+  <path class="ln" d="M500,110 L224,188"/>
+  <path class="ln" d="M500,110 L360,188"/>
+  <path class="ln" d="M500,110 L492,188"/>
+  <path class="ln" d="M500,110 L624,188" stroke-dasharray="4 3"/>
+  <path class="ln" d="M500,110 L756,188"/>
+  <path class="ln" d="M500,110 L863,188"/>
+  <path class="ln" d="M500,110 L944,188"/>
+
+  <!-- alternatives note -->
+  <rect x="20" y="330" width="960" height="40" rx="8" fill="#f4f6f8" stroke="#33485f"/>
+  <text x="500" y="355" text-anchor="middle" class="sm">Alternatives ranked against the criteria: the 8 candidate treatment trains.  Weights are author-derived (AHP), use-case-specific, consistency-checked.  Benefit = higher is better; cost = lower is better.</text>
+</svg>

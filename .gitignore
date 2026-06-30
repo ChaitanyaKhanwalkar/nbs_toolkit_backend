@@ -21,3 +21,4 @@ __pycache__/
 # Local canonical data assets
 canonical db/
 app/data/narmada_nbs_v2_csvs/
+_deployment_safety_checkpoint/

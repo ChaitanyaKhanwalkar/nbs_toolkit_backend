@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 460" font-family="Georgia, 'Times New Roman', serif">
+  <defs>
+    <marker id="arr" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L7,3 L0,6 z" fill="#33485f"/>
+    </marker>
+    <style>
+      .box{rx:8;ry:8;stroke-width:1.5}
+      .t{font-size:13px;fill:#1b2733}
+      .lbl{font-size:11px;fill:#33485f}
+      .h{font-size:14px;font-weight:bold;fill:#13202e}
+      .sm{font-size:10.5px;fill:#4a5a6a}
+      .ln{stroke:#33485f;stroke-width:1.6;fill:none}
+      .gw{font-size:13px;font-weight:bold;fill:#ffffff}
+      .gs{font-size:10.5px;fill:#cfe0f0}
+    </style>
+  </defs>
+
+  <text x="20" y="28" class="h">Figure 3.  Provenance model and data lineage — every value is traceable, by construction</text>
+
+  <!-- Sources -->
+  <rect x="20" y="70" width="170" height="86" class="box" fill="#eef3f8" stroke="#1f3a5f"/>
+  <text x="105" y="100" text-anchor="middle" class="t" font-weight="bold">Source catalogue</text>
+  <text x="105" y="122" text-anchor="middle" class="lbl">104 cited references</text>
+  <text x="105" y="140" text-anchor="middle" class="sm">journals · books · govt manuals</text>
+
+  <!-- column_provenance -->
+  <rect x="240" y="60" width="200" height="106" class="box" fill="#e7f4f1" stroke="#2a9d8f"/>
+  <text x="340" y="88" text-anchor="middle" class="t" font-weight="bold">Field-level tagging</text>
+  <text x="340" y="108" text-anchor="middle" class="lbl">column_provenance</text>
+  <text x="340" y="124" text-anchor="middle" class="sm">324 records · per value:</text>
+  <text x="340" y="140" text-anchor="middle" class="sm">source id · status · derived? · URL</text>
+
+  <!-- three states -->
+  <rect x="500" y="36" width="210" height="48" class="box" fill="#dff0ea" stroke="#2a9d8f"/>
+  <text x="605" y="56" text-anchor="middle" class="t" font-weight="bold">Cited / Corroborated</text>
+  <text x="605" y="73" text-anchor="middle" class="sm">98 of 167 removal values corroborated</text>
+
+  <rect x="500" y="96" width="210" height="48" class="box" fill="#fbf3e2" stroke="#d9a441"/>
+  <text x="605" y="116" text-anchor="middle" class="t" font-weight="bold">Derived (unconfirmed)</text>
+  <text x="605" y="133" text-anchor="middle" class="sm">from sources, transformed; flagged</text>
+
+  <rect x="500" y="156" width="210" height="48" class="box" fill="#f6e7e5" stroke="#c0392b"/>
+  <text x="605" y="176" text-anchor="middle" class="t" font-weight="bold">Disclosed gap</text>
+  <text x="605" y="193" text-anchor="middle" class="sm">no data — stated, never invented</text>
+
+  <!-- gate -->
+  <rect x="760" y="96" width="200" height="48" class="box" fill="#1f3a5f" stroke="#1f3a5f"/>
+  <text x="860" y="116" text-anchor="middle" class="gw">Recommendation engine</text>
+  <text x="860" y="133" text-anchor="middle" class="gs">no unsourced value enters</text>
+
+  <!-- user layer -->
+  <rect x="240" y="300" width="720" height="92" class="box" fill="#f4f6f8" stroke="#33485f"/>
+  <text x="600" y="328" text-anchor="middle" class="t" font-weight="bold">Application — provenance is surfaced to the user, in place</text>
+  <text x="600" y="352" text-anchor="middle" class="lbl">sources shown inline on every recommendation · confidence labels (share resting on corroborated sources)</text>
+  <text x="600" y="372" text-anchor="middle" class="lbl">author-derived inputs (e.g. criteria weights) flagged as own contribution</text>
+
+  <!-- arrows -->
+  <path class="ln" d="M190,113 L236,113" marker-end="url(#arr)"/>
+  <path class="ln" d="M440,90 L496,60" marker-end="url(#arr)"/>
+  <path class="ln" d="M440,113 L496,120" marker-end="url(#arr)"/>
+  <path class="ln" d="M440,138 L496,180" marker-end="url(#arr)"/>
+  <path class="ln" d="M710,60 L840,60 L840,92" marker-end="url(#arr)"/>
+  <path class="ln" d="M710,120 L756,120" marker-end="url(#arr)"/>
+  <path class="ln" d="M710,180 L840,180 L840,148" marker-end="url(#arr)"/>
+  <path class="ln" d="M860,144 L860,260 L600,260 L600,296" marker-end="url(#arr)"/>
+
+  <text x="20" y="430" class="sm">Provenance status vocabulary: dim_provenance_status. Corroboration = agreement of ≥2 independent sources. Derivation performed with computational/AI assistance on sourced evidence (disclosed in Methods).</text>
+</svg>

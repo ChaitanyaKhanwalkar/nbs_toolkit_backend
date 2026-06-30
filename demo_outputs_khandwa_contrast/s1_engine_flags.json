@@ -1,0 +1,230 @@
+{
+  "contaminant_gaps": [
+    {
+      "comparison_type": "max_limit",
+      "direction": "reduce",
+      "gap_ratio": 7.333333333333333,
+      "gap_value": 220.0,
+      "limit_high": 30.0,
+      "limit_low": null,
+      "notes": [
+        "Observed value is above the maximum standard limit."
+      ],
+      "observed_unit": "mg_l",
+      "observed_value": 250.0,
+      "parameter": "bod",
+      "required_removal_fraction": 0.88,
+      "required_removal_percent": 88.0,
+      "source_id": null,
+      "source_ids": [],
+      "source_type": "user_measured",
+      "standard_unit": "mg_l",
+      "status": "exceeds_standard",
+      "warnings": []
+    },
+    {
+      "comparison_type": "max_limit",
+      "direction": "reduce",
+      "gap_ratio": 1.0,
+      "gap_value": 250.0,
+      "limit_high": 250.0,
+      "limit_low": null,
+      "notes": [
+        "Observed value is above the maximum standard limit."
+      ],
+      "observed_unit": "mg_l",
+      "observed_value": 500.0,
+      "parameter": "cod",
+      "required_removal_fraction": 0.5,
+      "required_removal_percent": 50.0,
+      "source_id": null,
+      "source_ids": [],
+      "source_type": "user_measured",
+      "standard_unit": "mg_l",
+      "status": "exceeds_standard",
+      "warnings": []
+    },
+    {
+      "comparison_type": "max_limit",
+      "direction": "reduce",
+      "gap_ratio": 1.75,
+      "gap_value": 175.0,
+      "limit_high": 100.0,
+      "limit_low": null,
+      "notes": [
+        "Observed value is above the maximum standard limit."
+      ],
+      "observed_unit": "mg_l",
+      "observed_value": 275.0,
+      "parameter": "tss",
+      "required_removal_fraction": 0.6363636363636364,
+      "required_removal_percent": 63.63636363636363,
+      "source_id": null,
+      "source_ids": [],
+      "source_type": "user_measured",
+      "standard_unit": "mg_l",
+      "status": "exceeds_standard",
+      "warnings": []
+    },
+    {
+      "comparison_type": "max_limit",
+      "direction": "reduce",
+      "gap_ratio": 3.0,
+      "gap_value": 150.0,
+      "limit_high": 50.0,
+      "limit_low": null,
+      "notes": [
+        "Observed value is above the maximum standard limit."
+      ],
+      "observed_unit": "mg_l",
+      "observed_value": 200.0,
+      "parameter": "ammonia_n",
+      "required_removal_fraction": 0.75,
+      "required_removal_percent": 75.0,
+      "source_id": null,
+      "source_ids": [],
+      "source_type": "user_measured",
+      "standard_unit": "mg_l",
+      "status": "exceeds_standard",
+      "warnings": []
+    },
+    {
+      "comparison_type": "max_limit",
+      "direction": "reduce",
+      "gap_ratio": 7.0,
+      "gap_value": 35.0,
+      "limit_high": 5.0,
+      "limit_low": null,
+      "notes": [
+        "Observed value is above the maximum standard limit."
+      ],
+      "observed_unit": "mg_l",
+      "observed_value": 40.0,
+      "parameter": "total_phosphorus",
+      "required_removal_fraction": 0.875,
+      "required_removal_percent": 87.5,
+      "source_id": null,
+      "source_ids": [],
+      "source_type": "user_measured",
+      "standard_unit": "mg_l",
+      "status": "exceeds_standard",
+      "warnings": []
+    },
+    {
+      "comparison_type": "range_limit",
+      "direction": "none",
+      "gap_ratio": 0.0,
+      "gap_value": 0.0,
+      "limit_high": 9.0,
+      "limit_low": 5.5,
+      "notes": [
+        "Observed value is within the selected standard."
+      ],
+      "observed_unit": "ph_units",
+      "observed_value": 7.4,
+      "parameter": "ph",
+      "required_removal_fraction": null,
+      "required_removal_percent": null,
+      "source_id": null,
+      "source_ids": [],
+      "source_type": "user_measured",
+      "standard_unit": "ph_units",
+      "status": "within_standard",
+      "warnings": []
+    }
+  ],
+  "errors": [],
+  "expert_validated": false,
+  "location_context": {
+    "basin": "Narmada",
+    "context_flags": {
+      "agricultural_source_control_first": false,
+      "industrial_pretreatment_required": false,
+      "mainstem_or_high_order": true,
+      "off_channel_required": true,
+      "site_context_incomplete": true
+    },
+    "context_notes": [
+      "Off-channel treatment only. Do not build treatment cells inside the river channel.",
+      "Where site data is missing, the result remains planning-level."
+    ],
+    "coordinates_available": true,
+    "district": "Khandwa",
+    "drainage_area_km2": 61642.0,
+    "infiltration_class": "low",
+    "intervention_position": null,
+    "latitude": 22.2822,
+    "longitude": 76.4706,
+    "missing_site_information": [
+      "Intervention position"
+    ],
+    "pollution_source_record_count": null,
+    "pollution_source_type": "domestic_sewage",
+    "region_id": 27,
+    "river": "Narmada",
+    "river_discharge_cms": 1253.051,
+    "slope_mean": 5.488030015,
+    "soil_type": "Clay",
+    "station": "Indirasagar Dam",
+    "stream_context": "Mainstem or high-order river",
+    "stream_order": 7,
+    "sub_basin": null
+  },
+  "missing_data_messages": [],
+  "on_site_disposal": {
+    "messages": [
+      "Soak/leach/infiltration systems are not suitable in low-infiltration or rocky/shallow-soil conditions."
+    ],
+    "rank": 8,
+    "rule_ids": [
+      "APP_RULE_023"
+    ],
+    "status": "conditional"
+  },
+  "step_completed": "L",
+  "title": "Scenario 1: Khandwa discharge to river",
+  "top_train": {
+    "applicability_status": "allowed",
+    "closeness_coefficient_Ci": 0.841506,
+    "confidence_label": "high",
+    "confidence_score": 0.8528,
+    "data_gaps": "",
+    "implementation_role": "Primary-to-polishing treatment train",
+    "pretreatment_requirements": "Effective primary treatment REQUIRED (Imhoff/septic tank/settler) to remove TSS and prevent media clogging. | Effective primary treatment REQUIRED to remove particulate matter (prevent surface clogging).",
+    "rank": 1,
+    "selected_use_case": "discharge_inland",
+    "train_id": 5,
+    "train_name": "VF nitrifying hybrid",
+    "use_case_assessment_status": "partially_or_fully_assessed",
+    "use_case_verdict": "marginal",
+    "why_recommended": "Standard Fit was a leading evidence-backed factor in the TOPSIS position. | Treatment Fit was a leading evidence-backed factor in the TOPSIS position. | Canonical performance records indicate a marginal result for discharge inland use. | Intended role: Primary-to-polishing treatment train."
+  },
+  "use_case": "discharge_inland",
+  "warnings": [
+    "Criterion 'evidence_strength' has no variation and was not normalized.",
+    "Criterion 'removal_evidence_coverage' has no variation and was not normalized.",
+    "Loaded final v1 AHP-Fuzzy AHP ensemble criteria_weights for TOPSIS.",
+    "Loaded INTERIM/PROVISIONAL final v1 AHP-Fuzzy AHP ensemble weights for TOPSIS (temporary_not_expert_validated, not yet expert/field validated). C5 health-risk integration remains reserved for future expert data.",
+    "Some normalized MCDA criteria do not have supplied weights: removal_evidence, footprint, climate_site_suitability, maintenance_indicator, implementation_complexity, catalogue_criteria, site_suitability_breakdown, hydrological_suitability_breakdown, pollution_source_fit_breakdown, footprint_requirement_breakdown, om_simplicity_breakdown, evidence_strength, evidence_strength_breakdown.",
+    "Supplied weights are marked temporary_not_expert_validated. Do not treat them as final AHP/expert weights.",
+    "TOPSIS ranking uses temporary_not_expert_validated weights and must be treated as provisional.",
+    "Confidence scoring detected temporary_not_expert_validated weights; the TOPSIS ranking remains provisional.",
+    "No explicit plant mappings were found for nbs_id 24.",
+    "No explicit plant mappings were found for nbs_id 18.",
+    "No explicit plant mappings were found for nbs_id 14.",
+    "No explicit plant mappings were found for nbs_id 26.",
+    "No explicit plant mappings were found for nbs_id 19.",
+    "No explicit plant mappings were found for nbs_id 13.",
+    "No explicit plant mappings were found for nbs_id 28.",
+    "No explicit plant mappings were found for nbs_id 25.",
+    "No explicit plant mappings were found for nbs_id 27.",
+    "No explicit plant mappings were found for nbs_id 10.",
+    "Assembled recommendations use temporary_not_expert_validated weights and remain provisional.",
+    "Warning: TOPSIS ranking is provisional because weights are temporary and not expert validated.",
+    "Warning: 1 caution flag(s) reduce confidence but do not remove the candidate.",
+    "Treatment-train ranking uses final v1 AHP-Fuzzy AHP ensemble weights with TOPSIS; C5 health-risk remains reserved for future integration.",
+    "Method: A0 safety/applicability screening -> final v1 AHP-Fuzzy AHP ensemble weighting -> TOPSIS treatment-train ranking -> confidence and design-readiness checks."
+  ],
+  "weights_status": "temporary_not_expert_validated",
+  "workflow_status": "completed"
+}

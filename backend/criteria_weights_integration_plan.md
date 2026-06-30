@@ -37,13 +37,17 @@ C5 is intentionally absent/inactive. Active criteria are C1, C2, C3, C4, C6, C7,
 ### irrigation
 | Code | Criterion | Type | Stored weight | Report display |
 |---|---|---|---:|---:|
-| C1 | treatment_fit | benefit | 0.240262 | 0.240 |
-| C2 | standard_fit | benefit | 0.240262 | 0.240 |
-| C3 | site_fit | benefit | 0.094255 | 0.094 |
-| C4 | source_fit | benefit | 0.115706 | 0.116 |
-| C6 | hydrologic_fit | benefit | 0.057253 | 0.057 |
-| C7 | footprint | cost | 0.115706 | 0.116 |
-| C8 | om | cost | 0.136557 | 0.137 |
+| C1 | treatment_fit | benefit | 0.228136 | 0.228 |
+| C2 | standard_fit | benefit | 0.228136 | 0.228 |
+| C3 | site_fit | benefit | 0.095330 | 0.095 |
+| C4 | source_fit | benefit | 0.117709 | 0.118 |
+| C6 | hydrologic_fit | benefit | 0.057781 | 0.058 |
+| C7 | footprint_land | cost | 0.117709 | 0.118 |
+| C8 | om_energy_difficulty | cost | 0.155200 | 0.155 |
+
+These irrigation values are the final working weights used in this report after
+the 2026-06-30 crisp + fuzzy AHP O&M re-blend. They are not labelled
+expert-validated unless explicit approval documentation is added to the repo.
 
 
 ## Backend integration

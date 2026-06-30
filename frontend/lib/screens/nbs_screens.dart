@@ -4704,6 +4704,13 @@ class TrainRecommendationCard extends StatelessWidget {
                     value: _trainConfidenceDisplay(train),
                     color: NbsColors.wetlandGreen,
                   ),
+                  if (train.costBenefit != null)
+                    _MetricChip(
+                      label: 'Cost-Benefit',
+                      value:
+                          '${train.costBenefit!.displayCbr} - ${train.costBenefit!.label}',
+                      color: NbsColors.riverTeal,
+                    ),
                   if (train.allUseCasesUnknown)
                     const _MetricChip(
                       label: 'Data gap',
@@ -4760,6 +4767,10 @@ class TrainRecommendationCard extends StatelessWidget {
             ]),
             emptyText: 'No additional train-specific condition is recorded.',
           ),
+          if (train.costBenefit != null) ...[
+            const SizedBox(height: 12),
+            _CostBenefitPanel(costBenefit: train.costBenefit!),
+          ],
           const SizedBox(height: 12),
           _TreatmentTrainPathwayCard(
             train: train,
@@ -4787,6 +4798,81 @@ class TrainRecommendationCard extends StatelessWidget {
           _EvidenceDisclosure(
             sourceIds: train.sourceIds,
             citationsById: citationsById,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CostBenefitPanel extends StatelessWidget {
+  const _CostBenefitPanel({required this.costBenefit});
+
+  final CostBenefitAnalysis costBenefit;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: NbsColors.riverTeal.withValues(alpha: 0.055),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: NbsColors.riverTeal.withValues(alpha: 0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Cost-Benefit Ratio Analysis - Screening Level',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w900,
+                ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _MetricChip(
+                label: 'Cost-Benefit',
+                value: '${costBenefit.displayCbr} - ${costBenefit.label}',
+                color: NbsColors.riverTeal,
+              ),
+              _MetricChip(
+                label: 'Benefit score',
+                value: costBenefit.benefitScoreLabel,
+                color: NbsColors.wetlandGreen,
+              ),
+              _MetricChip(
+                label: 'Cost-burden score',
+                value: costBenefit.costBurdenScoreLabel,
+                color: NbsColors.warningAmber,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Screening-level, non-monetary. Not a rupee CAPEX/OPEX estimate. Compare within the same scenario/use-case only.',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 10),
+          _TextBlockList(
+            title: 'Top benefit drivers',
+            values: costBenefit.benefitDrivers,
+            emptyText: 'No benefit drivers are available.',
+          ),
+          const SizedBox(height: 10),
+          _TextBlockList(
+            title: 'Top cost-burden drivers',
+            values: costBenefit.costDrivers,
+            emptyText: 'No cost-burden drivers are available.',
+          ),
+          const SizedBox(height: 10),
+          _TextBlockList(
+            title: 'CBR caveats',
+            values: costBenefit.caveats,
+            emptyText: costBenefit.methodDisclaimer,
           ),
         ],
       ),

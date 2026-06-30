@@ -172,6 +172,64 @@ class EngineDataRepository(BaseRepository):
         )
         return _final_rows_or_fallback(rows, use_case)
 
+    def get_cost_benefit_method(
+        self,
+        method_key: str = "screening_non_monetary_v1",
+    ) -> dict[str, Any] | None:
+        """Return non-monetary CBR method metadata, when the DB has it."""
+
+        if not self.relation_exists("cost_benefit_method"):
+            return None
+        rows = self.fetch_mappings(
+            """
+            SELECT
+                id,
+                method_key,
+                method_name,
+                version,
+                is_monetary,
+                formula_text,
+                denominator_floor,
+                display_cap,
+                caveat_text,
+                created_at
+            FROM cost_benefit_method
+            WHERE method_key = :method_key
+            LIMIT 1
+            """,
+            {"method_key": method_key},
+        )
+        return rows[0] if rows else None
+
+    def list_cost_benefit_component_weights(
+        self,
+        method_key: str = "screening_non_monetary_v1",
+    ) -> list[dict[str, Any]]:
+        """Return transparent display weights for screening CBR v1."""
+
+        if not self.relation_exists("cost_benefit_component_weights"):
+            return []
+        return self.fetch_mappings(
+            """
+            SELECT
+                id,
+                method_key,
+                component_key,
+                component_label,
+                side,
+                weight,
+                direction,
+                source_field,
+                notes
+            FROM cost_benefit_component_weights
+            WHERE method_key = :method_key
+            ORDER BY
+                CASE side WHEN 'benefit' THEN 1 ELSE 2 END,
+                id
+            """,
+            {"method_key": method_key},
+        )
+
     def list_engine_usecase_matrix(
         self,
         train_id: int | None = None,

@@ -1,0 +1,9 @@
+case,new_top1,top3,spearman_vs_base
+equal_weights,DEWATS modular train,DEWATS modular train|WSP Train (pond series)|French VF (no primary),0.5714
+drop_C1_treatment_fit,VF nitrifying hybrid,VF nitrifying hybrid|DEWATS modular train|French VF (no primary),0.9643
+drop_C2_standard_fit,DEWATS modular train,DEWATS modular train|French VF (no primary)|UASB-based STP,0.2143
+drop_C3_site_fit,VF nitrifying hybrid,VF nitrifying hybrid|DEWATS modular train|French VF (no primary),1.0
+drop_C4_source_fit,VF nitrifying hybrid,VF nitrifying hybrid|DEWATS modular train|French VF (no primary),1.0
+drop_C6_hydro_fit,VF nitrifying hybrid,VF nitrifying hybrid|DEWATS modular train|French VF (no primary),1.0
+drop_C7_footprint,VF nitrifying hybrid,VF nitrifying hybrid|Pond + sewage-fed aquaculture|DEWATS modular train,0.6071
+drop_C8_om,VF nitrifying hybrid,VF nitrifying hybrid|French VF (no primary)|DEWATS modular train,0.9643

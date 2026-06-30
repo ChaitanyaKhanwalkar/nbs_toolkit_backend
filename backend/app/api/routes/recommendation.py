@@ -15,6 +15,11 @@ from app.db.session import get_db
 from app.engines.applicability_filter import ApplicabilityFilterEngine
 from app.engines.candidate_filtering import CandidateFilteringEngine
 from app.engines.component_recommendation import IndividualNbsRecommendationEngine
+from app.engines.cost_benefit_analysis import (
+    METHOD_DISCLAIMER as CBR_METHOD_DISCLAIMER,
+    CostBenefitAnalysisEngine,
+    CostBenefitInput,
+)
 from app.engines.design_readiness import DesignReadinessEngine
 from app.engines.scenario_comparison import ScenarioComparisonEngine
 from app.engines.sizing_estimator import SizingEstimator
@@ -262,6 +267,13 @@ def run_local_recommendation_workflow(
     }
     for train in train_result["ranked_trains"]:
         train["sizing_estimate"] = sizing_by_train.get(int(train["train_id"]), {})
+    cbr_warnings = _attach_cost_benefit(
+        ranked_trains=train_result["ranked_trains"],
+        engine_data=engine_data,
+        design_readiness=design_readiness,
+        context={**request.context, "use_case": selected_use_case},
+        location_context=location_context,
+    )
     scenario_comparison = ScenarioComparisonEngine().compare(
         ranked_trains=train_result["ranked_trains"],
         component_recommendations=component_result["recommendations"],
@@ -308,6 +320,7 @@ def run_local_recommendation_workflow(
                 *train_result["warnings"],
                 *_context_guidance_warnings(payload, request.context),
                 *validation_notes.get("warnings", []),
+                *cbr_warnings,
             ]
         ),
         "errors": list(payload.get("errors") or []),
@@ -336,6 +349,49 @@ MATCH_SUITABILITY_EXPLANATION = (
     "Screening match ranks the train by scored criteria; suitability indicates "
     "whether stored evidence confirms the selected use case."
 )
+
+
+def _attach_cost_benefit(
+    *,
+    ranked_trains: list[dict[str, Any]],
+    engine_data: EngineDataRepository,
+    design_readiness: dict[str, Any],
+    context: dict[str, Any],
+    location_context: dict[str, Any],
+) -> list[str]:
+    """Attach screening-only non-monetary CBR panels to ranked trains."""
+
+    try:
+        method = engine_data.get_cost_benefit_method()
+        weights = engine_data.list_cost_benefit_component_weights()
+        engine = CostBenefitAnalysisEngine(
+            method=method,
+            component_weights=weights or None,
+        )
+        for train in ranked_trains:
+            train["cost_benefit"] = engine.analyze(
+                CostBenefitInput(
+                    train=train,
+                    design_readiness=design_readiness,
+                    context=context,
+                    location_context=location_context,
+                    method=method,
+                    component_weights=weights,
+                )
+            ).to_dict()
+    except Exception as exc:  # pragma: no cover - defensive API boundary
+        for train in ranked_trains:
+            train["cost_benefit"] = {
+                "method": "screening_non_monetary_v1",
+                "is_monetary": False,
+                "official_ranking_unchanged": True,
+                "method_disclaimer": CBR_METHOD_DISCLAIMER,
+                "caveats": [
+                    "Cost-Benefit Ratio Analysis could not be computed for this run."
+                ],
+            }
+        return [f"Cost-Benefit Ratio Analysis was skipped safely: {exc}"]
+    return []
 
 
 def _validation_notes(

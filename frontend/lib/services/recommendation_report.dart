@@ -95,6 +95,9 @@ class RecommendationReport {
             'data_gaps': train.dataGaps,
             'implementation_guidance': train.implementationGuidance,
             'evidence_record_ids': train.sourceIds,
+            if (train.costBenefit != null)
+              'cost_benefit_ratio_analysis':
+                  _costBenefitPayload(train.costBenefit!),
           };
     final payload = <String, dynamic>{
       'report_type': 'Narmada NbS planning-level recommendation',
@@ -225,18 +228,15 @@ class RecommendationReport {
         'limitations': response.scenarioComparison.limitations,
       },
       'cost_benefit_and_practicality': [
-        for (final option in response.scenarioComparison.options.take(3))
+        for (final option in response.rankedTrains.take(3))
           {
-            'train_name':
-                _expandedTrainName(option.name, context: sourceContext),
-            'practical_cost_burden': _practicalCostBurden(option),
-            'main_cost_drivers': _practicalCostDrivers(option),
-            'main_benefits': _practicalBenefits(option),
-            'key_tradeoff': _practicalTradeoff(option),
+            'train_name': _expandedTrainName(option.name, context: sourceContext),
+            if (option.costBenefit != null)
+              ..._costBenefitPayload(option.costBenefit!),
             if (_isIndustrialContext(sourceContext))
               'industrial_condition': _industrialPolishingNote,
             'monetary_cost_status':
-                'Not estimated; no rupee CAPEX/OPEX values are invented.',
+                'Screening-level, non-monetary. Not a rupee CAPEX/OPEX estimate.',
           },
       ],
       'individual_nbs_components': [
@@ -304,6 +304,10 @@ String _buildSummary(
       if (train.whyRecommended.isNotEmpty) 'Why: ${train.whyRecommended.first}',
       if (rankingDrivers.isNotEmpty)
         'Ranking drivers: ${rankingDrivers.join('; ')}',
+      if (train.costBenefit != null)
+        'Cost-Benefit Ratio Analysis - Screening Level: ${train.costBenefit!.displayCbr} - ${train.costBenefit!.label} '
+            '(benefit ${train.costBenefit!.benefitScoreLabel}; cost-burden ${train.costBenefit!.costBurdenScoreLabel}). '
+            'Screening-level, non-monetary; not a rupee CAPEX/OPEX estimate.',
       if (train.trainPathway.isNotEmpty)
         'Treatment train pathway: ${_pathwaySummary(train, context: sourceContext)}',
       if (train.pretreatmentRequirements.isNotEmpty)
@@ -647,66 +651,6 @@ List<String> _rankingDrivers(TrainRecommendation? train) {
   ];
 }
 
-String _practicalCostBurden(ComparisonOption option) {
-  final land = option.landFit.toLowerCase();
-  final om = option.omIntensity.toLowerCase();
-  if (land.contains('insufficient') || land.contains('unknown')) {
-    return 'Data-limited';
-  }
-  if (land.contains('poor') ||
-      land.contains('not') ||
-      om.contains('high') ||
-      om.contains('power')) {
-    return 'High';
-  }
-  if (land.contains('borderline') ||
-      land.contains('moderate') ||
-      om.contains('moderate')) {
-    return 'Moderate';
-  }
-  return 'Low';
-}
-
-List<String> _practicalCostDrivers(ComparisonOption option) {
-  final values = <String>[];
-  final land = option.landFit.toLowerCase();
-  final om = option.omIntensity.toLowerCase();
-  if (land.contains('insufficient') || land.contains('unknown')) {
-    values.add('missing sizing data');
-  } else if (!land.contains('good')) {
-    values.add('land');
-  }
-  if (om.contains('high') || om.contains('moderate')) values.add('O&M');
-  if (om.contains('power') || om.contains('energy')) values.add('energy');
-  if (option.warnings.isNotEmpty) values.add('monitoring');
-  return _uniqueStrings(values.isEmpty ? ['site verification'] : values);
-}
-
-List<String> _practicalBenefits(ComparisonOption option) {
-  final values = <String>[];
-  if ((option.technicalMatch ?? 0) >= 0.7) values.add('treatment coverage');
-  if ((option.resultConfidence ?? 0) >= 0.5) values.add('confidence');
-  if (option.omIntensity.toLowerCase().contains('low') ||
-      option.omIntensity.toLowerCase().contains('gravity')) {
-    values.add('low O&M');
-  }
-  if (option.applicabilityStatus != 'rejected') {
-    values.add('off-channel suitability where site checks pass');
-  }
-  if (option.keyStrength != null) values.add('train completeness');
-  return _uniqueStrings(values.isEmpty ? ['transparent screening'] : values);
-}
-
-String _practicalTradeoff(ComparisonOption option) {
-  if (option.keyLimitation != null && option.keyLimitation!.isNotEmpty) {
-    return _expandAbbreviations(option.keyLimitation!);
-  }
-  if (option.warnings.isNotEmpty) {
-    return _expandAbbreviations(option.warnings.first);
-  }
-  return 'Still needs design-flow, land, and site verification before engineering design.';
-}
-
 String _pathwaySummary(
   TrainRecommendation train, {
   Map<String, dynamic>? context,
@@ -756,19 +700,30 @@ Map<String, dynamic> _validationMap(Object? value) {
   return value is Map<String, dynamic> ? value : <String, dynamic>{};
 }
 
+Map<String, dynamic> _costBenefitPayload(CostBenefitAnalysis item) {
+  return {
+    'section_title': 'Cost-Benefit Ratio Analysis - Screening Level',
+    'method': item.method,
+    'method_name': item.methodName,
+    'screening_cbr': item.screeningCbr,
+    'display_cbr': item.displayCbr,
+    'label': item.label,
+    'benefit_score': item.benefitScore,
+    'cost_burden_score': item.costBurdenScore,
+    'benefit_drivers': item.benefitDrivers,
+    'cost_drivers': item.costDrivers,
+    'caveats': item.caveats,
+    'is_monetary': item.isMonetary,
+    'official_ranking_unchanged': item.officialRankingUnchanged,
+    'method_disclaimer': item.methodDisclaimer,
+    'display_note':
+        'Screening-level, non-monetary. Not a rupee CAPEX/OPEX estimate. Compare within the same scenario/use-case only.',
+  };
+}
+
 List<String> _stringListFromDynamic(Object? value) {
   if (value is! List) return const [];
   return value.map((item) => item.toString()).toList();
-}
-
-List<String> _uniqueStrings(List<String> values) {
-  final result = <String>[];
-  for (final value in values) {
-    if (value.trim().isNotEmpty && !result.contains(value)) {
-      result.add(value);
-    }
-  }
-  return result;
 }
 
 String _mapStatus(LocationContext location) {

@@ -288,6 +288,24 @@ void main() {
           'treatment_sequence': [
             {'step_order': 1, 'step_label': 'ABR', 'role': 'primary'},
           ],
+          'cost_benefit': {
+            'screening_cbr': 1.733,
+            'display_cbr': '1.73',
+            'label': 'Favourable',
+            'benefit_score': 0.78,
+            'cost_burden_score': 0.45,
+            'benefit_drivers': ['C1 treatment fit: 0.82'],
+            'cost_drivers': ['C7 footprint burden: 0.30'],
+            'caveats': [
+              'Screening-level non-monetary ratio. Does not estimate rupee CAPEX/OPEX.',
+            ],
+            'is_monetary': false,
+            'method': 'screening_non_monetary_v1',
+            'method_name': 'Cost-Benefit Ratio Analysis - Screening Level',
+            'method_disclaimer':
+                'Screening-level non-monetary ratio. Does not estimate rupee CAPEX/OPEX.',
+            'official_ranking_unchanged': true,
+          },
         },
       ],
       'sizing_estimates': [
@@ -523,5 +541,75 @@ void main() {
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('train card shows screening non-monetary cost-benefit panel', (
+    tester,
+  ) async {
+    final response = RecommendationResponse.fromJson({
+      'workflow_status': 'completed',
+      'use_case': 'discharge_inland',
+      'ranked_trains': [
+        {
+          'train_id': 3,
+          'name': 'DEWATS modular train',
+          'rank': 1,
+          'match_score': 0.78,
+          'confidence_score': 0.52,
+          'confidence_label': 'medium',
+          'applicability_result': {'status': 'allowed'},
+          'all_use_case_verdicts': {
+            'discharge_inland': {'verdict': 'pass'},
+          },
+          'cost_benefit': {
+            'screening_cbr': 1.733,
+            'display_cbr': '1.73',
+            'label': 'Favourable',
+            'benefit_score': 0.78,
+            'cost_burden_score': 0.45,
+            'benefit_drivers': ['C1 treatment fit: 0.82'],
+            'cost_drivers': ['C7 footprint burden: 0.30'],
+            'caveats': [
+              'Screening-level non-monetary ratio. Does not estimate rupee CAPEX/OPEX.',
+            ],
+            'is_monetary': false,
+            'method': 'screening_non_monetary_v1',
+            'method_name': 'Cost-Benefit Ratio Analysis - Screening Level',
+            'method_disclaimer':
+                'Screening-level non-monetary ratio. Does not estimate rupee CAPEX/OPEX.',
+            'official_ranking_unchanged': true,
+          },
+        },
+      ],
+    });
+    final train = response.rankedTrains.single;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: NbsTheme.light(),
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TrainRecommendationCard(
+              train: train,
+              response: response,
+              contextOnly: false,
+              hasMeasuredData: true,
+              citationsById: const {},
+              selectedUseCase: 'discharge_inland',
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Cost-Benefit: 1.73 - Favourable'), findsOneWidget);
+    await tester.tap(find.textContaining('DEWATS modular train'));
+    await tester.pumpAndSettle();
+    expect(find.text('Cost-Benefit Ratio Analysis - Screening Level'),
+        findsOneWidget);
+    expect(find.textContaining('Screening-level, non-monetary'), findsOneWidget);
+    expect(find.textContaining('Not a rupee CAPEX/OPEX estimate'), findsOneWidget);
+    expect(find.textContaining('ROI'), findsNothing);
   });
 }

@@ -1,0 +1,8 @@
+option,C1_treatment_fit,C2_standard_fit,C3_site_fit,C4_source_fit,C6_hydro_fit,C7_footprint,C8_om
+WSP Train (pond series),0.6142,0.5,1.0,1.0,1.0,5.0,2
+UASB-based STP,0.6717,0.25,1.0,1.0,1.05,2.04,3
+DEWATS modular train,0.7578,0.6,1.0,1.0,1.1,6.7,2
+Septic + HSSF + polishing,0.6761,0.5,1.0,1.0,0.95,8.5,2
+VF nitrifying hybrid,0.9204,0.9,1.0,1.0,0.95,10.5,4
+French VF (no primary),0.7715,0.6,1.0,1.0,0.95,2.25,4
+Pond + sewage-fed aquaculture,0.8988,0.6667,1.0,1.0,1.0,33.0,3

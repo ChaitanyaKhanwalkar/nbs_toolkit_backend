@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 470" font-family="Georgia,'Times New Roman',serif">
+  <defs>
+    <marker id="aR" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L7,3 L0,6 z" fill="#1f6f8b"/>
+    </marker>
+    <style>
+      .h{font-size:14px;font-weight:bold;fill:#13202e}
+      .seg{font-size:13px;font-weight:bold;fill:#13202e}
+      .s{font-size:10px;fill:#4a5a6a}
+      .node{font-size:10.5px;font-weight:bold;fill:#13202e}
+      .km{font-size:9.5px;fill:#1f6f8b;font-style:italic}
+      .cap{font-size:10px;fill:#4a5a6a}
+    </style>
+  </defs>
+  <text x="20" y="28" class="h">Figure 1.  The Narmada — longitudinal profile and the three sub-basin segments</text>
+  <text x="20" y="48" class="cap">Source: cNarmada &amp; cGanga (2024). Rises at Amarkantak (MP), flows ~1,312 km westward to the Arabian Sea via the Gulf of Khambhat.</text>
+
+  <!-- river line -->
+  <line x1="70" y1="120" x2="830" y2="120" stroke="#1f6f8b" stroke-width="4" marker-end="url(#aR)"/>
+
+  <!-- nodes -->
+  <g>
+    <circle cx="70" cy="120" r="6" fill="#1f6f8b"/>
+    <text x="70" y="104" text-anchor="middle" class="node">Amarkantak</text>
+    <text x="70" y="92" text-anchor="middle" class="s">source · ~1048 m</text>
+
+    <circle cx="360" cy="120" r="5" fill="#1f6f8b"/>
+    <text x="360" y="104" text-anchor="middle" class="node">Hoshangabad</text>
+
+    <circle cx="640" cy="120" r="5" fill="#1f6f8b"/>
+    <text x="640" y="104" text-anchor="middle" class="node">Navagam</text>
+
+    <circle cx="830" cy="120" r="6" fill="#1f6f8b"/>
+    <text x="830" y="104" text-anchor="middle" class="node">Gulf of Khambhat</text>
+    <text x="830" y="92" text-anchor="middle" class="s">Arabian Sea</text>
+  </g>
+
+  <!-- segment brackets -->
+  <g stroke="#9aa3ab" stroke-width="1">
+    <line x1="70" y1="134" x2="70" y2="150"/><line x1="360" y1="134" x2="360" y2="150"/>
+    <line x1="640" y1="134" x2="640" y2="150"/><line x1="830" y1="134" x2="830" y2="150"/>
+    <line x1="70" y1="150" x2="360" y2="150"/><line x1="360" y1="150" x2="640" y2="150"/><line x1="640" y1="150" x2="830" y2="150"/>
+  </g>
+  <text x="215" y="166" text-anchor="middle" class="km">Upper · ≈720 km</text>
+  <text x="500" y="166" text-anchor="middle" class="km">Middle · ≈485 km</text>
+  <text x="735" y="166" text-anchor="middle" class="km">Lower · ≈145 km</text>
+
+  <!-- segment cards -->
+  <!-- upper -->
+  <rect x="40" y="186" width="250" height="150" rx="9" fill="#eef3f8" stroke="#1f3a5f"/>
+  <text x="165" y="208" text-anchor="middle" class="seg">Upper Narmada</text>
+  <text x="56" y="230" class="s">Hilly Vindhya–Satpura terrain; bedrock,</text>
+  <text x="56" y="245" class="s">narrow winding channel; rapids &amp; falls.</text>
+  <text x="56" y="266" class="s">Pollution: untreated town sewage;</text>
+  <text x="56" y="281" class="s">industrial corridors (Jabalpur).</text>
+  <text x="56" y="305" class="s" fill="#13202e">Water quality acceptable upstream,</text>
+  <text x="56" y="320" class="s" fill="#13202e">declining downstream.</text>
+
+  <!-- middle -->
+  <rect x="320" y="186" width="250" height="150" rx="9" fill="#e7f4f1" stroke="#2a9d8f"/>
+  <text x="445" y="208" text-anchor="middle" class="seg">Middle Narmada</text>
+  <text x="336" y="230" class="s">Broader, fertile valley; more stable flow.</text>
+  <text x="336" y="251" class="s">Pollution: untreated sewage</text>
+  <text x="336" y="266" class="s">(e.g. Narmadapuram ~1.3 MLD);</text>
+  <text x="336" y="281" class="s">industry (paper/chemical/textile);</text>
+  <text x="336" y="296" class="s">agricultural runoff.</text>
+  <text x="336" y="320" class="s" fill="#13202e">Major dams: Indira Sagar, Omkareshwar.</text>
+
+  <!-- lower -->
+  <rect x="600" y="186" width="260" height="150" rx="9" fill="#fbf3e2" stroke="#d9a441"/>
+  <text x="730" y="208" text-anchor="middle" class="seg">Lower Narmada</text>
+  <text x="616" y="230" class="s">Plains &amp; delta; tidal near estuary;</text>
+  <text x="616" y="245" class="s">Sardar Sarovar regulates flow.</text>
+  <text x="616" y="266" class="s">Pollution: industrial (Bharuch,</text>
+  <text x="616" y="281" class="s">Ankleshwar); sewage; salinity</text>
+  <text x="616" y="296" class="s">intrusion from reduced flow.</text>
+  <text x="616" y="320" class="s" fill="#13202e">Smaller storage; sand-mining pressure.</text>
+
+  <!-- basin-wide banner -->
+  <rect x="40" y="356" width="820" height="56" rx="9" fill="#f4f6f8" stroke="#33485f"/>
+  <text x="450" y="378" text-anchor="middle" class="seg">Basin-wide signature: distributed untreated domestic sewage</text>
+  <text x="450" y="398" text-anchor="middle" class="s">Madhya Pradesh alone discharges ~51 MLD of untreated sewage to the river · ~89% of the basin lies in MP · basin area ≈ 95,960 km² · ≈ 61 M people (2011)</text>
+
+  <text x="20" y="440" class="cap">The dominant, basin-wide pressure is domestic sewage from many small/medium towns (not concentrated heavy industry) — the distributed problem</text>
+  <text x="20" y="455" class="cap">that motivates distributed, source-screened, location-specific NbS recommendation (Section 3.1).</text>
+</svg>

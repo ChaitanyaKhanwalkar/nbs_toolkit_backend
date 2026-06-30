@@ -49,11 +49,71 @@ The plant layer supports the treatment system; it does not drive the treatment-s
 8. **Every recommendation must explain itself.**  
    Output must include rank, score, confidence, reasons, cautions, data gaps, and source IDs/citations.
 
-9. **AHP weights are expert inputs.**  
-   Do not finalize scientific rankings using fake AHP weights. Use transparent temporary/default weights only for development, clearly flagged as non-final.
+9. **AHP weights must be provenance-labelled.**
+   Do not invent criteria weights. Use the live `criteria_weights` table where
+   available; if explicit expert approval is not documented, label weights as
+   final working/report weights or temporary development weights, not
+   expert-validated.
 
 10. **Keep gaps visible.**  
     Missing health risk, stream order, point sources, cost, or footprint data should be returned as limitations, not silently ignored.
+
+11. **Cost-benefit screening is non-monetary unless sourced costs exist.**
+    `screening_non_monetary_v1` is an interpretation panel only. It must not be
+    described as ROI, financial feasibility, economic return, or true monetary
+    cost-benefit analysis. It does not estimate rupee CAPEX/OPEX and must not
+    change TOPSIS rank or AHP weights.
+
+---
+
+## 2A. Cost-Benefit Ratio Analysis - Screening Level
+
+The v1 CBR panel is added after treatment-train TOPSIS ranking, confidence,
+design-readiness, and sizing context are available. It is not part of the
+official ranking. It compares within the same scenario/use case only.
+
+Formula:
+
+```text
+benefit_score =
+weighted_average(C1 treatment fit, C2 standard fit, C3 site fit,
+C4 source fit, C6 hydrologic fit, confidence score, readiness score,
+safety suitability score)
+
+cost_burden_score =
+weighted_average(C7 footprint burden, C8 O&M burden, energy burden,
+land constraint burden, design complexity burden, missing data burden)
+
+screening_cbr = benefit_score / max(cost_burden_score, 0.20)
+```
+
+Benefit display weights are C1 0.25, C2 0.25, C3 0.10, C4 0.10, C6 0.05,
+confidence 0.10, readiness 0.10, and safety suitability 0.05. Cost-burden
+display weights are C7 0.30, C8 0.30, energy 0.15, land constraint 0.10,
+design complexity 0.10, and missing data 0.05. These are transparent v1
+display weights, not expert-ratified AHP weights.
+
+Labels:
+
+| Ratio | Label |
+|---|---|
+| `>= 2.0` | Very favourable |
+| `>= 1.2` and `< 2.0` | Favourable |
+| `>= 0.8` and `< 1.2` | Balanced / site-dependent |
+| `< 0.8` | Cost-heavy / needs review |
+
+Safety handling:
+
+- Industrial or mixed-industrial source: caveat `Pretreatment required; NbS
+  polishing only.`
+- Drinking / strict-use: caveat `Expert-review only; not standalone potable
+  treatment.`
+- Mainstem/high-order context: caveat `Off-channel/interception treatment
+  required; no in-channel cells.`
+- Missing cost-burden evidence: caveat and no `Very favourable` label.
+
+Future true monetary CBR requires source-backed CAPEX/OPEX and O&M datasets,
+plus expert/economic review. Do not invent those values.
 
 ---
 
@@ -464,7 +524,24 @@ Suggested scoring:
 
 AHP weights should be stored in `criteria_weights`.
 
-The supervisor should provide pairwise comparisons for each use case.
+The live engine reads use-case-specific weights from the canonical
+`criteria_weights` table. Fallback code in `backend/app/core` exists for tests
+or rebuild safety and must mirror the DB values.
+
+The final working irrigation vector used in this report is:
+
+| Code | Criterion | Direction | Weight |
+|---|---|---|---:|
+| C1 | treatment_fit | benefit | 0.228136 |
+| C2 | standard_fit | benefit | 0.228136 |
+| C3 | site_fit | benefit | 0.095330 |
+| C4 | source_fit | benefit | 0.117709 |
+| C6 | hydrologic_fit | benefit | 0.057781 |
+| C7 | footprint_land | cost | 0.117709 |
+| C8 | om_energy_difficulty | cost | 0.155200 |
+
+These are labelled as final working weights used in this report unless explicit
+expert/supervisor approval documentation is recorded.
 
 Example use-case differences:
 
@@ -477,11 +554,11 @@ Example use-case differences:
 | O&M simplicity | Medium | High | High |
 | Co-benefits | Low/medium | Medium | Medium |
 
-Until AHP is completed:
+When no valid use-case-specific weights are available:
 
 - use transparent temporary weights only in development mode
 - label outputs as `weights_status = "temporary_not_expert_validated"`
-- do not claim final scientific ranking
+- do not claim expert-validated scientific ranking
 
 ---
 

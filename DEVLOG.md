@@ -4,6 +4,49 @@ Append a dated entry at the end of every work session. This is not busywork: it 
 Methods / reproducibility trail for the internship report and the paper. Capture the *why*,
 not just the *what*. Newest entries at the top.
 
+## 2026-06-30 - Sync final working irrigation AHP-Fuzzy AHP weights
+
+**Done:** Updated the live canonical `criteria_weights` irrigation vector, the
+fallback Final v1 weight source, seed/mirror files, and report tables to the
+final working crisp + fuzzy AHP ensemble after the O&M re-blend: C1 0.228136,
+C2 0.228136, C3 0.095330, C4 0.117709, C6 0.057781, C7 0.117709, C8 0.155200.
+Added `canonical db/update_irrigation_weights_final_v1.sql` as the additive
+reproducibility script and exported the refreshed Khandwa irrigation scenario.
+**Why:** The report and live engine needed one synchronized irrigation weight
+source after the final O&M re-blend, without changing TOPSIS, CBR, discharge
+weights, or drinking weights.
+**Sources added:** none. This sync applies the already supplied final working
+weights used in this report; no new scientific values were invented.
+**Gaps / NULLs logged:** No explicit Prof. Goyal/supervisor approval document
+was found in the repo, so the weights are not labelled expert-validated. The
+DB count audit is 59 tables and 18 views.
+**Blockers / next:** If approval is documented later, update the status label
+only; do not retune the vector without a new elicitation record.
+
+---
+
+## 2026-06-30 - Add screening-level non-monetary CBR v1
+
+**Done:** Added Cost-Benefit Ratio Analysis - Screening Level as a secondary
+per-train interpretation panel. Backend now computes `cost_benefit` after
+TOPSIS ranking, design readiness, and sizing are available; Flutter parses and
+shows the panel; report export includes CBR scores, drivers, caveats, and
+disclaimer. Added additive SQLite metadata tables
+`cost_benefit_method` and `cost_benefit_component_weights` plus view
+`v_app_cost_benefit_method`.
+**Why:** The project needed a transparent way to discuss benefit versus
+implementation burden without inventing rupee CAPEX/OPEX or changing official
+MCDA/TOPSIS rank.
+**Sources added:** none. The new DB rows store method metadata and transparent
+v1 display weights only, not new scientific evidence or monetary costs.
+**Gaps / NULLs logged:** No monetary costs, ROI, economic return, AHP weights,
+or health-risk scores were invented. Missing footprint/O&M/energy/land evidence
+adds caveats and missing-data burden rather than fake low cost.
+**Blockers / next:** True monetary CBR requires source-backed CAPEX/OPEX and
+O&M datasets plus expert/economic review before it can be added.
+
+---
+
 ## 2026-06-19 - Canonical train recommendation flow
 
 - Added DB-driven A0 applicability filtering before TOPSIS, including high-order
