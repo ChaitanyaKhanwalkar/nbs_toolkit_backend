@@ -69,9 +69,19 @@ jobs:
             -x "tests/*"
           cd ..
 
-      # 6) Print zip contents so app/main.py and requirements.txt are visible.
+      # 6) Print zip contents so app/main.py and requirements.txt are visible
+      #    at the zip root. This proves the deployed package is the backend app
+      #    (app.main:app == backend/app/main.py), not any other app object.
       - name: Verify deployment package
-        run: unzip -l app.zip | head -120
+        run: |
+          echo "----- full listing (head) -----"
+          unzip -l app.zip | head -100
+          echo "----- app/main.py present? -----"
+          unzip -l app.zip | grep "app/main.py"
+          echo "----- app/api present? -----"
+          unzip -l app.zip | grep "app/api"
+          echo "----- requirements.txt at root? -----"
+          unzip -l app.zip | grep -E " requirements.txt$"
 
       # 7) Deploy using the existing publish profile.
       - name: Deploy to Azure Web App

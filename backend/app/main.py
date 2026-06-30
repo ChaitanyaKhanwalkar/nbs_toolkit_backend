@@ -52,3 +52,23 @@ def database_health(response: Response) -> dict[str, str]:
     if result["status"] != "ok":
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
     return result
+
+
+@app.get("/__version")
+def deployment_version() -> dict[str, object]:
+    """Diagnostic: prove which backend build/app Azure is actually serving.
+
+    Exposes no secrets: DATABASE_URL is reported only as a boolean. Useful to
+    distinguish this app (``Narmada NbS Backend`` v0.1.0, versioned ``/api/v1``
+    routes) from any other app object a host might be serving by mistake.
+    """
+
+    paths = sorted(app.openapi()["paths"].keys())
+    return {
+        "app_name": settings.app_name,
+        "app_version": app.version,
+        "app_env": settings.app_env,
+        "database_url_set": bool(settings.database_url),
+        "route_count": len(paths),
+        "first_20_routes": paths[:20],
+    }
