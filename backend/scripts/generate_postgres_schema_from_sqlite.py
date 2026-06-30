@@ -34,6 +34,13 @@ EXPECTED_COUNTS = {
     "pollution_sources": 155,
 }
 
+# App-model compatibility overrides for SQLite columns whose declared affinity
+# is too loose to reproduce safely in PostgreSQL. These preserve row values and
+# only affect PostgreSQL DDL typing for dry-run/deployment readiness.
+POSTGRES_TYPE_OVERRIDES = {
+    ("site_attributes", "stream_order"): "DOUBLE PRECISION",
+}
+
 SQLITE_ONLY_VIEW_PATTERNS = (
     "strftime(",
     "julianday(",
@@ -48,6 +55,7 @@ VIEW_DEPENDENCY_RE = re.compile(
     flags=re.IGNORECASE,
 )
 GROUP_CONCAT_RE = re.compile(r"GROUP_CONCAT\s*\(", flags=re.IGNORECASE)
+ROUND_RE = re.compile(r"\bROUND\s*\(", flags=re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -85,6 +93,44 @@ def map_sqlite_type(sqlite_type: str) -> str:
     if any(token in raw for token in ("NUM", "DEC", "BOOL", "DATE", "TIME")):
         return "NUMERIC" if "NUM" in raw or "DEC" in raw else "TEXT"
     return "TEXT"
+
+
+def inferred_postgres_type(con: sqlite3.Connection, table: str, column: ColumnInfo) -> str:
+    """Return a PostgreSQL type, with data-backed ID refinement.
+
+    Some canonical SQLite columns are declared as TEXT even though they are ID
+    fields used in joins. PostgreSQL is stricter than SQLite, so ID-like TEXT
+    columns are mapped to BIGINT only when all existing non-null values are
+    integer-like, or when the column currently has no non-null values.
+    """
+
+    if (table, column.name) in POSTGRES_TYPE_OVERRIDES:
+        return POSTGRES_TYPE_OVERRIDES[(table, column.name)]
+
+    mapped = map_sqlite_type(column.sqlite_type)
+    if mapped != "TEXT":
+        return mapped
+    if not column.name.endswith("_id"):
+        return mapped
+    if not (column.sqlite_type or "").strip().upper().startswith("TEXT"):
+        return mapped
+    total = int(
+        con.execute(
+            f"SELECT COUNT(*) FROM {quote_ident(table)} "
+            f"WHERE {quote_ident(column.name)} IS NOT NULL"
+        ).fetchone()[0]
+    )
+    if total == 0:
+        return "BIGINT"
+    non_integer = int(
+        con.execute(
+            f"SELECT COUNT(*) FROM {quote_ident(table)} "
+            f"WHERE {quote_ident(column.name)} IS NOT NULL "
+            f"AND CAST(CAST({quote_ident(column.name)} AS INTEGER) AS TEXT) "
+            f"!= CAST({quote_ident(column.name)} AS TEXT)"
+        ).fetchone()[0]
+    )
+    return "BIGINT" if non_integer == 0 else mapped
 
 
 def safe_default(default: Any) -> str | None:
@@ -181,11 +227,30 @@ def table_row_count(con: sqlite3.Connection, table: str) -> int:
     return int(con.execute(f"SELECT COUNT(*) FROM {quote_ident(table)}").fetchone()[0])
 
 
-def column_definition(column: ColumnInfo, single_column_pk: bool) -> str:
+def column_has_nulls(con: sqlite3.Connection, table: str, column: ColumnInfo) -> bool:
+    """Return whether a SQLite column contains NULL despite declared metadata."""
+
+    count = int(
+        con.execute(
+            f"SELECT COUNT(*) FROM {quote_ident(table)} "
+            f"WHERE {quote_ident(column.name)} IS NULL"
+        ).fetchone()[0]
+    )
+    return count > 0
+
+
+def column_definition(
+    con: sqlite3.Connection,
+    table: str,
+    column: ColumnInfo,
+    single_column_pk: bool,
+) -> str:
     """Build a PostgreSQL column definition from SQLite metadata."""
 
-    parts = [quote_ident(column.name), map_sqlite_type(column.sqlite_type)]
-    if column.notnull or single_column_pk:
+    parts = [quote_ident(column.name), inferred_postgres_type(con, table, column)]
+    if (single_column_pk and column.pk_position) or (
+        column.notnull and not column_has_nulls(con, table, column)
+    ):
         parts.append("NOT NULL")
     default = safe_default(column.default)
     if default is not None and not single_column_pk:
@@ -200,7 +265,7 @@ def create_table_sql(con: sqlite3.Connection, table: str) -> str:
     pk_columns = [c for c in sorted(columns, key=lambda c: c.pk_position) if c.pk_position]
     single_column_pk = len(pk_columns) == 1
     definitions = [
-        "    " + column_definition(column, single_column_pk)
+        "    " + column_definition(con, table, column, single_column_pk)
         for column in columns
     ]
     if pk_columns:
@@ -354,12 +419,64 @@ def convert_ifnull(sql: str) -> str:
     return re.sub(r"\bIFNULL\s*\(", "COALESCE(", sql, flags=re.IGNORECASE)
 
 
+def convert_round_precision(sql: str) -> str:
+    """Cast SQLite ROUND(value, digits) expressions for PostgreSQL.
+
+    PostgreSQL's two-argument ROUND accepts NUMERIC, not DOUBLE PRECISION. This
+    is a syntax/type conversion only; it preserves the same expression and
+    precision requested by the SQLite view.
+    """
+
+    result: list[str] = []
+    position = 0
+    while True:
+        match = ROUND_RE.search(sql, position)
+        if not match:
+            result.append(sql[position:])
+            break
+        open_paren = match.end() - 1
+        close_paren = matching_paren(sql, open_paren)
+        if close_paren is None:
+            result.append(sql[position:])
+            break
+        inner = sql[open_paren + 1 : close_paren]
+        expression, precision = split_top_level_comma(inner)
+        result.append(sql[position:match.start()])
+        if precision is None:
+            result.append(f"ROUND({expression})")
+        else:
+            result.append(f"ROUND(({expression})::numeric, {precision})")
+        position = close_paren + 1
+    return "".join(result)
+
+
 def convert_sqlite_view_sql(sql: str) -> str:
     """Apply conservative SQLite-to-PostgreSQL view syntax conversions."""
 
     converted = convert_group_concat(sql)
     converted = convert_ifnull(converted)
+    converted = convert_round_precision(converted)
     return converted
+
+
+def apply_view_specific_postgres_fixes(name: str, select_sql: str) -> str:
+    """Apply narrow PostgreSQL syntax fixes for known SQLite-view leniencies."""
+
+    if name == "v_app_plant_catalog_cards":
+        expanded_group_by = (
+            "GROUP BY p.id, p.plant_species, p.native_status, p.invasive, "
+            "p.plant_type, p.locational_availability, p.climate_preference, "
+            "p.soil_type, p.water_needs, p.ecological_role, "
+            "p.pollution_tolerance, p.metals_pollutants, p.optimal_water_type, "
+            "p.evidence_note"
+        )
+        return re.sub(
+            r"GROUP\s+BY\s+p\.id\b",
+            expanded_group_by,
+            select_sql,
+            flags=re.IGNORECASE,
+        )
+    return select_sql
 
 
 def view_dependencies(sql: str) -> list[str]:
@@ -404,6 +521,7 @@ def view_conversion(name: str, sql: str) -> tuple[str | None, str | None]:
     if not match:
         return None, "could not locate AS clause"
     select_sql = converted_sql[match.end() :].strip().rstrip(";")
+    select_sql = apply_view_specific_postgres_fixes(name, select_sql)
     return f"CREATE OR REPLACE VIEW {quote_ident(name)} AS\n{select_sql};", None
 
 

@@ -492,7 +492,7 @@ class EngineDataRepository(BaseRepository):
                     soil_avail_water_mm_m,
                     infiltration_class,
                     rainfall_mm_yr,
-                    aridity_P_PET,
+                    "aridity_P_PET",
                     district,
                     river,
                     lat,

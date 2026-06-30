@@ -22,3 +22,8 @@ __pycache__/
 canonical db/
 app/data/narmada_nbs_v2_csvs/
 _deployment_safety_checkpoint/
+
+# Local-only secrets for deployment dry-runs
+local_secrets.ps1
+*.local.ps1
+local_secrets.env
