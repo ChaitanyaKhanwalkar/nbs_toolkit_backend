@@ -1,19 +1,29 @@
 """Database engine and session helpers.
 
-Beginners: change the database by setting `DATABASE_URL` in `backend/.env`.
-The example file uses local SQLite. PostgreSQL is also supported through
-SQLAlchemy URLs such as `postgresql+psycopg://user:password@host:5432/dbname`.
-Do not hard-code Azure production credentials here.
+Beginners: set `DATABASE_URL` in `backend/.env` when you want to override the
+default bundled SQLite database. PostgreSQL is also supported through SQLAlchemy
+URLs such as `postgresql+psycopg://user:password@host:5432/dbname`. Do not
+hard-code production credentials here.
 """
 
 from collections.abc import Generator
 from functools import lru_cache
+from pathlib import Path
 
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import get_settings
+
+
+BUNDLED_SQLITE_PATH = Path(__file__).resolve().parents[2] / "data" / "narmada_nbs_canonical.db"
+
+
+def _bundled_sqlite_url() -> str:
+    """Return a Linux/Windows-safe SQLAlchemy URL for the bundled SQLite DB."""
+
+    return f"sqlite:///{BUNDLED_SQLITE_PATH.as_posix()}"
 
 
 def _normalize_database_url(database_url: str) -> str:
@@ -36,16 +46,10 @@ def _connect_args(database_url: str) -> dict[str, bool]:
 
 @lru_cache
 def get_engine() -> Engine:
-    """Create and cache the SQLAlchemy engine from `DATABASE_URL`."""
+    """Create and cache the SQLAlchemy engine from env or bundled SQLite."""
 
     settings = get_settings()
-    if not settings.database_url:
-        raise RuntimeError(
-            "DATABASE_URL is not set. Copy backend/.env.example to backend/.env "
-            "and set DATABASE_URL for local development."
-        )
-
-    database_url = _normalize_database_url(settings.database_url)
+    database_url = _normalize_database_url(settings.database_url or _bundled_sqlite_url())
     return create_engine(
         database_url,
         connect_args=_connect_args(database_url),
